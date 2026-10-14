@@ -112,5 +112,16 @@ do {
 } catch let error as CuboPhaseError {
     check("CuboPhaseError.zeroField", error == .zeroField && error.errorDescription?.contains("mac4DSTEM") == false)
 }
+// Slice 3: origins, fits, centred and shifted imaging, shifted patterns.
+let (origins, originRadius) = try await OriginMeasurement.measure(of: eager, radius: 2.5, radiusScale: 1.2)
+check("OriginMeasurement.measure", originRadius == 2.5 && origins.row.values.count == 12 && origins.meanRow.isFinite)
+let fittedPlane = try OriginFit.fit(origins.row.values, rows: 3, columns: 4, model: .plane, robust: true)
+check("OriginFit.fit", fittedPlane.count == 12 && OriginFitModel.allCases.count == 4)
+let centredImage = try await VirtualImaging.image(of: lazy, geometry: .circle(centerRow: 0, centerColumn: 0, radius: 2),
+                                                  centeredOn: (row: origins.meanRow, column: origins.meanColumn),
+                                                  pixelSize: nil, shift: .bilinear(origins))
+check("VirtualImaging.image centred and shifted", centredImage.values.count == 12)
+let shiftedPatterns = try await VirtualDiffraction.meanAndMax(of: lazy, shift: .fourier(origins))
+check("VirtualDiffraction.meanAndMax shifted", shiftedPatterns.mean.values.count == 72 && GaussianFilter(sigma: 1).kernel.count == 9)
 print("consumer-check summary: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

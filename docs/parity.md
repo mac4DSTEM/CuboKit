@@ -18,12 +18,12 @@ says so), **planned** (a slice is named), **app** (lives in mac4DSTEM, not in a 
 | `bin_Q_mmap`, dask-backed lazy data | `MappedCube` | partial: lazy and memory-mapped; no bin on read |
 | `get_virtual_image(mode, geometry)`: `point`, `circle`, `annulus`, `rectangle`, `mask` | `VirtualImaging.image(of:geometry:)` | done (CPU and Metal) |
 | `get_virtual_image(..., return_mask=True)`, `make_detector` | `DetectorMask.make` | done |
-| `get_virtual_image(centered=True)`, `calibrated=True` | — | planned (needs the calibration model, slice 2 or 3) |
-| `get_virtual_image(shift_center=True, subpixel=...)` | — | planned (needs per-position origins, slice 2) |
+| `get_virtual_image(centered=True)`, `calibrated=True` | `VirtualImaging.image(of:geometry:centeredOn:pixelSize:)` | done (slice 3; both together refused) |
+| `get_virtual_image(shift_center=True, subpixel=...)` | `shift: .rounded / .bilinear` | done (slice 3; CPU) |
 | `get_dp_mean`, `get_dp_max` | `VirtualDiffraction.mean`, `max`, `meanAndMax` | done |
 | `get_dp_median` | — | planned |
 | `get_virtual_diffraction(method, mask=...)` (a real-space region) | — | planned; mac4DSTEM's `tiledDiffraction` is the seed (app today) |
-| `get_virtual_diffraction(shift_center=True)` | — | planned (slice 2, with the origins) |
+| `get_virtual_diffraction(shift_center=True)` (mean, max) | `VirtualDiffraction.meanAndMax(of:shift:)` | done (slice 3; CPU) |
 | `position_detector`, `show` | — | n/a (plotting) |
 | `calibration`: `Q_pixel_size`, `R_pixel_size`, units, origin, ellipse, rotation | — | planned (a calibration model; ellipse and Q scale are DiffractoKit's geometry) |
 | `set_scan_shape`, `swap_RQ`, `swap_Rxy`, `swap_Qxy` | — | planned |
@@ -40,7 +40,8 @@ says so), **planned** (a slice is named), **app** (lives in mac4DSTEM, not in a 
 | py4DSTEM | CuboKit | State |
 |---|---|---|
 | centre of mass (`process/phase` DPC preprocessing: `_calculate_intensities_center_of_mass`, `fit_origin`) | `CenterOfMass.measure`, `CenterOfMassReference.normalize` | done (slice 2; CPU and Metal) |
-| per-position origins (`get_origin`, `get_origin_friedel`) | — | planned (a calibration slice) |
+| per-position origins `get_origin`, `fit_origin` | `OriginMeasurement`, `OriginFit` | done (slice 3) |
+| `get_origin_friedel`, beam-stop origins | — | planned |
 | `DPC` (`preprocess`: curl or divergence rotation and transpose; `reconstruct`: the iterative phase, no filters) | `RotationSolver.solve`, `DPC.reconstruct` | done (slice 2; CPU) |
 | `DPC.reconstruct` constraints (Gaussian, Butterworth), a Metal DPC | — | planned |
 | `StrainMap` (`choose_basis_vectors`, `fit_basis_vectors`, `get_strain`) | `CuboStrain` | planned (placeholder) |
@@ -49,7 +50,7 @@ says so), **planned** (a slice is named), **app** (lives in mac4DSTEM, not in a 
 | `Crystal`, `orientation_plan`, `match_orientations` | — | DiffractoKit |
 | `read`, `import_file`, `save` | `NPYFile` (the `.npy` exchange only) | FormatoKit |
 
-## Count (2026-10-15, slices 1 and 2)
+## Count (2026-10-15, slices 1 to 3)
 
-Of the 27 rows above in CuboKit's scope (the n/a, DiffractoKit and FormatoKit rows excluded): done 9, partial 1,
-planned 17.
+Of the 28 rows above in CuboKit's scope (the n/a, DiffractoKit and FormatoKit rows excluded): done 13, partial 1,
+planned 14.
