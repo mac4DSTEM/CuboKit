@@ -164,6 +164,33 @@ func checkChain(measured: ScanVectorField, reference: CenterOfMassReference, pin
         #expect(m.row[4] == 0 && m.row.allSatisfy { abs($0) <= 1e-12 })
     }
 
+    /// py4DSTEM's tie rules: a field whose curl is the same at every angle and orientation (zero) keeps the plain
+    /// orientation and the first angle (argmin's first index; ≤ for the orientation).
+    @Test func testTiesKeepThePlainOrientationAndTheFirstAngle() throws {
+        let zero = try ScanVectorField(scanRows: 4, scanColumns: 5, row: Array(repeating: 0, count: 20),
+                                       column: Array(repeating: 0, count: 20))
+        let s = try RotationSolver.solve(zero)
+        #expect(s.transposed == false && s.degrees == -89)
+        let d = try RotationSolver.solve(zero, criterion: .maximizeDivergence)
+        #expect(d.transposed == false && d.degrees == -89)
+    }
+
+    /// Backtracking halves the step: a step of 8 overshoots on the planted field, so iterations are rejected, the
+    /// final step is 8 / 2^(rejections), and the accepted errors never increase.
+    @Test func testBacktrackingHalvesTheStep() throws {
+        let f = (Pins2.pins["fields"] as! [[String: Any]]).first { $0["theta"] as! Double == 0 }!
+        let shape = f["shape"] as! [Int]
+        let field = try ScanVectorField(scanRows: shape[0], scanColumns: shape[1],
+                                        row: Pins2.doubles(f["measured_x"]), column: Pins2.doubles(f["measured_y"]))
+        let r = try DPC.reconstruct(field, maxIterations: 40, stepSize: 8)
+        let rejected = r.accepted.filter { !$0 }.count
+        #expect(rejected > 0, "a step of 8 must overshoot")
+        #expect(r.finalStepSize == 8 / Double(1 << rejected))
+        #expect(zip(r.errors, r.errors.dropFirst()).allSatisfy { $1 <= $0 })
+        let off = try DPC.reconstruct(field, maxIterations: 40, stepSize: 8, backtrack: false)
+        #expect(off.accepted.allSatisfy { $0 } && off.finalStepSize == 8)
+    }
+
     @Test func testRefusals() throws {
         let small = try ScanVectorField(scanRows: 2, scanColumns: 5, row: Array(repeating: 1, count: 10),
                                         column: Array(repeating: 0, count: 10))
