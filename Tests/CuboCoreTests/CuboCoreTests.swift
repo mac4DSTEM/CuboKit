@@ -5,105 +5,112 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 import CuboCore
 
-final class CuboCoreTests: XCTestCase {
+/// A final class for its deinit: each test gets its own scratch directory, removed afterwards.
+@Suite final class CuboCoreTests {
     static let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         .appendingPathComponent("CuboVirtualTests/Fixtures")
-    var scratch: URL!
+    let scratch: URL
 
-    override func setUpWithError() throws {
+    init() throws {
         scratch = FileManager.default.temporaryDirectory.appendingPathComponent("CuboCoreTests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
     }
 
-    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: scratch) }
+    deinit { try? FileManager.default.removeItem(at: scratch) }
 
     // MARK: Shapes and tilings
 
-    func testShapeValidatesAndCounts() throws {
+    @Test func testShapeValidatesAndCounts() throws {
         let s = try CubeShape([2, 3, 5, 7])
-        XCTAssertEqual(s.scanCount, 6); XCTAssertEqual(s.detectorCount, 35); XCTAssertEqual(s.elementCount, 210)
-        XCTAssertEqual(s.elementsPerScanRow, 105); XCTAssertEqual(s.scanIndex(row: 1, column: 2), 5)
-        XCTAssertThrowsError(try CubeShape([2, 0, 5, 7]))
-        XCTAssertThrowsError(try CubeShape([2, 3, 5]))
-        XCTAssertThrowsError(try CubeShape([Int.max / 2, 4, 4, 4]))
+        #expect(s.scanCount == 6); #expect(s.detectorCount == 35); #expect(s.elementCount == 210)
+        #expect(s.elementsPerScanRow == 105); #expect(s.scanIndex(row: 1, column: 2) == 5)
+        #expect(throws: CuboError.invalidShape([2, 0, 5, 7])) { try CubeShape([2, 0, 5, 7]) }
+        #expect(throws: CuboError.invalidShape([2, 3, 5])) { try CubeShape([2, 3, 5]) }
+        // Two negative extents multiply to a positive count: only the per-extent guard refuses them (mutant M20).
+        #expect(throws: CuboError.invalidShape([-2, -3, 5, 7])) { try CubeShape([-2, -3, 5, 7]) }
+        #expect(throws: CuboError.invalidShape([Int.max / 2, 4, 4, 4])) { try CubeShape([Int.max / 2, 4, 4, 4]) }
         let decoded = try JSONDecoder().decode(CubeShape.self, from: JSONEncoder().encode(s))
-        XCTAssertEqual(decoded, s)
-        XCTAssertThrowsError(try JSONDecoder().decode(CubeShape.self, from: Data(
-            #"{"scanRows":0,"scanColumns":1,"detectorRows":1,"detectorColumns":1}"#.utf8)))
+        #expect(decoded == s)
+        #expect(throws: CuboError.invalidShape([0, 1, 1, 1])) {
+            try JSONDecoder().decode(CubeShape.self, from: Data(
+                #"{"scanRows":0,"scanColumns":1,"detectorRows":1,"detectorColumns":1}"#.utf8))
+        }
     }
 
     /// `.automatic` is a function of the shape alone: the largest row count whose Float32 tile is at most 64 MiB.
-    func testAutomaticTilingIsAFunctionOfTheShape() throws {
+    @Test func testAutomaticTilingIsAFunctionOfTheShape() throws {
         let almgsi = try CubeShape([330, 330, 64, 64])          // 5 406 720 bytes per scan row
-        XCTAssertEqual(try ScanTiling.automatic.rowsPerTile(for: almgsi), 12)
+        #expect(try ScanTiling.automatic.rowsPerTile(for: almgsi) == 12)
         let big = try CubeShape([20, 20, 512, 512])             // 20 971 520 bytes per scan row
-        XCTAssertEqual(try ScanTiling.automatic.rowsPerTile(for: big), 3)
+        #expect(try ScanTiling.automatic.rowsPerTile(for: big) == 3)
         let huge = try CubeShape([4, 64, 512, 512])             // one row is over 64 MiB
-        XCTAssertEqual(try ScanTiling.automatic.rowsPerTile(for: huge), 1)
+        #expect(try ScanTiling.automatic.rowsPerTile(for: huge) == 1)
         let small = try CubeShape([2, 3, 5, 7])
-        XCTAssertEqual(try ScanTiling.automatic.rowsPerTile(for: small), 2)
-        XCTAssertEqual(try ScanTiling.rows(4).ranges(for: try CubeShape([10, 1, 1, 1])), [0..<4, 4..<8, 8..<10])
-        XCTAssertEqual(try ScanTiling.rows(99).rowsPerTile(for: small), 2)
-        XCTAssertThrowsError(try ScanTiling.rows(0).rowsPerTile(for: small))
+        #expect(try ScanTiling.automatic.rowsPerTile(for: small) == 2)
+        #expect(try ScanTiling.rows(4).ranges(for: try CubeShape([10, 1, 1, 1])) == [0..<4, 4..<8, 8..<10])
+        #expect(try ScanTiling.rows(99).rowsPerTile(for: small) == 2)
+        #expect(throws: CuboError.invalidTiling(0)) { try ScanTiling.rows(0).rowsPerTile(for: small) }
     }
 
     // MARK: Eager and lazy
 
-    func testEagerCubeReadsAndRefuses() async throws {
+    @Test func testEagerCubeReadsAndRefuses() async throws {
         let shape = try CubeShape([2, 3, 5, 7])
         let values = (0..<shape.elementCount).map(Float.init)
         let cube = try MemoryCube(shape: shape, values: values)
         let p = try await cube.readPattern(row: 1, column: 2)
-        XCTAssertEqual(p.values, Array(values[175..<210]))
-        XCTAssertEqual(p[4, 6], 209)
+        #expect(p.values == Array(values[175..<210]))
+        #expect(p[4, 6] == 209)
         let t = try await cube.readScanTile(rows: 1..<2)
-        XCTAssertEqual(t.values, Array(values[105..<210])); XCTAssertEqual(t.positionCount, 3)
-        await assertThrowsAsync { try await cube.readPattern(row: 2, column: 0) }
-        await assertThrowsAsync { try await cube.readPattern(row: 0, column: -1) }
-        await assertThrowsAsync { try await cube.readScanTile(rows: 1..<3) }
-        await assertThrowsAsync { try await cube.readScanTile(rows: 1..<1) }
-        XCTAssertThrowsError(try MemoryCube(shape: shape, values: [1, 2, 3]))
+        #expect(t.values == Array(values[105..<210])); #expect(t.positionCount == 3)
+        await #expect(throws: CuboError.self) { try await cube.readPattern(row: 2, column: 0) }
+        await #expect(throws: CuboError.self) { try await cube.readPattern(row: 0, column: -1) }
+        await #expect(throws: CuboError.self) { try await cube.readScanTile(rows: 1..<3) }
+        await #expect(throws: CuboError.self) { try await cube.readScanTile(rows: 1..<1) }
+        #expect(throws: CuboError.valueCountMismatch(expected: 210, received: 3)) {
+            try MemoryCube(shape: shape, values: [1, 2, 3])
+        }
     }
 
     /// The lazy cube reads the same Float32 values as NumPy's astype(np.float32) of the file, for every fixture.
-    func testLazyCubeEqualsTheFileForEveryFixture() async throws {
+    @Test func testLazyCubeEqualsTheFileForEveryFixture() async throws {
         for name in ["digits", "gaussian", "counts16", "counts32", "thirds", "negative", "boundary"] {
             let url = Self.fixtures.appendingPathComponent("\(name).npy")
             let lazy = try MappedCube(npy: url)
             let (shape, doubles) = try NPYFile.readDoubles(url)
-            XCTAssertEqual(lazy.shape.extents, shape, name)
+            #expect(lazy.shape.extents == shape, "\(name)")
             let want = doubles.map { Float($0) }       // Float(Double) rounds to nearest even, as astype(np.float32)
             let eager = try await MemoryCube(loading: lazy, tiling: .rows(1))
-            XCTAssertEqual(eager.values, want, name)
+            #expect(eager.values == want, "\(name)")
             let last = try await lazy.readPattern(row: shape[0] - 1, column: shape[1] - 1)
-            XCTAssertEqual(last.values, Array(want.suffix(shape[2] * shape[3])), name)
+            #expect(last.values == Array(want.suffix(shape[2] * shape[3])), "\(name)")
         }
     }
 
     /// thirds holds k/3 in float64: the lazy read rounds each to the nearest Float32 (not truncates).
-    func testFloat64RoundsToNearest() async throws {
+    @Test func testFloat64RoundsToNearest() async throws {
         let url = Self.fixtures.appendingPathComponent("thirds.npy")
         let lazy = try MappedCube(npy: url)
-        XCTAssertEqual(lazy.elementType, .float64)
+        #expect(lazy.elementType == .float64)
         let tile = try await lazy.readScanTile(rows: 0..<2)
         let doubles = try NPYFile.readDoubles(url).values
         for (f, d) in zip(tile.values, doubles) {
-            XCTAssertLessThanOrEqual(abs(Double(f) - d), Double(f.ulp) / 2)
+            #expect(abs(Double(f) - d) <= Double(f.ulp) / 2)
         }
-        XCTAssertTrue(zip(tile.values, doubles).contains { Double($0) != $1 }, "k/3 must not all be exact in Float32")
+        #expect(zip(tile.values, doubles).contains { Double($0) != $1 }, "k/3 must not all be exact in Float32")
     }
 
     /// Every element type converts as Swift's Float(_:) does (exact up to 2^24, nearest even above).
-    func testEveryElementTypeConverts() async throws {
+    @Test func testEveryElementTypeConverts() async throws {
         func check<T: FixedWidthInteger>(_ type: T.Type, _ descr: String, _ raw: [T]) async throws {
             let url = scratch.appendingPathComponent("\(descr.dropFirst()).npy")
             try writeNPY(raw, descr: descr, shape: [1, 1, 1, raw.count], to: url)
             let cube = try MappedCube(npy: url)
             let p = try await cube.readPattern(row: 0, column: 0)
-            XCTAssertEqual(p.values, raw.map { Float($0) }, descr)
+            #expect(p.values == raw.map { Float($0) }, "\(descr)")
         }
         try await check(UInt8.self, "|u1", [0, 1, 127, 128, 255])
         try await check(Int8.self, "|i1", [-128, -1, 0, 1, 127])
@@ -117,30 +124,30 @@ final class CuboCoreTests: XCTestCase {
         let urlF = scratch.appendingPathComponent("f4.npy")
         try NPYFile.write(f, shape: [1, 1, 2, 2], to: urlF)
         let pf = try await MappedCube(npy: urlF).readPattern(row: 0, column: 0)
-        XCTAssertEqual(pf.values, f)
+        #expect(pf.values == f)
     }
 
     // MARK: The .npy container
 
-    func testHeaderOfANumPyFile() throws {
+    @Test func testHeaderOfANumPyFile() throws {
         let h = try NPYFile.header(of: Self.fixtures.appendingPathComponent("gaussian.npy"))
-        XCTAssertEqual(h.majorVersion, 1); XCTAssertEqual(h.elementType, .float32)
-        XCTAssertEqual(h.shape, [6, 5, 16, 16]); XCTAssertEqual(h.dataOffset % 64, 0)
+        #expect(h.majorVersion == 1); #expect(h.elementType == .float32)
+        #expect(h.shape == [6, 5, 16, 16]); #expect(h.dataOffset % 64 == 0)
         let u = try NPYFile.header(of: Self.fixtures.appendingPathComponent("counts16.npy"))
-        XCTAssertEqual(u.elementType, .uint16)
+        #expect(u.elementType == .uint16)
     }
 
-    func testWriteRoundTripsAndPadsAsNumPy() async throws {
+    @Test func testWriteRoundTripsAndPadsAsNumPy() async throws {
         let url = scratch.appendingPathComponent("w.npy")
         let values = (0..<(2 * 3 * 4 * 5)).map { Float($0) * 0.25 - 3 }
         try NPYFile.write(values, shape: [2, 3, 4, 5], to: url)
         let h = try NPYFile.header(of: url)
-        XCTAssertEqual(h.dataOffset % 64, 0); XCTAssertEqual(h.shape, [2, 3, 4, 5])
+        #expect(h.dataOffset % 64 == 0); #expect(h.shape == [2, 3, 4, 5])
         let eager = try await MemoryCube(loading: try MappedCube(npy: url))
-        XCTAssertEqual(eager.values, values)
+        #expect(eager.values == values)
     }
 
-    func testVersion2HeaderIsRead() async throws {
+    @Test func testVersion2HeaderIsRead() async throws {
         let url = scratch.appendingPathComponent("v2.npy")
         let dict = "{'descr': '<u2', 'fortran_order': False, 'shape': (1, 2, 1, 3), }"
         var header = dict + String(repeating: " ", count: (64 - (12 + dict.count + 1) % 64) % 64) + "\n"
@@ -152,18 +159,37 @@ final class CuboCoreTests: XCTestCase {
         for v: UInt16 in [1, 2, 3, 40000, 5, 6] { data.append(contentsOf: [UInt8(v & 0xFF), UInt8(v >> 8)]) }
         try data.write(to: url)
         let cube = try MappedCube(npy: url)
-        XCTAssertEqual(cube.shape.extents, [1, 2, 1, 3])
+        #expect(cube.shape.extents == [1, 2, 1, 3])
         let eager = try await MemoryCube(loading: cube)
-        XCTAssertEqual(eager.values, [1, 2, 3, 40000, 5, 6])
+        #expect(eager.values == [1, 2, 3, 40000, 5, 6])
+
+        // A version 2.0 header longer than 64 KiB (what version 2.0 exists for): its third length byte is not zero, so a
+        // reader that drops or swaps the high bytes reads the data from the wrong place (mutant M14b, 2026-10-15).
+        let long = scratch.appendingPathComponent("v2-long.npy")
+        var longHeader = dict + String(repeating: " ", count: 70_000)
+        longHeader += String(repeating: " ", count: (64 - (12 + longHeader.utf8.count + 1) % 64) % 64) + "\n"
+        var longData = Data([0x93, 0x4E, 0x55, 0x4D, 0x50, 0x59, 2, 0])
+        let m = UInt32(longHeader.utf8.count)
+        #expect(m > 65_535)
+        longData.append(contentsOf: [UInt8(m & 0xFF), UInt8(m >> 8 & 0xFF), UInt8(m >> 16 & 0xFF), UInt8(m >> 24)])
+        longData.append(contentsOf: Array(longHeader.utf8))
+        for v: UInt16 in [7, 8, 9, 50000, 11, 12] { longData.append(contentsOf: [UInt8(v & 0xFF), UInt8(v >> 8)]) }
+        try longData.write(to: long)
+        let longHeaderRead = try NPYFile.header(of: long)
+        #expect(longHeaderRead.dataOffset == 12 + Int(m))
+        let longEager = try await MemoryCube(loading: try MappedCube(npy: long))
+        #expect(longEager.values == [7, 8, 9, 50000, 11, 12])
     }
 
-    func testRefusals() throws {
+    @Test func testRefusals() throws {
         func refuses(_ descr: String, fortran: String = "False", shape: String = "(1, 1, 2, 2)", payload: Int = 16,
-                     _ want: CuboError, line: UInt = #line) throws {
-            let url = scratch.appendingPathComponent("r\(line).npy")
+                     _ want: CuboError,
+                     sourceLocation: SourceLocation = SourceLocation(fileID: #fileID, filePath: #filePath,
+                                                                     line: #line, column: #column)) throws {
+            let url = scratch.appendingPathComponent("r\(sourceLocation.line).npy")
             try writeRawNPY(dict: "{'descr': '\(descr)', 'fortran_order': \(fortran), 'shape': \(shape), }",
                             payload: payload, to: url)
-            XCTAssertThrowsError(try MappedCube(npy: url), line: line) { XCTAssertEqual($0 as? CuboError, want, line: line) }
+            #expect(throws: want, sourceLocation: sourceLocation) { try MappedCube(npy: url) }
         }
         try refuses(">f4", .bigEndianNotSupported(">f4"))
         try refuses("<c8", .unsupportedElementType("<c8"))
@@ -171,21 +197,23 @@ final class CuboCoreTests: XCTestCase {
         try refuses("<f4", shape: "(2, 2, 2)", .wrongRank(expected: 4, received: 3))
         let short = scratch.appendingPathComponent("r_short.npy")
         try writeRawNPY(dict: "{'descr': '<f4', 'fortran_order': False, 'shape': (1, 1, 2, 2), }", payload: 15, to: short)
-        XCTAssertThrowsError(try MappedCube(npy: short)) {
-            guard case .fileTooShort(_, let needed, let available)? = $0 as? CuboError else { return XCTFail("\($0)") }
-            XCTAssertEqual(needed - available, 1)
+        let tooShort = #expect(throws: CuboError.self) { try MappedCube(npy: short) }
+        guard case .fileTooShort(_, let needed, let available)? = tooShort else {
+            Issue.record("expected fileTooShort, got \(String(describing: tooShort))"); return
         }
+        #expect(needed - available == 1)
         let unknown = scratch.appendingPathComponent("r_key.npy")
         try writeRawNPY(dict: "{'descr': '<f4', 'fortran_order': False, 'shape': (1, 1, 2, 2), 'x': 1, }", payload: 16, to: unknown)
-        XCTAssertThrowsError(try MappedCube(npy: unknown))
+        #expect(throws: CuboError.notNPY("unknown key 'x'")) { try MappedCube(npy: unknown) }
         let notNPY = scratch.appendingPathComponent("r_magic.npy")
         try Data("PNG not numpy at all".utf8).write(to: notNPY)
-        XCTAssertThrowsError(try MappedCube(npy: notNPY)) {
-            guard case .notNPY? = $0 as? CuboError else { return XCTFail("\($0)") }
+        #expect(throws: CuboError.notNPY("no NUMPY magic")) { try MappedCube(npy: notNPY) }
+        #expect(throws: CuboError.misalignedOffset(2, elementSize: 4)) {
+            try MappedCube(url: Self.fixtures.appendingPathComponent("digits.npy"), dataOffset: 2,
+                           elementType: .float32, shape: try CubeShape([2, 3, 5, 7]))
         }
-        XCTAssertThrowsError(try MappedCube(url: Self.fixtures.appendingPathComponent("digits.npy"), dataOffset: 2,
-                                            elementType: .float32, shape: try CubeShape([2, 3, 5, 7])))
-        XCTAssertThrowsError(try MappedCube(npy: scratch.appendingPathComponent("absent.npy")))
+        let absent = #expect(throws: CuboError.self) { try MappedCube(npy: self.scratch.appendingPathComponent("absent.npy")) }
+        if case .cannotOpen? = absent {} else { Issue.record("expected cannotOpen, got \(String(describing: absent))") }
     }
 
     // MARK: helpers
@@ -211,7 +239,4 @@ final class CuboCoreTests: XCTestCase {
         try handle.close()
     }
 
-    func assertThrowsAsync(_ body: () async throws -> some Any, line: UInt = #line) async {
-        do { _ = try await body(); XCTFail("did not throw", line: line) } catch {}
-    }
 }

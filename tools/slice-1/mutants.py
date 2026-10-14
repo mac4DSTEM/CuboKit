@@ -169,7 +169,9 @@ def main():
             rc, out, dt = run(["swift", "test", "-c", "release", "--scratch-path", build, "--filter", filt], tree)
         finally:
             open(path, "w").write(text)
-        ran = out.count("' started.")
+        # XCTest prints "Test Case '-[...]' started."; Swift Testing prints "Test name() started." (suites excluded).
+        ran = sum(1 for l in out.splitlines() if "started" in l and ("Test Case '" in l or " Test " in l)
+                  and "Suite" not in l and "Test run" not in l)
         result = "RED" if rc != 0 else "GREEN"
         if rc == 0 and ran == 0:
             result = "NO TEST RAN"

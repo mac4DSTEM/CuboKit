@@ -27,7 +27,7 @@ log=$(mktemp -t cubokit-test)
 swift test -c release "$@" 2>&1 | tee $log
 rc=${pipestatus[1]}
 (( rc == 0 )) || exit $rc
-skipped=$(grep -c "RealDataTests.*skipped" $log || true)
+skipped=$(grep -c "skipped.*real data absent" $log || true)
 if (( $# > 0 )); then
   print -u2 "tools/test.sh: green, but arguments were given (not a full run): no stamp"
 elif (( skipped > 0 )); then

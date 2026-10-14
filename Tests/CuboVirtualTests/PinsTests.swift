@@ -6,57 +6,57 @@
 
 import CryptoKit
 import Foundation
-import XCTest
+import Testing
 import CuboCore
 import CuboVirtual
 
-final class PinsTests: XCTestCase {
+@Suite struct PinsTests {
     let pins = Pins.shared
 
-    func testPinsCarryTheirVersionsAndEveryCube() {
-        XCTAssertEqual(pins.versions["py4dstem"], "0.14.19")
-        XCTAssertEqual(pins.versions["py4dstem_commit"], "f050d207851f8accd3aa550365baaf1f38230428")
-        XCTAssertEqual(pins.versions["numpy"], "2.5.0")
-        XCTAssertEqual(pins.versions["h5py"], "3.11.0")
-        XCTAssertEqual(pins.seed, 20261014)
-        XCTAssertEqual(pins.cubes.map(\.name), ["digits", "gaussian", "counts16", "counts32", "thirds", "negative", "boundary"])
-        XCTAssertEqual(pins.cubes.reduce(0) { $0 + $1.geometries.count }, 71)
-        XCTAssertGreaterThanOrEqual(pins.boundaryPixelsFloat32Disagrees, 1)
+    @Test func testPinsCarryTheirVersionsAndEveryCube() {
+        #expect(pins.versions["py4dstem"] == "0.14.19")
+        #expect(pins.versions["py4dstem_commit"] == "f050d207851f8accd3aa550365baaf1f38230428")
+        #expect(pins.versions["numpy"] == "2.5.0")
+        #expect(pins.versions["h5py"] == "3.11.0")
+        #expect(pins.seed == 20261014)
+        #expect(pins.cubes.map(\.name) == ["digits", "gaussian", "counts16", "counts32", "thirds", "negative", "boundary"])
+        #expect(pins.cubes.reduce(0) { $0 + $1.geometries.count } == 71)
+        #expect(pins.boundaryPixelsFloat32Disagrees >= 1)
     }
 
-    func testFixturesAreTheGeneratorsBytes() throws {
+    @Test func testFixturesAreTheGeneratorsBytes() throws {
         for cube in pins.cubes {
             let digest = SHA256.hash(data: try Data(contentsOf: cube.url)).map { String(format: "%02x", $0) }.joined()
-            XCTAssertEqual(digest, cube.sha256, cube.name)
+            #expect(digest == cube.sha256, "\(cube.name)")
             let mapped = try cube.mapped()
-            XCTAssertEqual(mapped.shape.extents, cube.shape, cube.name)
-            XCTAssertEqual(mapped.elementType.rawValue, cube.dtype, cube.name)
+            #expect(mapped.shape.extents == cube.shape, "\(cube.name)")
+            #expect(mapped.elementType.rawValue == cube.dtype, "\(cube.name)")
         }
     }
 
     /// Registration 3.1: the kit's mask selects exactly make_detector's pixels, with the given weights for `.mask`.
-    func testMasksAreMakeDetectors() throws {
+    @Test func testMasksAreMakeDetectors() throws {
         for cube in pins.cubes {
             let shape = try CubeShape(cube.shape)
             for g in cube.geometries {
                 let mask = try DetectorMask.make(g.geometry.geometry, shape: shape)
                 let selected = mask.indices.filter { mask[$0] != 0 }
-                XCTAssertEqual(selected, g.maskPixels, "\(cube.name)/\(g.name)")
-                XCTAssertEqual(selected.count, g.maskCount, "\(cube.name)/\(g.name)")
-                if case .mask(let weights) = g.geometry.geometry { XCTAssertEqual(mask, weights) }
+                #expect(selected == g.maskPixels, "\(cube.name)/\(g.name)")
+                #expect(selected.count == g.maskCount, "\(cube.name)/\(g.name)")
+                if case .mask(let weights) = g.geometry.geometry { #expect(mask == weights) }
             }
         }
     }
 
     /// Registration 3.4: CPU virtual images. Integer cubes bit for bit against py4DSTEM's own call; every cube within
     /// relative 1e-10 of the float64 evaluation; py4DSTEM's own float32 distance printed beside the kit's.
-    func testVirtualImagesOnTheCPUAgreeWithPy4DSTEM() async throws {
+    @Test func testVirtualImagesOnTheCPUAgreeWithPy4DSTEM() async throws {
         for cube in pins.cubes {
             let source = try cube.mapped()
             for g in cube.geometries {
                 let image = try await VirtualImaging.image(of: source, geometry: g.geometry.geometry)
-                XCTAssertEqual(image.path, .cpu)
-                XCTAssertEqual([image.scanRows, image.scanColumns], Array(cube.shape.prefix(2)))
+                #expect(image.path == .cpu)
+                #expect([image.scanRows, image.scanColumns] == Array(cube.shape.prefix(2)))
                 let kit = assertRelative(image.values, doubles(g.imageF64), 1e-10, "\(cube.name)/\(g.name) against float64")
                 if cube.isInteger && cube.exactInFloat32 {
                     assertIdentical(image.values, doubles(g.imagePy4dstemNative), "\(cube.name)/\(g.name) against py4DSTEM")
@@ -69,7 +69,7 @@ final class PinsTests: XCTestCase {
 
     /// Registration 3.4: CPU mean (integer cubes bit for bit against py4DSTEM's get_dp_mean; float cubes within 1e-10 of
     /// the float64 mean) and max (bit for bit everywhere).
-    func testMeanAndMaxOnTheCPUAgreeWithPy4DSTEM() async throws {
+    @Test func testMeanAndMaxOnTheCPUAgreeWithPy4DSTEM() async throws {
         for cube in pins.cubes {
             let source = try cube.mapped()
             let (mean, max) = try await VirtualDiffraction.meanAndMax(of: source)
@@ -84,14 +84,14 @@ final class PinsTests: XCTestCase {
     }
 
     /// Registration 3.4: Metal within relative 1e-5 of the CPU path; max bit for bit.
+    @Test(.enabled(if: VirtualDiffraction.metalIsAvailable, "no Metal device on this machine"))
     func testMetalAgreesWithTheCPUWithinTheRegisteredTolerance() async throws {
-        try XCTSkipUnless(VirtualDiffraction.metalIsAvailable, "no Metal device on this machine")
         for cube in pins.cubes {
             let source = try cube.mapped()
             for tiling in [ScanTiling.automatic, .rows(1)] {
                 let cpu = try await VirtualDiffraction.meanAndMax(of: source, path: .cpu, tiling: tiling)
                 let gpu = try await VirtualDiffraction.meanAndMax(of: source, path: .metal, tiling: tiling)
-                XCTAssertEqual(gpu.mean.path, .metal)
+                #expect(gpu.mean.path == .metal)
                 assertIdentical(gpu.max.values, cpu.max.values, "\(cube.name) max metal \(tiling)")
                 assertRelative(gpu.mean.values, cpu.mean.values, 1e-5, "\(cube.name) mean metal \(tiling)")
                 for g in cube.geometries {
@@ -107,7 +107,7 @@ final class PinsTests: XCTestCase {
 
     /// Registration 3.4: the eager cube and the lazy one of the same bytes give the same bits, on both paths, and the CPU
     /// path gives the same bits at every tiling (the Metal virtual image too: it is per position).
-    func testLazyEagerAndEveryTilingGiveTheSameBits() async throws {
+    @Test func testLazyEagerAndEveryTilingGiveTheSameBits() async throws {
         let paths: [ComputePath] = VirtualDiffraction.metalIsAvailable ? [.cpu, .metal] : [.cpu]
         for cube in pins.cubes {
             let lazy = try cube.mapped()

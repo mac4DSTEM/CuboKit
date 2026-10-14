@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 import CuboCore
 import CuboVirtual
 
@@ -57,7 +57,7 @@ struct Pins: Decodable, Sendable {
     }()
 
     func cube(_ name: String) throws -> CubePin {
-        try XCTUnwrap(cubes.first { $0.name == name }, "the pins hold no cube \(name)")
+        try #require(cubes.first { $0.name == name }, "the pins hold no cube \(name)")
     }
 }
 
@@ -134,8 +134,9 @@ struct GeometrySpec: Decodable, Sendable {
 /// distance in units of that denominator, so a test can print what it measured.
 @discardableResult
 func assertRelative(_ got: [Double], _ want: [Double], _ t: Double, _ message: @autoclosure () -> String,
-                    file: StaticString = #filePath, line: UInt = #line) -> Double {
-    XCTAssertEqual(got.count, want.count, "\(message()): count", file: file, line: line)
+                    sourceLocation: SourceLocation = SourceLocation(fileID: #fileID, filePath: #filePath,
+                                                                    line: #line, column: #column)) -> Double {
+    #expect(got.count == want.count, "\(message()): count", sourceLocation: sourceLocation)
     guard got.count == want.count, !want.isEmpty else { return .infinity }
     let floor = 1e-6 * (want.map(abs).max() ?? 0)
     var worst = 0.0, worstIndex = 0
@@ -144,19 +145,25 @@ func assertRelative(_ got: [Double], _ want: [Double], _ t: Double, _ message: @
         let d = denominator > 0 ? abs(got[k] - want[k]) / denominator : abs(got[k] - want[k])
         if !(d <= worst) { worst = d; worstIndex = k }
     }
-    XCTAssertLessThanOrEqual(worst, t, "\(message()): worst relative distance \(worst) at \(worstIndex) "
-                             + "(got \(got[worstIndex]), want \(want[worstIndex]))", file: file, line: line)
+    #expect(worst <= t, "\(message()): worst relative distance \(worst) at \(worstIndex) (got \(got[worstIndex]), want \(want[worstIndex]))",
+            sourceLocation: sourceLocation)
     return worst
 }
 
 /// Bit for bit.
 func assertIdentical(_ got: [Double], _ want: [Double], _ message: @autoclosure () -> String,
-                     file: StaticString = #filePath, line: UInt = #line) {
-    XCTAssertEqual(got.count, want.count, "\(message()): count", file: file, line: line)
+                     sourceLocation: SourceLocation = SourceLocation(fileID: #fileID, filePath: #filePath,
+                                                                     line: #line, column: #column)) {
+    #expect(got.count == want.count, "\(message()): count", sourceLocation: sourceLocation)
     guard got.count == want.count else { return }
-    if let k = got.indices.first(where: { got[$0].bitPattern != want[$0].bitPattern }) {
-        XCTFail("\(message()): differs at \(k): got \(got[k]), want \(want[k])", file: file, line: line)
-    }
+    let k = got.indices.first { got[$0].bitPattern != want[$0].bitPattern }
+    #expect(k == nil, "\(message()): differs at \(k ?? -1): got \(k.map { got[$0] } ?? 0), want \(k.map { want[$0] } ?? 0)",
+            sourceLocation: sourceLocation)
+}
+
+/// Whether the real-data directory holds `name`'s export (registration 4); the real-data tests are enabled by it.
+func realDataIsPresent(_ name: String) -> Bool {
+    FileManager.default.fileExists(atPath: Fixtures.realData.appendingPathComponent("\(name)-pins.json").path)
 }
 
 func doubles(_ pins: [D]) -> [Double] { pins.map(\.value) }

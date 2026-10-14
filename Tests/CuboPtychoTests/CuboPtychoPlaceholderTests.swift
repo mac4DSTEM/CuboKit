@@ -1,6 +1,6 @@
-import XCTest
+import Testing
 import CuboPtycho
 
-final class CuboPtychoPlaceholderTests: XCTestCase {
-    func testTheModuleStatesItsScope() { XCTAssertTrue(CuboPtycho.scope.contains("not registered")) }
+@Suite struct CuboPtychoPlaceholderTests {
+    @Test func testTheModuleStatesItsScope() { #expect(CuboPtycho.scope.contains("not registered")) }
 }

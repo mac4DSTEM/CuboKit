@@ -7,11 +7,13 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 import CuboCore
 import CuboVirtual
 
-final class RealDataTests: XCTestCase {
+/// Serialized: each test maps a cube of up to 1.8 GB and holds an eager copy; one at a time keeps memory and the timings
+/// clean.
+@Suite(.serialized) struct RealDataTests {
     struct Meta: Decodable {
         let name: String
         let shape: [Int]
@@ -39,12 +41,9 @@ final class RealDataTests: XCTestCase {
     func load(_ name: String) throws -> (Meta, MappedCube, (String) throws -> [Double]) {
         let dir = Fixtures.realData
         let pins = dir.appendingPathComponent("\(name)-pins.json")
-        guard FileManager.default.fileExists(atPath: pins.path) else {
-            throw XCTSkip("real data \(name) is not on this machine (\(dir.path)); run tools/slice-1/pins.py real")
-        }
         let meta = try JSONDecoder().decode(Meta.self, from: Data(contentsOf: pins))
         let cube = try MappedCube(npy: dir.appendingPathComponent("\(name).npy"))
-        XCTAssertEqual(cube.shape.extents, meta.shape)
+        #expect(cube.shape.extents == meta.shape)
         let array: (String) throws -> [Double] = { key in
             try NPYFile.readDoubles(dir.appendingPathComponent("\(name)-\(key).npy")).values
         }
@@ -81,7 +80,7 @@ final class RealDataTests: XCTestCase {
 
         for g in meta.geometries {
             let geometry = g.geometry.geometry
-            XCTAssertEqual(try DetectorMask.make(geometry, shape: cube.shape).filter { $0 != 0 }.count, g.maskCount)
+            #expect(try DetectorMask.make(geometry, shape: cube.shape).filter { $0 != 0 }.count == g.maskCount)
             let t2 = clock.now
             let image = try await VirtualImaging.image(of: cube, geometry: geometry)
             let tCPU = clock.now - t2
@@ -114,9 +113,16 @@ final class RealDataTests: XCTestCase {
         print(log.joined(separator: "\n  "))
     }
 
+    // Enabled only where the real-data directory holds the export; a skipped run says "real data absent" (tools/test.sh
+    // reads that and writes no stamp).
+    @Test(.enabled(if: realDataIsPresent("almgsi"), "real data absent: run tools/slice-1/pins.py real"))
     func testAlMgSiStudyCube() async throws { try await check("almgsi") }
+    @Test(.enabled(if: realDataIsPresent("auref"), "real data absent: run tools/slice-1/pins.py real"))
     func testAuReferenceCube() async throws { try await check("auref") }
+    @Test(.enabled(if: realDataIsPresent("simau"), "real data absent: run tools/slice-1/pins.py real"))
     func testSimulatedPolycrystallineGold() async throws { try await check("simau") }
+    @Test(.enabled(if: realDataIsPresent("particle"), "real data absent: run tools/slice-1/pins.py real"))
     func testParticleCube() async throws { try await check("particle") }
+    @Test(.enabled(if: realDataIsPresent("py4dstem_small"), "real data absent: run tools/slice-1/pins.py real"))
     func testPy4DSTEMSmallDatacube() async throws { try await check("py4dstem_small") }
 }

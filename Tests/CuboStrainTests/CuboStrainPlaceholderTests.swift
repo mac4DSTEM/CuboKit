@@ -1,6 +1,6 @@
-import XCTest
+import Testing
 import CuboStrain
 
-final class CuboStrainPlaceholderTests: XCTestCase {
-    func testTheModuleStatesItsScope() { XCTAssertTrue(CuboStrain.scope.contains("not registered")) }
+@Suite struct CuboStrainPlaceholderTests {
+    @Test func testTheModuleStatesItsScope() { #expect(CuboStrain.scope.contains("not registered")) }
 }
