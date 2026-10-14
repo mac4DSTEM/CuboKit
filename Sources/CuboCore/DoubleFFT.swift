@@ -3,21 +3,21 @@
 //  The exact N-point complex DFT in Double for any N: vDSP's radix-2 FFT (vDSP_fft_zipD) for powers of two, Bluestein's
 //  chirp-z through a radix-2 FFT of length M ≥ 2N − 1 otherwise. Forward is NumPy's fft (e^{−2πi kn/N}, unnormalized);
 //  inverse is NumPy's ifft (e^{+2πi kn/N}, divided by N). Ported in spirit from mac4DSTEM 7d6fdbd1 Core/Compute/FFT2D.swift
-//  (which is Float32 and exact-radix for 3 and 5); here Double throughout, for the DPC iteration of slice 2.
+//  (which is Float32 and exact-radix for 3 and 5); here Double throughout, for the DPC iteration of slice 2 and the Fourier shifts of slice 3 (moved to CuboCore, package, in slice 3).
 //
 
 import Accelerate
 import Foundation
 
-final class FFTPlan: @unchecked Sendable {   // immutable after init; vDSP setups are shareable across threads
-    let n: Int
+package final class FFTPlan: @unchecked Sendable {   // immutable after init; vDSP setups are shareable across threads
+    package let n: Int
     private let setup: FFTSetupD
     private let log2m: vDSP_Length
     private let m: Int
     private let chirpRe: [Double], chirpIm: [Double]          // e^{−iπ k²/n}, k = 0 … n−1 (Bluestein only)
     private let kernelRe: [Double], kernelIm: [Double]        // FFT of the conjugate chirp, wrapped (Bluestein only)
 
-    init(_ n: Int) {
+    package init(_ n: Int) {
         precondition(n > 0)
         self.n = n
         let pow2 = n & (n - 1) == 0
@@ -57,7 +57,7 @@ final class FFTPlan: @unchecked Sendable {   // immutable after init; vDSP setup
     }
 
     /// In place, unnormalized forward DFT (NumPy's fft); `inverse` applies NumPy's ifft (the 1/N included).
-    func transform(_ re: inout [Double], _ im: inout [Double], inverse: Bool) {
+    package func transform(_ re: inout [Double], _ im: inout [Double], inverse: Bool) {
         if inverse {   // ifft(x) = conj(fft(conj(x))) / n
             for k in 0..<n { im[k] = -im[k] }
             transform(&re, &im, inverse: false)
@@ -91,17 +91,17 @@ final class FFTPlan: @unchecked Sendable {   // immutable after init; vDSP setup
 }
 
 /// A 2-D transform on a rows × columns grid (row-major), rows then columns.
-struct FFT2D {
-    let rows: Int, columns: Int
+package struct FFT2D {
+    package let rows: Int, columns: Int
     private let rowPlan: FFTPlan, columnPlan: FFTPlan
 
-    init(rows: Int, columns: Int) {
+    package init(rows: Int, columns: Int) {
         self.rows = rows; self.columns = columns
         columnPlan = FFTPlan(columns)                // transforms along a row (length = columns)
         rowPlan = rows == columns ? columnPlan : FFTPlan(rows)
     }
 
-    func transform(_ re: inout [Double], _ im: inout [Double], inverse: Bool) {
+    package func transform(_ re: inout [Double], _ im: inout [Double], inverse: Bool) {
         var lr = [Double](repeating: 0, count: columns), li = lr
         for r in 0..<rows {
             let base = r * columns

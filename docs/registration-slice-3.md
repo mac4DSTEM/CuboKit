@@ -131,4 +131,13 @@ real specimen does not.
 
 ## 9. Amendments
 
-(none yet)
+### 2026-10-15, at the first run: py4DSTEM's float32 filter moves two argmaxes on the Au cube
+
+On the Au reference cube (205 × 310 positions) py4DSTEM's own Gaussian filter (float32, scipy keeps the input dtype) puts
+the argmax one pixel away from the float64 filter's at 2 positions (16 001 and 49 321: (17, 31) against (16, 31), (37, 41)
+against (36, 40)), near-ties within float32 resolution; its origin there moves by up to 0.62 px. Everywhere else, and on the
+other four cubes and the synthetic ones, the argmax is the same and py4DSTEM's origin is within 7.1e-7 px of the float64
+one (prediction ≤ 1e-4 px). As gate 3 said, such a flip is recorded, not widened: the kit follows the float64 definition.
+Measured at the first run: the kit's origins at 0.0 px from the float64 definition on every cube; the fits, filtered
+patterns, centred, calibrated, rounded and bilinear shifted images, and rounded and Fourier shifted patterns within the
+section 4 bounds (integer cubes bit for bit against py4DSTEM's own centred, calibrated and rounded images).

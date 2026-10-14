@@ -67,6 +67,12 @@ public enum CuboVirtualError: Error, Equatable, Sendable, LocalizedError {
     case metal(String)
     /// py4DSTEM's probe-size estimate found no trusted radius or centre (it returns NaN there).
     case probeNotFound(String)
+    case invalidRadius(Double)
+    case invalidPixelSize(Double)
+    /// py4DSTEM adds the origin in pixels and then divides by the pixel size; the kit refuses the combination.
+    case centeredAndCalibrated
+    case originMapMismatch(String)
+    case unsupportedOnMetal(String)
 
     public var errorDescription: String? {
         switch self {
@@ -79,6 +85,11 @@ public enum CuboVirtualError: Error, Equatable, Sendable, LocalizedError {
         case .noMetalDevice: "No Metal device is available; run the CPU path."
         case .metal(let detail): "The Metal path failed: \(detail)."
         case .probeNotFound(let why): "No probe disk was found in the pattern: \(why)."
+        case .invalidRadius(let r): "The disk radius must be positive and finite (\(r))."
+        case .invalidPixelSize(let p): "The pixel size must be positive and finite (\(p))."
+        case .centeredAndCalibrated: "Give the geometry either centred on the origin (pixels) or calibrated (Å⁻¹), not both."
+        case .originMapMismatch(let why): "The origin map does not fit the cube: \(why)."
+        case .unsupportedOnMetal(let what): "\(what) runs on the CPU only; use the .cpu path."
         }
     }
 }
