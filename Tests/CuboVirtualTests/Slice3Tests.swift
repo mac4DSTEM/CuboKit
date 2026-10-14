@@ -168,6 +168,8 @@ enum S3 {
     @Test func testKernelCentringAndRefusals() async throws {
         let k = GaussianFilter(sigma: 2.6).kernel
         #expect(abs(k.reduce(0, +) - 1) <= 1e-15 && k == k.reversed() && k.count == 2 * Int(4 * 2.6 + 0.5) + 1)
+        // scipy's radius int(4σ + 0.5): σ = 1.7 gives 7, where int(4σ) would give 6 (mutant G1)
+        #expect(GaussianFilter(sigma: 1.7).radius == 7 && GaussianFilter(sigma: 2.6).radius == 10)
         let flat = GaussianFilter(sigma: 1.7).apply(Array(repeating: 3.25, count: 63), rows: 7, columns: 9)
         #expect(flat.allSatisfy { abs($0 - 3.25) <= 1e-14 })
         let cube = try MappedCube(npy: Fixtures.url("gaussian.npy"))
