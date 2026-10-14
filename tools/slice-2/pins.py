@@ -329,17 +329,33 @@ def run_synthetic():
         check(f"disk {cr},{cc}: py4DSTEM centre exact", abs(float(e["center_row"]) - cr) < 1e-12
               and abs(float(e["center_column"]) - cc) < 1e-12)
         out["probe"].append(e)
-    # mutant-driven cases (amendment 2026-10-15): a background exactly at the first threshold (1000 · 0.01 == 10.0, so
-    # `>` and `>=` differ), and thresholds whose linspace last value is not exact unless set to stop.
-    tie, _ = disk(32, 33, 15.0, 16.0, 5.0, inside=1000.0, outside=10.0)
-    check("tie: 1000 * linspace(0.01, ...)[0] == 10", 1000 * np.linspace(0.01, 0.99, 100)[0] == 10.0)
+    # mutant-driven cases (amendment 2026-10-15): a ring exactly at a trusted threshold (so `>` and `>=` differ where the
+    # radius is averaged), and a ring exactly at the last threshold with thresholds whose computed last linspace value is
+    # not the stop. Each is checked to change get_probe_size's answer under its mutation before it is pinned.
+    def probe_variant(dp, lo, hi, n, ge=False, inexact_last=False):
+        t = np.arange(n) * ((hi - lo) / (n - 1)) + lo
+        if not inexact_last:
+            t[-1] = hi
+        m = np.max(dp)
+        r = np.array([np.sqrt(np.sum((dp >= m * x) if ge else (dp > m * x)) / np.pi) for x in t])
+        g = np.gradient(r)
+        sel = (g <= 0) * (g >= 2 * np.median(g))
+        return float(np.mean(r[sel])), float(np.mean(t[sel]))
+    ii, jj = np.indices((32, 33))
+    d2 = (ii - 15.0) ** 2 + (jj - 16.0) ** 2
+    t50 = np.linspace(0.01, 0.99, 100)[50]
+    tie = np.where(d2 < 25, 1000.0, np.where(d2 < 64, 1000.0 * t50, 1.0))
+    check("tie: the ring sits exactly at 1000 * t50", np.sum(tie == 1000.0 * t50) > 0)
+    check("tie: >= changes the answer", probe_variant(tie, 0.01, 0.99, 100) != probe_variant(tie, 0.01, 0.99, 100, ge=True))
     e = probe_entry(tie); e.update({"cube": "tie_at_threshold", "pattern": "given", "pattern_values": arr(tie), "shape": [32, 33]})
     out["probe"].append(e)
-    lo, hi, nn = 0.013, 0.97, 37
+    lo, hi, nn = 0.02, 0.93, 41     # computed last 0.9299999999999999; a single 1000 pixel, a disk exactly at 1000 · 0.93
     check("thresholds: the computed last linspace value is not the stop", (nn - 1) * ((hi - lo) / (nn - 1)) + lo != hi)
-    g = np.mean(cubes["gaussian"].astype(np.float32), axis=(0, 1), dtype=np.float64)
-    e = probe_entry(g, lo, hi, nn); e.update({"cube": "gaussian_thresholds", "pattern": "given", "pattern_values": arr(g),
-                                              "shape": list(g.shape), "lower": lo, "upper": hi, "count": nn})
+    last = np.where(d2 < 0.25, 1000.0, np.where(d2 < 25, 1000.0 * hi, 1.0))
+    check("last: the inexact last threshold changes the answer",
+          probe_variant(last, lo, hi, nn) != probe_variant(last, lo, hi, nn, inexact_last=True))
+    e = probe_entry(last, lo, hi, nn); e.update({"cube": "last_threshold", "pattern": "given", "pattern_values": arr(last),
+                                                 "shape": [32, 33], "lower": lo, "upper": hi, "count": nn})
     out["probe"].append(e)
     # planted fields (5.1): a known gradient, rotated by -theta, optionally transposed; reference none
     phi, gx, gy = planted_field()
