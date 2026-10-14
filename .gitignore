@@ -1,0 +1,5 @@
+/References
+.DS_Store
+.build/
+.swiftpm/
+*.xcresult
