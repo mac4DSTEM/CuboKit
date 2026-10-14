@@ -65,6 +65,8 @@ public enum CuboVirtualError: Error, Equatable, Sendable, LocalizedError {
     /// A Metal path was asked for on a machine without a Metal device; the caller may run `.cpu` instead.
     case noMetalDevice
     case metal(String)
+    /// py4DSTEM's probe-size estimate found no trusted radius or centre (it returns NaN there).
+    case probeNotFound(String)
 
     public var errorDescription: String? {
         switch self {
@@ -76,6 +78,7 @@ public enum CuboVirtualError: Error, Equatable, Sendable, LocalizedError {
         case .maskLengthMismatch(let e, let r): "A mask needs \(e) weights, one per detector pixel; got \(r)."
         case .noMetalDevice: "No Metal device is available; run the CPU path."
         case .metal(let detail): "The Metal path failed: \(detail)."
+        case .probeNotFound(let why): "No probe disk was found in the pattern: \(why)."
         }
     }
 }

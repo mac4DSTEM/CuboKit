@@ -222,6 +222,14 @@ def probe_entry(dp):
     return {"refused": bool(refused), "radius": g17(r), "center_row": g17(x0), "center_column": g17(y0)}
 
 
+def fit_distance(own):
+    """py4DSTEM's curve_fit plane against the least-squares plane of the SAME input, its own float32 CoM."""
+    if own["com_x"].size == 0 or np.allclose(own["fitted_x"], 0):
+        return 0.0
+    return float(max(np.max(np.abs(plane_f64(own["com_x"]) - own["fitted_x"])),
+                     np.max(np.abs(plane_f64(own["com_y"]) - own["fitted_y"]))))
+
+
 def chain_entry(own, f64):
     return {
         "degrees_py4dstem": own["degrees"], "transposed_py4dstem": own["transposed"],
@@ -237,6 +245,8 @@ def chain_entry(own, f64):
         "accepted": f64["accepted"], "final_step": g17(f64["final_step"]),
         "phase_distance_py4dstem_own_vs_f64": of_max(own["phase"], f64["phase"]) if own["phase"].size else 0.0,
         "curve_distance_py4dstem_own_vs_f64": rel(own["curve"], f64["curve"]) if own["curve"].size else 0.0,
+        "measured_x_py4dstem": arr(own["com_x"]), "measured_y_py4dstem": arr(own["com_y"]),
+        "fit_distance_py4dstem_vs_lstsq_px": fit_distance(own),
     }
 
 
@@ -301,8 +311,6 @@ def run_synthetic():
                 if mname == "none":
                     f64 = chain_f64(cr, cc, "plane")
                     entry["chain"] = chain_entry(own, f64)
-                    entry["chain"]["fit_distance_py4dstem_vs_lstsq_px"] = float(max(
-                        np.max(np.abs(own["fitted_x"] - f64["fitted_x"])), np.max(np.abs(own["fitted_y"] - f64["fitted_y"]))))
             out["com"].append(entry)
         if name == "shift":
             check("shift cube: CoM equals the planted shift (float64)",
@@ -402,8 +410,8 @@ def run_real(names):
                                  "degrees_py4dstem": own["degrees"], "transposed_py4dstem": own["transposed"],
                                  "accepted": f64["accepted"], "final_step": f64["final_step"],
                                  "phase_distance_py4dstem_own_vs_f64": of_max(own["phase"], f64["phase"]),
-                                 "curve_distance_py4dstem_own_vs_f64": rel(own["curve"], f64["curve"]),
-                                 "fit_distance_py4dstem_vs_lstsq_px": float(np.max(np.abs(own["fitted_x"] - f64["fitted_x"])))}
+                                 "curve_distance_py4dstem_own_vs_f64": rel(own["curve"], f64["curve"]) if own["curve"].size else None,
+                                 "fit_distance_py4dstem_vs_lstsq_px": fit_distance(own)}
         info["probe"] = {k: probe_entry(dp) for k, dp in
                          (("mean", np.mean(c32, axis=(0, 1), dtype=np.float64)), ("max", np.max(c32, axis=(0, 1))))}
         for k, v in arrays.items():
@@ -413,7 +421,7 @@ def run_real(names):
         print(f"pins.py slice 2 real {name}: CoM own-vs-f64 {info['com']['none']['py4dstem_own_vs_f64_px']:.2e} px "
               f"(ill-conditioned {info['com']['none']['ill_conditioned_positions']}), bf {info['com']['bf']['py4dstem_own_vs_f64_px']:.2e} px; "
               f"rotation f64 {ch['degrees']} {ch['transposed']} py4DSTEM {ch['degrees_py4dstem']} {ch['transposed_py4dstem']}; "
-              f"curve {ch['curve_distance_py4dstem_own_vs_f64']:.2e}; phase {ch['phase_distance_py4dstem_own_vs_f64']:.2e} of max; "
+              f"phase {ch['phase_distance_py4dstem_own_vs_f64']:.2e} of max; "
               f"fit {ch['fit_distance_py4dstem_vs_lstsq_px']:.2e} px; probe mean r {float(info['probe']['mean']['radius']):.4f}; "
               f"{(datetime.datetime.now() - t0).total_seconds():.0f} s")
 

@@ -191,4 +191,23 @@ register.
 
 ## 9. Amendments
 
-(none yet)
+### 2026-10-15, at the first pins and test run: three readings settled
+
+1. **py4DSTEM keeps the curl curve local.** Its rotation solver stores only the divergence curves on the object
+   (`_rotation_div`, `_rotation_div_transpose`), not `_rotation_curl`, so "the curve against py4DSTEM's own, relative
+   1e-4" (section 4) cannot be pinned. The curve is held to the float64 evaluation (1e-10); the chosen angle and transpose
+   stay asserted against py4DSTEM's own choice, and agree on every cube and field.
+2. **py4DSTEM's plane is `curve_fit`'s, within its stopping tolerance.** The first generator compared py4DSTEM's fit of its
+   own float32 centre of mass with the least-squares fit of the float64 one, two inputs. On the same input (py4DSTEM's own
+   centre of mass) `curve_fit` stays up to 8.3e-6 px from the exact least-squares plane (`py4dstem_small`; 1.9e-6 to
+   3.9e-6 px on the owner's cubes). The registered 1e-6 px was a wrong prediction about the oracle's solver, not a property
+   of the port: the distance is recorded, not asserted, and the kit is held to the least-squares plane at 1e-10, which it
+   meets at 1e-14.
+3. **The probe-size refusal covers a 0/0 centre too.** On the all-negative cube py4DSTEM returns a radius of 0 and a NaN
+   centre (the thresholded pattern sums to zero); the kit refuses that as well as an empty trusted set (section 3.5).
+
+Measured at the first run (log `test-s2-first`, 2026-10-15): the kit's centre of mass equals the float64 definition at
+0.0 px on every cube (no ill-conditioned position in any of them); Metal at most 1.9e-10 px from the CPU; the rotation and
+transpose equal py4DSTEM's on all five real cubes, four synthetic cubes and three planted fields; the DPC phase at most
+3.3e-12 of max from the float64 chain, the backtracking sequences equal; py4DSTEM's own float32 phase 5e-7 to 5.2e-5 of max
+from the float64 chain (predicted ≤ 1e-3); the probe size bit for bit on every pattern.

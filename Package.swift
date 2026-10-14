@@ -24,6 +24,7 @@ let package = Package(
     products: [
         .library(name: "CuboCore", targets: ["CuboCore"]),
         .library(name: "CuboVirtual", targets: ["CuboVirtual"]),
+        .library(name: "CuboPhase", targets: ["CuboPhase"]),
         .library(name: "CuboStrain", targets: ["CuboStrain"]),
         .library(name: "CuboPtycho", targets: ["CuboPtycho"]),
     ],
@@ -34,12 +35,17 @@ let package = Package(
         // Slice 1 (1.2): detector geometries and masks, the mean and max pattern, virtual images; CPU (Accelerate) and
         // Metal (kernels compiled at run time from the source this module carries) behind one API.
         .target(name: "CuboVirtual", dependencies: ["CuboCore"], swiftSettings: settings),
+        // Slice 2 (docs/registration-slice-2.md): the centre-of-mass reference and plane fit, the R-Q rotation by curl or
+        // divergence, py4DSTEM's iterative DPC (Double, Accelerate's FFT with Bluestein for other lengths).
+        .target(name: "CuboPhase", dependencies: ["CuboCore"], swiftSettings: settings),
         // Later: strain from Bragg vectors (py4DSTEM StrainMap). Empty until registered.
         .target(name: "CuboStrain", dependencies: ["CuboCore"], swiftSettings: settings),
         // Later: ptychography (py4DSTEM SingleslicePtychography and its family). Empty until registered.
         .target(name: "CuboPtycho", dependencies: ["CuboCore"], swiftSettings: settings),
         .testTarget(name: "CuboCoreTests", dependencies: ["CuboCore"], swiftSettings: settings),
         .testTarget(name: "CuboVirtualTests", dependencies: ["CuboCore", "CuboVirtual"], exclude: ["Fixtures"],
+                    swiftSettings: settings),
+        .testTarget(name: "CuboPhaseTests", dependencies: ["CuboCore", "CuboPhase", "CuboVirtual"],
                     swiftSettings: settings),
         .testTarget(name: "CuboStrainTests", dependencies: ["CuboStrain"], swiftSettings: settings),
         .testTarget(name: "CuboPtychoTests", dependencies: ["CuboPtycho"], swiftSettings: settings),

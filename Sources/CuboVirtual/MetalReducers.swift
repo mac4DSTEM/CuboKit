@@ -23,6 +23,7 @@ final class MetalContext: @unchecked Sendable {
     let queue: MTLCommandQueue
     let virtualImage: MTLComputePipelineState
     let sumAndMax: MTLComputePipelineState
+    let centerOfMass: MTLComputePipelineState
 
     static let shared: Result<MetalContext, CuboVirtualError> = {
         guard let device = MTLCreateSystemDefaultDevice() else { return .failure(.noMetalDevice) }
@@ -49,6 +50,7 @@ final class MetalContext: @unchecked Sendable {
         }
         self.virtualImage = try pipeline("cubo_virtual_image")
         self.sumAndMax = try pipeline("cubo_sum_and_max")
+        self.centerOfMass = try pipeline("cubo_center_of_mass")
     }
 
     /// Mirrors `struct CuboDims` in the source: four 4-byte fields.
@@ -118,6 +120,32 @@ final class MetalContext: @unchecked Sendable {
         sums[gid] = float2(s, c);
         maxima[gid] = vmax;
     }
+
+    // One thread per scan position: Σ wP, Σ (w i) P, Σ (w j) P (registration slice 2, 3.1). Each coefficient arrives as
+    // a Float32 pair (hi, lo) with hi + lo its Double value, so the TwoProduct of P with hi is exact and P · lo carries the
+    // rest; every sum is compensated and returned as (sum, correction) for the host to add in Double.
+    kernel void cubo_center_of_mass(const device float *data [[buffer(0)]],
+                                    const device float2 *w [[buffer(1)]],
+                                    const device float2 *wi [[buffer(2)]],
+                                    const device float2 *wj [[buffer(3)]],
+                                    device float2 *out [[buffer(4)]],
+                                    constant CuboDims &d [[buffer(5)]],
+                                    uint gid [[thread_position_in_grid]])
+    {
+        if (gid >= d.positions) { return; }
+        const ulong n = (ulong)d.detectorRows * d.detectorColumns;
+        const device float *p = data + (ulong)gid * n;
+        float s0 = 0.0f, c0 = 0.0f, s1 = 0.0f, c1 = 0.0f, s2 = 0.0f, c2 = 0.0f;
+        for (ulong k = 0; k < n; ++k) {
+            const float x = p[k];
+            float h = w[k].x * x;  two_sum(s0, c0, h);  c0 += fma(w[k].x, x, -h) + w[k].y * x;
+            h = wi[k].x * x;       two_sum(s1, c1, h);  c1 += fma(wi[k].x, x, -h) + wi[k].y * x;
+            h = wj[k].x * x;       two_sum(s2, c2, h);  c2 += fma(wj[k].x, x, -h) + wj[k].y * x;
+        }
+        out[3 * gid] = float2(s0, c0);
+        out[3 * gid + 1] = float2(s1, c1);
+        out[3 * gid + 2] = float2(s2, c2);
+    }
     """
 
     func buffer(_ values: [Float], label: String) throws -> MTLBuffer {
@@ -171,6 +199,46 @@ final class MetalContext: @unchecked Sendable {
 
 enum MetalReducers {
     static func context() throws -> MetalContext { try MetalContext.shared.get() }
+
+    /// The Double coefficients as Float32 (hi, lo) pairs, interleaved: hi = Float(v), lo = Float(v − hi).
+    static func split(_ v: [Double]) -> [Float] {
+        var out = [Float](); out.reserveCapacity(2 * v.count)
+        for x in v { let hi = Float(x); out.append(hi); out.append(Float(x - Double(hi))) }
+        return out
+    }
+
+    static func centerOfMassSums(of source: some CubeSource, weights: [Float], tiling: ScanTiling,
+                                 progress: (@Sendable (Double) -> Void)?) async throws
+        -> (s: [Double], r: [Double], c: [Double]) {
+        let metal = try context()
+        let shape = source.shape
+        let n = shape.detectorCount, qx = shape.detectorColumns
+        let w = weights.map(Double.init)
+        let wBuffer = try metal.buffer(split(w), label: "CuboKit CoM weights")
+        let wiBuffer = try metal.buffer(split((0..<n).map { w[$0] * Double($0 / qx) }), label: "CuboKit CoM row weights")
+        let wjBuffer = try metal.buffer(split((0..<n).map { w[$0] * Double($0 % qx) }), label: "CuboKit CoM column weights")
+        var s = [Double](repeating: 0, count: shape.scanCount)
+        var r = s, c = s
+        for range in try tiling.ranges(for: shape) {
+            try Task.checkCancellation()
+            let tile = try await source.readScanTile(rows: range)
+            let positions = tile.positionCount
+            let data = try metal.buffer(tile.values, label: "CuboKit tile rows \(range.lowerBound)..<\(range.upperBound)")
+            let out = try metal.buffer(floats: 6 * positions, label: "CuboKit CoM sums")
+            try await metal.run(metal.centerOfMass, threads: positions, buffers: [data, wBuffer, wiBuffer, wjBuffer, out],
+                                dims: .init(positions: UInt32(positions), detectorRows: UInt32(shape.detectorRows),
+                                            detectorColumns: UInt32(shape.detectorColumns)))
+            let v = MetalContext.floats(out, count: 6 * positions)
+            let first = range.lowerBound * shape.scanColumns
+            for k in 0..<positions {
+                s[first + k] = Double(v[6 * k]) + Double(v[6 * k + 1])
+                r[first + k] = Double(v[6 * k + 2]) + Double(v[6 * k + 3])
+                c[first + k] = Double(v[6 * k + 4]) + Double(v[6 * k + 5])
+            }
+            progress?(Double(range.upperBound) / Double(shape.scanRows))
+        }
+        return (s, r, c)
+    }
 
     static func virtualImage(of source: some CubeSource, mask: [Float], tiling: ScanTiling,
                              progress: (@Sendable (Double) -> Void)?) async throws -> ScanImage {
