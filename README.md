@@ -9,10 +9,14 @@ accelerated path behind one API. Headless, Swift 6 strict concurrency, one Swift
 |---|---|---|
 | `CuboCore` | the cube: `CubeShape` (scan rows and columns, detector rows and columns), `CubeSource`, the eager `MemoryCube`, the lazy memory-mapped `MappedCube` (ten element types, converted to Float32 on read), NumPy's `.npy` container | slice 1, `docs/registration-slice-1.md` |
 | `CuboVirtual` | py4DSTEM's virtual detectors (point, circle, annulus, rectangle, any mask), virtual bright- and dark-field images, the mean and maximum diffraction pattern, on `.cpu` or `.metal` | slice 1 |
+| `CuboVirtual` (slice 2) | the centre of mass per position (`.cpu` and `.metal`), py4DSTEM's probe size | slice 2, `docs/registration-slice-2.md` |
+| `CuboPhase` | the centre-of-mass reference (plane fit, constant, given origins), the R–Q rotation by curl or divergence, py4DSTEM's iterative DPC | slice 2 |
 | `CuboStrain` | strain maps from Bragg vectors | placeholder, a scope statement |
 | `CuboPtycho` | ptychography and tilt-corrected bright field | placeholder, a scope statement |
 
-Centre of mass and DPC are slice 2.
+Slice 2 (centre of mass, probe size, rotation, DPC) is held to py4DSTEM the same way: the CPU centre of mass at 0.0 px
+from the float64 definition on the owner's cubes, the probe size bit for bit, the rotation and transpose equal to
+py4DSTEM's choice, the DPC phase within 3.3e-12 of max of the float64 chain.
 
 ## The first ten minutes
 

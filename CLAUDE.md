@@ -3,14 +3,16 @@
 CuboKit: the macEM suite's 4D-STEM library, mac4DSTEM's processing core made public and checked against py4DSTEM, imported
 by tagged version. GPL-3.0 (README.md says which parts come from where). Modules: `CuboCore` (the cube: shape, sources, the
 eager `MemoryCube`, the lazy memory-mapped `MappedCube`, the `.npy` container), `CuboVirtual` (detector geometries and masks,
-the mean and maximum pattern, virtual images; CPU and Metal behind one API), `CuboStrain` and `CuboPtycho` (placeholders with
+the mean and maximum pattern, virtual images, the centre of mass, the probe size; CPU and Metal behind one API),
+`CuboPhase` (the centre-of-mass reference, the R–Q rotation, py4DSTEM's iterative DPC; slice 2), `CuboStrain` and `CuboPtycho` (placeholders with
 their planned scope). Rules only here; state in `docs/status.md`.
 
 ## Read first
 
 1. The suite's `../CLAUDE.md` (board, tiers, how we work) and `../ROADMAP.md`, "Kits" (the direction, phase 5, the licence
    rule, the Apple-infrastructure requirements).
-2. `docs/registration-slice-1.md`: what slice 1 makes, the definitions, the pins, the tolerances per quantity, the gates.
+2. `docs/registration-slice-1.md` and `docs/registration-slice-2.md`: what each slice makes, the definitions, the pins,
+   the tolerances per quantity, the gates, the amendments after Gate B.
 3. `docs/status.md`: what is live, the hand-off, what is unverified. `docs/parity.md`: the checklist against py4DSTEM.
 4. `../SpectroKit/CLAUDE.md`: the model for a kit repo (this file follows it).
 
