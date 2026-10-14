@@ -131,6 +131,40 @@ enum S3 {
         }
     }
 
+    /// 3.1 by hand: a constant pattern's argmax is the first pixel (0, 0); the mask keeps |q − argmax| < r·rscale
+    /// strictly (with r = 3, rscale = 1 the axial pixels at distance exactly 3 are out).
+    @Test func testArgmaxTiesAndTheStrictMaskBoundary() async throws {
+        let q = 9
+        let flat = try MemoryCube(shape: try CubeShape([1, 1, q, q]), values: Array(repeating: 2, count: q * q))
+        let (o, _) = try await OriginMeasurement.measure(of: flat, radius: 3, radiusScale: 1)
+        var n = 0.0, sr = 0.0, sc = 0.0
+        for i in 0..<q { for j in 0..<q where (Double(i * i + j * j)).squareRoot() < 3 { n += 1; sr += Double(i); sc += Double(j) } }
+        #expect(abs(o.row.values[0] - sr / n) <= 1e-12 && abs(o.column.values[0] - sc / n) <= 1e-12, "\(o.row.values[0]) vs \(sr / n)")
+        // a bright pixel at (4, 4) on a gradient: the axial pixels at distance exactly 3 carry the gradient
+        let values: [Float] = (0..<(q * q)).map { $0 == 4 * q + 4 ? 1000 : Float(1 + $0 / q) }
+        let cube = try MemoryCube(shape: try CubeShape([1, 1, q, q]), values: values)
+        let (b, _) = try await OriginMeasurement.measure(of: cube, radius: 3, radiusScale: 1)
+        var s = 0.0, m = 0.0
+        for k in 0..<(q * q) {
+            let di = Double(k / q - 4), dj = Double(k % q - 4)
+            guard (di * di + dj * dj).squareRoot() < 3 else { continue }
+            s += Double(values[k]); m += Double(k / q) * Double(values[k])
+        }
+        #expect(abs(b.row.values[0] - m / s) <= 1e-12, "\(b.row.values[0]) vs \(m / s)")
+    }
+
+    /// 3.3: shifts of exactly ±0.5 round half to even (to 0): the rounded shifted image is the unshifted one.
+    @Test func testHalfShiftsRoundToEven() async throws {
+        let cube = try MappedCube(npy: Fixtures.url("gaussian.npy"))
+        let rows = (0..<30).map { Double($0 % 2) }          // mean 0.5: every shift is ±0.5
+        let map = try OriginMap(row: ScanImage(scanRows: 6, scanColumns: 5, values: rows, path: .cpu),
+                                column: ScanImage(scanRows: 6, scanColumns: 5, values: rows, path: .cpu))
+        let g = DetectorGeometry.circle(centerRow: 7, centerColumn: 8, radius: 4.5)
+        let shifted = try await VirtualImaging.image(of: cube, geometry: g, centeredOn: nil, shift: .rounded(map))
+        let plain = try await VirtualImaging.image(of: cube, geometry: g)
+        assertRelative(shifted.values, plain.values, 1e-12, "half shifts")
+    }
+
     @Test func testKernelCentringAndRefusals() async throws {
         let k = GaussianFilter(sigma: 2.6).kernel
         #expect(abs(k.reduce(0, +) - 1) <= 1e-15 && k == k.reversed() && k.count == 2 * Int(4 * 2.6 + 0.5) + 1)
