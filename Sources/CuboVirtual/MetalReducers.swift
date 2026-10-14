@@ -121,9 +121,22 @@ final class MetalContext: @unchecked Sendable {
         maxima[gid] = vmax;
     }
 
-    // One thread per scan position: Σ wP, Σ (w i) P, Σ (w j) P (registration slice 2, 3.1). Each coefficient arrives as
-    // a Float32 pair (hi, lo) with hi + lo its Double value, so the TwoProduct of P with hi is exact and P · lo carries the
-    // rest; every sum is compensated and returned as (sum, correction) for the host to add in Double.
+    // Adds x to the double-float (hi, lo), renormalised every step (TwoSum, then a fast TwoSum), so lo stays below an
+    // ulp of hi and the pair carries about 48 bits: integer sums stay exact up to 2^48. A non-finite sum is kept as it is.
+    inline void df_add(thread float &hi, thread float &lo, float x) {
+        const float s = hi + x;
+        if (!isfinite(s)) { hi = s; lo = 0.0f; return; }
+        const float z = s - hi;
+        float e = (hi - (s - z)) + (x - z);
+        e += lo;
+        hi = s + e;
+        lo = e - (hi - s);
+    }
+
+    // One thread per scan position: Σ wP, Σ (w i) P, Σ (w j) P (registration slice 2, 3.1; Gate B amendment). Each
+    // coefficient arrives as a Float32 pair (hi, lo) with hi + lo its Double value; the product with hi is split exactly by
+    // fma, the lo part is added rounded, and every term goes into a renormalised double-float accumulator returned as
+    // (hi, lo) for the host to add in Double.
     kernel void cubo_center_of_mass(const device float *data [[buffer(0)]],
                                     const device float2 *w [[buffer(1)]],
                                     const device float2 *wi [[buffer(2)]],
@@ -138,9 +151,9 @@ final class MetalContext: @unchecked Sendable {
         float s0 = 0.0f, c0 = 0.0f, s1 = 0.0f, c1 = 0.0f, s2 = 0.0f, c2 = 0.0f;
         for (ulong k = 0; k < n; ++k) {
             const float x = p[k];
-            float h = w[k].x * x;  two_sum(s0, c0, h);  c0 += fma(w[k].x, x, -h) + w[k].y * x;
-            h = wi[k].x * x;       two_sum(s1, c1, h);  c1 += fma(wi[k].x, x, -h) + wi[k].y * x;
-            h = wj[k].x * x;       two_sum(s2, c2, h);  c2 += fma(wj[k].x, x, -h) + wj[k].y * x;
+            float h = w[k].x * x;   df_add(s0, c0, h); df_add(s0, c0, fma(w[k].x, x, -h));  df_add(s0, c0, w[k].y * x);
+            h = wi[k].x * x;        df_add(s1, c1, h); df_add(s1, c1, fma(wi[k].x, x, -h)); df_add(s1, c1, wi[k].y * x);
+            h = wj[k].x * x;        df_add(s2, c2, h); df_add(s2, c2, fma(wj[k].x, x, -h)); df_add(s2, c2, wj[k].y * x);
         }
         out[3 * gid] = float2(s0, c0);
         out[3 * gid + 1] = float2(s1, c1);

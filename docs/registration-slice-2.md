@@ -211,3 +211,35 @@ Measured at the first run (log `test-s2-first`, 2026-10-15): the kit's centre of
 transpose equal py4DSTEM's on all five real cubes, four synthetic cubes and three planted fields; the DPC phase at most
 3.3e-12 of max from the float64 chain, the backtracking sequences equal; py4DSTEM's own float32 phase 5e-7 to 5.2e-5 of max
 from the float64 chain (predicted ≤ 1e-3); the probe size bit for bit on every pattern.
+
+### 2026-10-15, after the Gate B refuter on `84815c9`
+
+One refuter (Sonnet; scripts in the session scratchpad `refuter2/`). Held: the CPU centre of mass exact against rational
+arithmetic on every dtype, shape and mask tried; the probe size bit-identical to `get_probe_size` on 928 patterns (NaN,
+±∞, ties, non-default thresholds, 1 × 1 to 1024²); the plane fit at 1e-14 of `lstsq`; DPC within about 1e-16 of max of the
+float64 reference on 100+ cases (Bluestein lengths up to 2039, rounding paddings, anisotropic sampling, steps 0.01 to
+1000) and within about 2e-7 of max of py4DSTEM's own, the backtracking identical. Broke:
+
+- **F1, the Metal centre of mass (section 4's Metal column).** The first kernel compensated each product but accumulated
+  the corrections in plain Float32: on detectors of 700² and up the row moment passes 3e10 and the corrections lost bits
+  (1024² uint16: 3.9e-7 relative, 2e-4 px), and on dark-subtracted data the error (about 1e-12 · Σ|wP|) exceeded 1e-9 px
+  inside the CPU's condition |S| ≥ 1e-6 · Σ|wP|. Fixed: every term goes into a renormalised double-float accumulator (about
+  48 bits; integer sums exact to 2^48). Measured on the refuter's batteries after the fix: integer cubes bit for bit up to
+  1024² and 2048 × 512; float data at most 1.3e-12 · Σ|wP| on the moments; the centre of mass within 4.3e-10 px where
+  |S| ≥ 1e-3 · Σ|wP|, but 1.8e-9 px at 5e-4 and 5.3e-7 px at 2e-6. Float32 hardware cannot meet 1e-9 px at the CPU's
+  condition, so **the Metal claim's condition is |S| ≥ 1e-3 · Σ|wP|**; positions between 1e-6 and 1e-3 are claimed on the
+  CPU path only, and `.cpu` is the path for strongly dark-subtracted data. The sums' claim (relative 1e-10 with slice 1's
+  floor) holds on every case after the fix.
+- **F2, py4DSTEM's float32 solver flips exact ties.** On noise-free gradients rotated by k + 0.5 degrees the two
+  neighbouring curve values differ by about 6e-9 relative, below float32 resolution; py4DSTEM chose the other degree in 46
+  of 96, the kit agreed with the float64 evaluation in 96 of 96. Section 4's "equal to py4DSTEM's own" holds except on such
+  exact ties, which gate 3 already said are recorded, never widened.
+- **F3, degrees to radians.** The kit computed deg · π / 180; NumPy's `deg2rad` and Python's `math.radians` compute
+  deg · (π / 180), an ulp apart for 38 of the 179 default angles, which flipped a choice on constructed exact ties. Fixed.
+- **F4–F6 (not claimed; behaviour made explicit):** a non-finite field is refused by the rotation solver (NumPy's argmin
+  returns the first NaN); Metal now keeps ±∞ sums instead of NaN; Metal flushes Float32 subnormals (recorded); the plane fit
+  refuses scans with fewer than three non-collinear finite positions (1 × N, all NaN), where `lstsq` returns a minimum-norm
+  plane: a DEVIATION in the refusing direction; a field whose squares underflow (about 1e-170) is refused as zero.
+
+Regression tests: `Slice2RefuterRegressionTests` (a 1024² integer cube bit for bit on Metal; dark-subtracted data under the
+Metal condition) and `testRadiansAndNonFiniteFields`.

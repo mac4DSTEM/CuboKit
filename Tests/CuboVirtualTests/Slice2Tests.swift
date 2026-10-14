@@ -155,3 +155,51 @@ enum Slice2 {
         }
     }
 }
+
+/// The Gate B refuter's slice-2 cases on 84815c9 (registration slice 2, section 9), kept so they gate.
+@Suite(.enabled(if: VirtualDiffraction.metalIsAvailable, "no Metal device on this machine"))
+struct Slice2RefuterRegressionTests {
+    /// F1: on a 1024² detector the row moment of an integer cube passes 3e10; the first Metal kernel's Float32 correction
+    /// lost it (2e-4 px). Integer cubes are exact on Metal now (renormalised double-float sums, exact to 2^48).
+    @Test func testMetalCenterOfMassIsExactOnLargeIntegerCubes() async throws {
+        let shape = try CubeShape([2, 2, 1024, 1024])
+        var state: UInt64 = 7
+        let values: [Float] = (0..<shape.elementCount).map { _ in
+            state = state &* 6364136223846793005 &+ 1442695040888963407
+            return Float((state >> 33) % 4001)
+        }
+        let cube = try MemoryCube(shape: shape, values: values)
+        let cpu = try await CenterOfMass.measure(of: cube, path: .cpu)
+        let gpu = try await CenterOfMass.measure(of: cube, path: .metal)
+        assertIdentical(gpu.intensity.values, cpu.intensity.values, "1024² intensity")
+        assertIdentical(gpu.momentRow.values, cpu.momentRow.values, "1024² row moment")
+        assertIdentical(gpu.momentColumn.values, cpu.momentColumn.values, "1024² column moment")
+        #expect(cpu.momentRow.values.max()! > 3e10)
+    }
+
+    /// F1: dark-subtracted data (a blob minus a wider blob plus noise): Metal within 1e-9 px of the CPU where
+    /// |S| ≥ 1e-3 · Σ|w P| (the Metal condition of the amendment).
+    @Test func testMetalCenterOfMassOnDarkSubtractedData() async throws {
+        let q = 128, shape = try CubeShape([3, 3, q, q])
+        var g = Normals(state: 31)
+        var values = [Float]()
+        for s in 0..<shape.scanCount {
+            for i in 0..<q { for j in 0..<q {
+                let r2 = Double((i - 60 - s) * (i - 60 - s) + (j - 64) * (j - 64))
+                values.append(Float(5000 * exp(-r2 / 50) - 4000 * exp(-r2 / 400)) + g.next(30))
+            } }
+        }
+        let cube = try MemoryCube(shape: shape, values: values)
+        let cpu = try await CenterOfMass.measure(of: cube, path: .cpu)
+        let gpu = try await CenterOfMass.measure(of: cube, path: .metal)
+        var worst = 0.0, claimed = 0
+        for k in 0..<shape.scanCount {
+            let absSum = values[(k * q * q)..<((k + 1) * q * q)].reduce(0.0) { $0 + abs(Double($1)) }
+            guard abs(cpu.intensity.values[k]) >= 1e-3 * absSum else { continue }
+            claimed += 1
+            worst = max(worst, abs(gpu.row.values[k] - cpu.row.values[k]), abs(gpu.column.values[k] - cpu.column.values[k]))
+        }
+        #expect(claimed > 0 && worst <= 1e-9, "Metal vs CPU \(worst) px over \(claimed) conditioned positions")
+        assertRelative(gpu.intensity.values, cpu.intensity.values, 1e-10, "dark-subtracted intensity")
+    }
+}

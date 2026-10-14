@@ -37,9 +37,12 @@ public enum RotationSolver {
                              forceTranspose: Bool? = nil) throws -> RotationSolution {
         let R = normalized.scanRows, C = normalized.scanColumns
         guard R >= 3, C >= 3 else { throw CuboPhaseError.scanTooSmallForRotation(rows: R, columns: C) }
+        guard normalized.row.allSatisfy(\.isFinite), normalized.column.allSatisfy(\.isFinite) else {
+            throw CuboPhaseError.invalidField("the rotation search needs a finite field (normalize applies nan_to_num)")
+        }
         let maximize = criterion == .maximizeDivergence
         func score(_ deg: Double, _ transpose: Bool) -> Double {
-            let (x, y) = rotate(normalized, radians: deg * .pi / 180, transpose: transpose)
+            let (x, y) = rotate(normalized, radians: deg * (.pi / 180), transpose: transpose)
             return maximize ? divergence(x, y, R, C) : curl(x, y, R, C)
         }
         func better(_ a: Double, than b: Double) -> Bool { maximize ? a > b : a < b }
@@ -77,7 +80,7 @@ public enum RotationSolver {
                 degrees = angles[transposed ? j : i]
             }
         }
-        let radians = degrees * .pi / 180
+        let radians = degrees * (.pi / 180)    // NumPy's deg2rad and Python's math.radians: deg · (π/180)
         let (x, y) = rotate(normalized, radians: radians, transpose: transposed)
         return RotationSolution(degrees: degrees, radians: radians, transposed: transposed, anglesDegrees: angles,
                                 curve: plain, curveTransposed: trans,
