@@ -216,6 +216,17 @@ import CuboCore
         if case .cannotOpen? = absent {} else { Issue.record("expected cannotOpen, got \(String(describing: absent))") }
     }
 
+    /// Gate B F2 (2026-10-15): a header whose element or byte count overflows is refused, never trapped on.
+    @Test(arguments: ["(4294967296, 4294967296, 4294967296, 4294967296)", "(9223372036854775807, 2)",
+                      "(3000000000, 3000000000)", "(1152921504606846976,)"])
+    func testOverflowingShapesAreRefused(_ shape: String) throws {
+        let url = scratch.appendingPathComponent("overflow.npy")
+        try writeRawNPY(dict: "{'descr': '<f8', 'fortran_order': False, 'shape': \(shape), }", payload: 64, to: url)
+        #expect(throws: CuboError.self) { try NPYFile.readDoubles(url) }
+        #expect(throws: CuboError.self) { try NPYFile.header(of: url) }
+        #expect(throws: CuboError.self) { try MappedCube(npy: url) }
+    }
+
     // MARK: helpers
 
     func writeRawNPY(dict: String, payload: Int, to url: URL) throws {

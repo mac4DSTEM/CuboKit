@@ -44,8 +44,9 @@ enum CPUReducers {
                            progress: (@Sendable (Double) -> Void)?) async throws -> (DetectorImage, DetectorImage) {
         let shape = source.shape
         let n = shape.detectorCount
-        var sum = [Double](repeating: 0, count: n)
-        var correction = [Double](repeating: 0, count: n)
+        // −0 is the identity of IEEE addition (−0 + −0 = −0, −0 + x = x), so an all-(−0) column keeps its sign, as NumPy's.
+        var sum = [Double](repeating: -0.0, count: n)
+        var correction = [Double](repeating: -0.0, count: n)
         var maximum = [Float](repeating: -.infinity, count: n)
         for range in try tiling.ranges(for: shape) {
             try Task.checkCancellation()
@@ -60,7 +61,12 @@ enum CPUReducers {
                                     let x = Double(p[i])
                                     let a = s[i]
                                     let t = a + x
-                                    c[i] += abs(a) >= abs(x) ? (a - t) + x : (x - t) + a
+                                    // Only a finite step carries a correction (∞ − ∞ is NaN), and only a non-zero one is
+                                    // added, so a correction of +0 never turns a −0 column positive.
+                                    if t.isFinite {
+                                        let e = abs(a) >= abs(x) ? (a - t) + x : (x - t) + a
+                                        if e != 0 { c[i] += e }
+                                    }
                                     s[i] = t
                                 }
                                 vDSP_vmax(mx.baseAddress!, 1, p, 1, mx.baseAddress!, 1, vDSP_Length(n))

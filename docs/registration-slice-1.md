@@ -318,4 +318,52 @@ reading: the `.npy` container is the exchange format until FormatoKit's readers 
 
 ## 9. Amendments
 
-(none yet)
+### 2026-10-15, at the first test run: the pins, the tests and the stamp
+
+- py4DSTEM's test data: `small_datacube.dm4` arrived as a 20 × 20 × 512 × 512 uint16 datacube and is pinned
+  (`py4dstem_small`); `Au_sim.h5` is in py4DSTEM's legacy v0.12 layout and is not pinned (its content duplicates the
+  owner's `sim_Au_data_all_binned.h5`, which is).
+- Real-data exports live outside the repository (section 4 as committed); the real-data tests are enabled by trait when
+  their export is present, and `tools/test.sh` writes no stamp when they were skipped.
+- The tests are Swift Testing, not XCTest (owner, 2026-10-15 00:30, the kits' standard); every name and case kept.
+- One planted test added before the mutants: a point detector reads its own pixel at interior points of a non-square
+  detector (the pins hold only corners, where a swapped point traps instead of failing).
+- `tools/test.sh` counted only tracked files as dirty, so a run with uncommitted new sources stamped the previous commit;
+  the stamp now counts untracked files under `Sources/` and `Tests/`.
+
+No registered number changes.
+
+### 2026-10-15, after the Gate B refuter on `85318cd`: the Metal kernels are compensated
+
+One refuter (Sonnet, its scripts in the session's scratchpad `refuter/`) compared the frozen commit with py4DSTEM on cubes
+and apertures the fixtures do not hold: 17 500 random geometries on seven detector shapes, every element type around the
+2^24 and 2^53 ties, multi-tile cubes with tilings that do not divide the scan, hand-made `.npy` headers. What held: every
+mask pixel-identical to `make_detector`; the CPU image and mean against the float64 definition (at most 8e-13 and 3e-16;
+integer cubes bit for bit); the max bit for bit on both paths; the Float32 conversions bit-identical to
+`astype(np.float32)`; lazy, eager and every CPU tiling bit for bit; the `.npy` reader's refusals. What broke:
+
+- **F1, a registered claim: Metal against CPU, relative 1e-5 with the floor of 3.4.** The first kernels summed in plain
+  Float32 (two levels deep). On zero-mean, dark-subtracted noise (N(0, 500), no signal) pixels near zero are judged
+  against a floor of 1e-6 · max, and the Float32 error (about 1e-7 to 5e-7 of max) exceeded it: image up to 8.2e-3,
+  mean up to 1e-3; on ±1e6 cancelling pairs 3e-4. The owner's cubes passed (6.1e-7), which is why the gate did not see
+  it. Section 3.4 says the kernel changes, not the number: **both kernels now use error-free transformations** (Knuth's
+  TwoSum and the fma TwoProduct, the Dot2 algorithm of Ogita, Rump and Oishi), compiled in Metal's safe math mode so
+  nothing reassociates them; each thread returns its sum and its correction and the host adds the two in Double.
+  Sections 3.2 and 3.3's "two levels deep" is replaced by this. Measured after the fix: the refuter's batteries at most
+  1.5e-8; the owner's cubes at most 2.4e-13 (image) and 7.6e-14 (mean). The registered bound, 1e-5, does not change.
+- **F2: `NPYFile.readDoubles` trapped** on a header whose element or byte count overflows `Int` (`MappedCube` refused
+  them). `NPYFile.header(of:)` now refuses such a header with checked arithmetic.
+- **F3, F4 (not claimed; behaviour made consistent):** the CPU mean turned ±∞ into NaN (the compensation computed
+  ∞ − ∞): a non-finite step now carries no correction, so the mean is ±∞ as NumPy's. A column of −0 lost its sign: the
+  accumulators start at −0, the identity of IEEE addition. Metal dropped NaN from the maximum and skipped zero-weight
+  pixels (so a NaN outside a mask never reached the image): both now propagate NaN as the CPU path does.
+- Recorded, not changed: `MappedCube` refuses an `.npy` whose data offset is not a multiple of the element size (an
+  unpadded hand-made header; `np.save` pads to 64 bytes); Metal flushes Float32 subnormals (below 1.2e-38) to zero;
+  non-finite data stay outside every claim of 3.4.
+
+Mutants (section 6, `tools/slice-1/mutants.py`, all on exported copies): on the XCTest tests 29 of 33 behaved as
+registered; M14b (the version 2.0 header length's high bytes) survived because the planted header was under 64 KiB, and
+M20 (a zero extent) because the byte-count guard refuses it too. A 70 kB version 2.0 header and a shape with two negative
+extents were added; M20 is recorded as equivalent and M20b (the per-extent guard dropped) takes its place. The
+compensated kernels bring their own mutants (each half of the compensation, the NaN max) and the F2 to F4 fixes theirs;
+the run on the fixed commit is cited in `docs/status.md`.

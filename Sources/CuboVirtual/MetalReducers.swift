@@ -1,13 +1,14 @@
 //
 //  MetalReducers.swift
 //  The accelerated path (registration 3.2, 3.3): compute kernels compiled at run time from the source below, in Metal's
-//  safe math mode (no fast-math reassociation), Float32 accumulation, Double combination across tiles on the host.
+//  safe math mode (no fast-math reassociation), compensated Float32 sums, Double combination on the host.
 //  Held to the CPU path within relative 1e-5 (registration 3.4).
 //
 //  Adapted from mac4DSTEM 7448401b, Shaders/VirtualMask.metal (one thread per scan position over a detector mask) and
-//  Shaders/DPStatistics.metal (one thread per detector pixel over the scan positions). Changed: the position sum is two
-//  levels deep (detector rows, then the row sums; chunks of 64 positions, then the chunk sums), so the Float32 error
-//  grows with the side, not the area; the tiles are combined in Double; the kernels are compiled from source so the
+//  Shaders/DPStatistics.metal (one thread per detector pixel over the scan positions). Changed: every sum is compensated
+//  (TwoSum and the fma TwoProduct, Dot2) and each thread returns its sum and its correction, which the host adds in
+//  Double (the first version's plain two-level Float32 sums missed the registered 1e-5 on zero-mean data: Gate B,
+//  2026-10-15); the tiles are combined in Double; the kernels are compiled from source so the
 //  kit needs no .metallib and `swift build` alone builds it.
 //
 
@@ -64,52 +65,57 @@ final class MetalContext: @unchecked Sendable {
 
     struct CuboDims { uint positions; uint detectorRows; uint detectorColumns; uint unused; };
 
-    // One thread per scan position: each detector row summed, then the row sums (registration 3.2).
+    // Error-free transformations (Knuth's TwoSum, the fma TwoProduct): in safe math mode nothing reassociates them, so
+    // s + c holds the running sum with its rounding error carried exactly to the next step (Ogita, Rump and Oishi's
+    // Dot2). The host adds s and c in Double. Registration 3.2, 3.3, amendment of 2026-10-15 (Gate B).
+    inline void two_sum(thread float &s, thread float &c, float x) {
+        const float t = s + x;
+        const float z = t - s;
+        c += (s - (t - z)) + (x - z);
+        s = t;
+    }
+
+    // One thread per scan position: the compensated dot product of the pattern with the mask, every pixel (a zero
+    // weight times a NaN is NaN, as on the CPU path).
     kernel void cubo_virtual_image(const device float *data [[buffer(0)]],
                                    const device float *mask [[buffer(1)]],
-                                   device float *image [[buffer(2)]],
+                                   device float2 *image [[buffer(2)]],
                                    constant CuboDims &d [[buffer(3)]],
                                    uint gid [[thread_position_in_grid]])
     {
         if (gid >= d.positions) { return; }
         const ulong n = (ulong)d.detectorRows * d.detectorColumns;
         const device float *p = data + (ulong)gid * n;
-        float total = 0.0f;
-        for (uint i = 0; i < d.detectorRows; ++i) {
-            const ulong base = (ulong)i * d.detectorColumns;
-            float row = 0.0f;
-            for (uint j = 0; j < d.detectorColumns; ++j) {
-                const float m = mask[base + j];
-                if (m != 0.0f) { row += m * p[base + j]; }
-            }
-            total += row;
+        float s = 0.0f, c = 0.0f;
+        for (ulong k = 0; k < n; ++k) {
+            const float m = mask[k];
+            const float x = p[k];
+            const float product = m * x;
+            const float error = fma(m, x, -product);
+            two_sum(s, c, product);
+            c += error;
         }
-        image[gid] = total;
+        image[gid] = float2(s, c);
     }
 
-    // One thread per detector pixel: the tile's positions in chunks of 64 in scan order, then the chunk sums; the
-    // maximum seeded at -infinity (registration 3.3).
+    // One thread per detector pixel: the tile's positions in scan order, compensated; the maximum seeded at -infinity
+    // and NaN-propagating, as the CPU path.
     kernel void cubo_sum_and_max(const device float *data [[buffer(0)]],
-                                 device float *sums [[buffer(1)]],
+                                 device float2 *sums [[buffer(1)]],
                                  device float *maxima [[buffer(2)]],
                                  constant CuboDims &d [[buffer(3)]],
                                  uint gid [[thread_position_in_grid]])
     {
         const ulong n = (ulong)d.detectorRows * d.detectorColumns;
         if ((ulong)gid >= n) { return; }
-        float total = 0.0f;
+        float s = 0.0f, c = 0.0f;
         float vmax = -INFINITY;
-        for (uint start = 0; start < d.positions; start += 64) {
-            const uint end = min(start + 64u, d.positions);
-            float chunk = 0.0f;
-            for (uint s = start; s < end; ++s) {
-                const float v = data[(ulong)s * n + gid];
-                chunk += v;
-                vmax = max(vmax, v);
-            }
-            total += chunk;
+        for (uint k = 0; k < d.positions; ++k) {
+            const float v = data[(ulong)k * n + gid];
+            two_sum(s, c, v);
+            vmax = (isnan(vmax) || isnan(v)) ? NAN : max(vmax, v);
         }
-        sums[gid] = total;
+        sums[gid] = float2(s, c);
         maxima[gid] = vmax;
     }
     """
@@ -177,12 +183,13 @@ enum MetalReducers {
             let tile = try await source.readScanTile(rows: range)
             let positions = tile.positionCount
             let data = try metal.buffer(tile.values, label: "CuboKit tile rows \(range.lowerBound)..<\(range.upperBound)")
-            let image = try metal.buffer(floats: positions, label: "CuboKit virtual image tile")
+            let image = try metal.buffer(floats: 2 * positions, label: "CuboKit virtual image tile (sum, correction)")
             try await metal.run(metal.virtualImage, threads: positions, buffers: [data, maskBuffer, image],
                                 dims: .init(positions: UInt32(positions), detectorRows: UInt32(shape.detectorRows),
                                             detectorColumns: UInt32(shape.detectorColumns)))
             let first = range.lowerBound * shape.scanColumns
-            for (k, v) in MetalContext.floats(image, count: positions).enumerated() { out[first + k] = Double(v) }
+            let pairs = MetalContext.floats(image, count: 2 * positions)
+            for k in 0..<positions { out[first + k] = Double(pairs[2 * k]) + Double(pairs[2 * k + 1]) }
             progress?(Double(range.upperBound) / Double(shape.scanRows))
         }
         return ScanImage(scanRows: shape.scanRows, scanColumns: shape.scanColumns, values: out, path: .metal)
@@ -195,7 +202,7 @@ enum MetalReducers {
         let n = shape.detectorCount
         var sum = [Double](repeating: 0, count: n)
         var maximum = [Float](repeating: -.infinity, count: n)
-        let sums = try metal.buffer(floats: n, label: "CuboKit tile sums")
+        let sums = try metal.buffer(floats: 2 * n, label: "CuboKit tile sums (sum, correction)")
         let maxima = try metal.buffer(floats: n, label: "CuboKit tile maxima")
         for range in try tiling.ranges(for: shape) {
             try Task.checkCancellation()
@@ -205,10 +212,10 @@ enum MetalReducers {
                                 dims: .init(positions: UInt32(tile.positionCount),
                                             detectorRows: UInt32(shape.detectorRows),
                                             detectorColumns: UInt32(shape.detectorColumns)))
-            let s = MetalContext.floats(sums, count: n), m = MetalContext.floats(maxima, count: n)
+            let s = MetalContext.floats(sums, count: 2 * n), m = MetalContext.floats(maxima, count: n)
             for i in 0..<n {
-                sum[i] += Double(s[i])
-                maximum[i] = Swift.max(maximum[i], m[i])
+                sum[i] += Double(s[2 * i]) + Double(s[2 * i + 1])
+                maximum[i] = (maximum[i].isNaN || m[i].isNaN) ? .nan : Swift.max(maximum[i], m[i])
             }
             progress?(Double(range.upperBound) / Double(shape.scanRows))
         }

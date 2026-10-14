@@ -61,6 +61,13 @@ public enum NPYFile {
         guard !fortran else { throw CuboError.fortranOrderNotSupported }
         let type = try elementType(descr)
         guard shape.allSatisfy({ $0 >= 0 }) else { throw CuboError.notNPY("negative extent in 'shape'") }
+        // The element and byte counts must fit an Int (Gate B, 2026-10-15: an unchecked product trapped).
+        var bytes = type.byteSize
+        for e in shape {
+            let (product, overflow) = bytes.multipliedReportingOverflow(by: e)
+            guard !overflow else { throw CuboError.notNPY("'shape' \(shape) overflows the byte count") }
+            bytes = product
+        }
         return NPYHeader(majorVersion: major, minorVersion: minor, elementType: type, shape: shape,
                          dataOffset: headerStart + headerLength)
     }
@@ -97,8 +104,8 @@ public enum NPYFile {
         do { data = try Data(contentsOf: url, options: .alwaysMapped) } catch {
             throw CuboError.cannotOpen(path: url.path, reason: error.localizedDescription)
         }
-        let needed = header.dataOffset + count * header.elementType.byteSize
-        guard data.count >= needed else {
+        let (needed, overflow) = header.dataOffset.addingReportingOverflow(count * header.elementType.byteSize)
+        guard !overflow, data.count >= needed else {
             throw CuboError.fileTooShort(path: url.path, needed: needed, available: data.count)
         }
         let values: [Double] = data.withUnsafeBytes { raw in
