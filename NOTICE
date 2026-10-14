@@ -1,0 +1,57 @@
+CuboKit
+Copyright (C) 2026 Paul Lobpreis
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version (LICENSE).
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+No virtual image or diffraction pattern computed by this library is validated
+on a microscope: agreement with py4DSTEM and recovery of planted cubes are what
+is claimed (docs/registration-slice-1.md section 8).
+
+
+================================================================================
+mac4DSTEM (the seed of slice 1)
+================================================================================
+
+The cube model (shape, sources, scan tiles, the eager and the tiled paths) and
+the virtual-imaging and statistics kernels are extracted from mac4DSTEM at
+commit 7448401b: mac4DSTEM/Core/Data/FourDDataSource.swift, FourDArray.swift,
+ResidentCube.swift, Core/Analysis/VirtualDetector.swift and
+Shaders/VirtualMask.metal, DPStatistics.metal. The app's load views,
+calibration, residency policy and display types stay in the app.
+
+    mac4DSTEM - https://github.com/mac4DSTEM/mac4DSTEM
+    Copyright (C) 2026 Paul Lobpreis
+    Licensed under the GNU General Public License v3.0
+
+================================================================================
+py4DSTEM (the oracle; the detector definitions are ported)
+================================================================================
+
+The detector masks (DetectorMask) are a port of py4DSTEM's
+DataCubeVirtualImager.make_detector, and the virtual image, mean and maximum
+pattern follow DataCube.get_virtual_image, get_dp_mean and get_dp_max
+(py4DSTEM/datacube/virtualimage.py, virtualdiffraction.py at commit
+f050d207851f8accd3aa550365baaf1f38230428, version 0.14.19). The pins in
+Tests/CuboVirtualTests/Fixtures/slice-1-pins.json are py4DSTEM's outputs on
+the synthetic cubes there, written by tools/slice-1/pins.py.
+
+    py4DSTEM - https://github.com/py4dstem/py4DSTEM
+    Copyright (C) The py4DSTEM developers
+    Licensed under the GNU General Public License v3.0
+    Savitzky, B. H. et al., "py4DSTEM: A Software Package for Four-Dimensional
+    Scanning Transmission Electron Microscopy Data Analysis", Microscopy and
+    Microanalysis 27(4), 712-743 (2021), doi:10.1017/S1431927621000477
+
+================================================================================
+NumPy (the .npy format; no code copied)
+================================================================================
+
+NPYFile reads and writes the .npy container as documented in NumPy's
+numpy/lib/format.py (NEP 1). NumPy is BSD-3-Clause.
