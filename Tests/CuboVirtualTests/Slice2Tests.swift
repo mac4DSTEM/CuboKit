@@ -108,6 +108,7 @@ enum Slice2 {
             #expect(p.radius.bitPattern == Slice2.double(e["radius"]).bitPattern, "\(name)/\(kind) radius \(p.radius) vs \(Slice2.double(e["radius"]))")
             #expect(p.centerRow.bitPattern == Slice2.double(e["center_row"]).bitPattern, "\(name)/\(kind) row \(p.centerRow)")
             #expect(p.centerColumn.bitPattern == Slice2.double(e["center_column"]).bitPattern, "\(name)/\(kind) column")
+            #expect(p.threshold.bitPattern == Slice2.double(e["threshold"]).bitPattern, "\(name)/\(kind) threshold \(p.threshold)")
         }
     }
 }

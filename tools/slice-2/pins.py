@@ -219,7 +219,16 @@ def probe_entry(dp, lower=0.01, upper=0.99, n=100):
     with np.errstate(all="ignore"):
         r, x0, y0 = get_probe_size(dp, thresh_lower=lower, thresh_upper=upper, N=n)
     refused = not (np.isfinite(r) and np.isfinite(x0) and np.isfinite(y0))
-    return {"refused": bool(refused), "radius": g17(r), "center_row": g17(x0), "center_column": g17(y0)}
+    # the trusted threshold, which py4DSTEM computes and does not return: the same steps, NumPy's mean (the kit returns it)
+    t = np.linspace(lower, upper, n)
+    m = np.max(dp)
+    rv = np.array([np.sqrt(np.sum(dp > m * x) / np.pi) for x in t])
+    gv = np.gradient(rv)
+    sel = (gv <= 0) * (gv >= 2 * np.median(gv))
+    with np.errstate(all="ignore"):
+        threshold = np.mean(t[sel])
+    return {"refused": bool(refused), "radius": g17(r), "center_row": g17(x0), "center_column": g17(y0),
+            "threshold": g17(threshold)}
 
 
 def fit_distance(own):

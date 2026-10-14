@@ -5,7 +5,7 @@
 "numpy": "2.5.0",
 "python": "3.12.4"
 },
-"generated_at": "2026-10-14T23:14:43.003990+00:00",
+"generated_at": "2026-10-14T23:15:32.822312+00:00",
 "seed": 20261015,
 "com": [
 {
@@ -9127,6 +9127,7 @@ true
 "radius": "3.3377905890622723",
 "center_row": "2.0079355632265998",
 "center_column": "3.000158711264532",
+"threshold": "0.49010101010101015",
 "cube": "digits",
 "pattern": "mean"
 },
@@ -9135,6 +9136,7 @@ true
 "radius": "3.3377905890622719",
 "center_row": "2.0039838256677887",
 "center_column": "3.0000796765133559",
+"threshold": "0.50000000000000011",
 "cube": "digits",
 "pattern": "max"
 },
@@ -9143,6 +9145,7 @@ true
 "radius": "4.0684289451282192",
 "center_row": "7.5000448496506849",
 "center_column": "8.500172663713716",
+"threshold": "0.50000000000000011",
 "cube": "gaussian",
 "pattern": "mean"
 },
@@ -9151,6 +9154,7 @@ true
 "radius": "4.0684289451282201",
 "center_row": "7.5009367526292534",
 "center_column": "8.4990391369559131",
+"threshold": "0.49505050505050507",
 "cube": "gaussian",
 "pattern": "max"
 },
@@ -9159,6 +9163,7 @@ true
 "radius": "6.7702750025730731",
 "center_row": "5.4990023141064803",
 "center_column": "5.4994819596549798",
+"threshold": "0.48515151515151517",
 "cube": "counts16",
 "pattern": "mean"
 },
@@ -9167,6 +9172,7 @@ true
 "radius": "6.7702750025730714",
 "center_row": "5.5044156250349072",
 "center_column": "5.4976531170760587",
+"threshold": "0.47525252525252532",
 "cube": "counts16",
 "pattern": "max"
 },
@@ -9175,6 +9181,7 @@ true
 "radius": "4.1209040872678964",
 "center_row": "3.9800400282718758",
 "center_column": "3.9945342954835419",
+"threshold": "0.37820707070707071",
 "cube": "counts32",
 "pattern": "mean"
 },
@@ -9183,6 +9190,7 @@ true
 "radius": "5.0759540423427776",
 "center_row": "3.9721725837238475",
 "center_column": "3.9573328212418395",
+"threshold": "0.36251402918069586",
 "cube": "counts32",
 "pattern": "max"
 },
@@ -9191,6 +9199,7 @@ true
 "radius": "1.067780960174106",
 "center_row": "2.3361581902791784",
 "center_column": "2.010357818978747",
+"threshold": "0.48708827404479588",
 "cube": "thirds",
 "pattern": "mean"
 },
@@ -9199,6 +9208,7 @@ true
 "radius": "1.2945708300391847",
 "center_row": "2.5379388488394641",
 "center_column": "1.4382785919096259",
+"threshold": "0.5140966628308401",
 "cube": "thirds",
 "pattern": "max"
 },
@@ -9207,6 +9217,7 @@ true
 "radius": "0",
 "center_row": "nan",
 "center_column": "nan",
+"threshold": "0.50000000000000011",
 "cube": "negative",
 "pattern": "mean"
 },
@@ -9215,6 +9226,7 @@ true
 "radius": "0",
 "center_row": "nan",
 "center_column": "nan",
+"threshold": "0.50000000000000011",
 "cube": "negative",
 "pattern": "max"
 },
@@ -9223,6 +9235,7 @@ true
 "radius": "18.054066673528208",
 "center_row": "15.5",
 "center_column": "15.5",
+"threshold": "0.50000000000000011",
 "cube": "boundary",
 "pattern": "mean"
 },
@@ -9231,6 +9244,7 @@ true
 "radius": "18.054066673528208",
 "center_row": "15.5",
 "center_column": "15.5",
+"threshold": "0.50000000000000011",
 "cube": "boundary",
 "pattern": "max"
 },
@@ -9239,6 +9253,7 @@ true
 "radius": "1.3000036011350216",
 "center_row": "5.0737772297575008",
 "center_column": "4.5891903000411016",
+"threshold": "0.60503928170594845",
 "cube": "shift",
 "pattern": "mean"
 },
@@ -9247,6 +9262,7 @@ true
 "radius": "2.2673815720177979",
 "center_row": "4.1916951555073796",
 "center_column": "4.3648795130492788",
+"threshold": "0.49911616161616162",
 "cube": "shift",
 "pattern": "max"
 },
@@ -9255,6 +9271,7 @@ true
 "radius": "4.6865106579076032",
 "center_row": "15",
 "center_column": "16",
+"threshold": "0.50000000000000011",
 "cube": "disk_15.0_16.0",
 "pattern": "given",
 "pattern_values": [
@@ -10328,6 +10345,7 @@ true
 "radius": "5.0462650440403189",
 "center_row": "15.5",
 "center_column": "16.5",
+"threshold": "0.50000000000000011",
 "cube": "disk_15.5_16.5",
 "pattern": "given",
 "pattern_values": [
@@ -11401,6 +11419,7 @@ true
 "radius": "6.2622414233879073",
 "center_row": "15.000000000000002",
 "center_column": "16.000000000000004",
+"threshold": "0.5",
 "cube": "tie_at_threshold",
 "pattern": "given",
 "pattern_values": [
@@ -12471,6 +12490,7 @@ true
 "radius": "4.6865106579076032",
 "center_row": "15",
 "center_column": "16",
+"threshold": "0.45224999999999993",
 "cube": "last_threshold",
 "pattern": "given",
 "pattern_values": [
