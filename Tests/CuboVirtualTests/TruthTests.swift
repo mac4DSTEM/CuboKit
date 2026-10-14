@@ -109,6 +109,18 @@ final class TruthTests: XCTestCase {
         }
     }
 
+    /// A point detector reads exactly its own pixel, row then column, at interior points of a non-square detector
+    /// (the pins hold only the corners, where a swapped point would trap rather than read the wrong pixel).
+    func testPointReadsItsOwnPixel() async throws {
+        let source = try MappedCube(npy: Fixtures.url("digits.npy"))       // 5 × 7 detector, value s·10000 + i·100 + j
+        for (row, column) in [(1, 5), (3, 2), (4, 0), (0, 6), (2, 4)] {
+            for path in paths {
+                let image = try await VirtualImaging.image(of: source, geometry: .point(row: row, column: column), path: path)
+                XCTAssertEqual(image.values, (0..<6).map { Double($0 * 10000 + row * 100 + column) }, "(\(row), \(column)) \(path)")
+            }
+        }
+    }
+
     /// Registration 3.1 and the DEVIATION in the refusing direction.
     func testRefusals() throws {
         func refuses(_ g: DetectorGeometry, _ want: CuboVirtualError, line: UInt = #line) {
