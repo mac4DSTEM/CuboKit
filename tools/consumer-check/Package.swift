@@ -18,6 +18,7 @@ let package = Package(
         .executableTarget(name: "consumer-check", dependencies: [
             .product(name: "CuboCore", package: kit),
             .product(name: "CuboVirtual", package: kit),
+            .product(name: "CuboPhase", package: kit),
             .product(name: "CuboStrain", package: kit),
             .product(name: "CuboPtycho", package: kit),
         ]),

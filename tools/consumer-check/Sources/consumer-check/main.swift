@@ -2,6 +2,7 @@
 // summary line is what run.sh reads. A cube is written to a temporary .npy, read back lazily and eagerly, and reduced on
 // both paths.
 import CuboCore
+import CuboPhase
 import CuboPtycho
 import CuboStrain
 import CuboVirtual
@@ -79,5 +80,37 @@ do {
 check("CuboStrain scope", CuboStrain.scope.contains("not registered"))
 check("CuboPtycho scope", CuboPtycho.scope.contains("not registered"))
 check("ElementType list", ElementType.allCases.count == 10 && ElementType.uint16.npyDescriptor == "<u2")
+// Slice 2: centre of mass, probe size, the reference, the rotation, DPC.
+for path in paths {
+    let com = try await CenterOfMass.measure(of: lazy, mask: .circle(centerRow: 3.5, centerColumn: 4, radius: 3), path: path)
+    check("CenterOfMass.measure \(path)", com.row.scanRows == 3 && com.row.values.count == 12 && com.row.path == path
+          && com.intensity.values.count == 12 && com.momentRow.values.count == 12 && com.momentColumn.values.count == 12)
+}
+var disk = [Double](repeating: 1, count: 32 * 33)
+for i in 0..<32 { for j in 0..<33 where (i - 15) * (i - 15) + (j - 16) * (j - 16) < 25 { disk[i * 33 + j] = 1000 } }
+let probe = try ProbeSize.estimate(DetectorImage(detectorRows: 32, detectorColumns: 33, values: disk, path: .cpu))
+check("ProbeSize.estimate", probe.centerRow == 15 && probe.centerColumn == 16 && probe.radius > 4 && probe.threshold > 0)
+let rows = 9, cols = 8
+var gx = [Double](), gy = [Double]()
+for r in 0..<rows { for c in 0..<cols {
+    let f = { (r: Double, c: Double) in exp(-((r - 4) * (r - 4) + (c - 3.5) * (c - 3.5)) / 4) }
+    gx.append((f(Double(r + 1), Double(c)) - f(Double(r - 1), Double(c))) / 2)
+    gy.append((f(Double(r), Double(c + 1)) - f(Double(r), Double(c - 1))) / 2)
+} }
+let field = try ScanVectorField(scanRows: rows, scanColumns: cols, row: gx, column: gy)
+let (fitted, normalized) = try CenterOfMassReference.normalize(field, reference: .none, reciprocalSampling: 1)
+check("CenterOfMassReference.normalize", fitted.row.allSatisfy { $0 == 0 } && normalized == field)
+let rotation = try RotationSolver.solve(normalized, anglesDegrees: RotationSolver.defaultAnglesDegrees,
+                                        criterion: .minimizeCurl, forceRotationDegrees: nil, forceTranspose: nil)
+check("RotationSolver.solve", rotation.degrees == 0 && !rotation.transposed && rotation.curve.count == 179)
+let dpc = try DPC.reconstruct(rotation.corrected, scanSampling: (1, 1), paddingFactor: 2, maxIterations: 16)
+check("DPC.reconstruct", dpc.phase.count == rows * cols && dpc.errors.count <= 16 && dpc.finalStepSize > 0)
+do {
+    _ = try DPC.reconstruct(try ScanVectorField(scanRows: 3, scanColumns: 3, row: Array(repeating: 0, count: 9),
+                                                column: Array(repeating: 0, count: 9)))
+    check("CuboPhaseError.zeroField", false)
+} catch let error as CuboPhaseError {
+    check("CuboPhaseError.zeroField", error == .zeroField && error.errorDescription?.contains("mac4DSTEM") == false)
+}
 print("consumer-check summary: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)
