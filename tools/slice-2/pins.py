@@ -213,11 +213,11 @@ def of_max(a, b):
     return float(np.max(np.abs(a - b)) / max(np.max(np.abs(b)), 1e-300))
 
 
-def probe_entry(dp):
+def probe_entry(dp, lower=0.01, upper=0.99, n=100):
     """get_probe_size on a float64 pattern; py4DSTEM's result is float64 here, so it is the definition."""
     dp = np.asarray(dp, dtype=np.float64)
     with np.errstate(all="ignore"):
-        r, x0, y0 = get_probe_size(dp)
+        r, x0, y0 = get_probe_size(dp, thresh_lower=lower, thresh_upper=upper, N=n)
     refused = not (np.isfinite(r) and np.isfinite(x0) and np.isfinite(y0))
     return {"refused": bool(refused), "radius": g17(r), "center_row": g17(x0), "center_column": g17(y0)}
 
@@ -329,6 +329,18 @@ def run_synthetic():
         check(f"disk {cr},{cc}: py4DSTEM centre exact", abs(float(e["center_row"]) - cr) < 1e-12
               and abs(float(e["center_column"]) - cc) < 1e-12)
         out["probe"].append(e)
+    # mutant-driven cases (amendment 2026-10-15): a background exactly at the first threshold (1000 · 0.01 == 10.0, so
+    # `>` and `>=` differ), and thresholds whose linspace last value is not exact unless set to stop.
+    tie, _ = disk(32, 33, 15.0, 16.0, 5.0, inside=1000.0, outside=10.0)
+    check("tie: 1000 * linspace(0.01, ...)[0] == 10", 1000 * np.linspace(0.01, 0.99, 100)[0] == 10.0)
+    e = probe_entry(tie); e.update({"cube": "tie_at_threshold", "pattern": "given", "pattern_values": arr(tie), "shape": [32, 33]})
+    out["probe"].append(e)
+    lo, hi, nn = 0.013, 0.97, 37
+    check("thresholds: the computed last linspace value is not the stop", (nn - 1) * ((hi - lo) / (nn - 1)) + lo != hi)
+    g = np.mean(cubes["gaussian"].astype(np.float32), axis=(0, 1), dtype=np.float64)
+    e = probe_entry(g, lo, hi, nn); e.update({"cube": "gaussian_thresholds", "pattern": "given", "pattern_values": arr(g),
+                                              "shape": list(g.shape), "lower": lo, "upper": hi, "count": nn})
+    out["probe"].append(e)
     # planted fields (5.1): a known gradient, rotated by -theta, optionally transposed; reference none
     phi, gx, gy = planted_field()
     for theta, transpose in ((0.0, False), (23.0, False), (-61.0, True)):

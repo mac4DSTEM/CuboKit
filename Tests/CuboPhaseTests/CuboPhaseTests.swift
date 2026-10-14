@@ -160,8 +160,10 @@ func checkChain(measured: ScanVectorField, reference: CenterOfMassReference, pin
         // NaN → 0 (nan_to_num), and a NaN position is left out of the plane fit
         var withNaN = plane.row; withNaN[4] = .nan
         let field = try ScanVectorField(scanRows: shape[0], scanColumns: shape[1], row: withNaN, column: plane.column)
-        let m = try CenterOfMassReference.normalize(field, reference: .planeFit).normalized
+        let (mf, m) = try CenterOfMassReference.normalize(field, reference: .planeFit)
         #expect(m.row[4] == 0 && m.row.allSatisfy { abs($0) <= 1e-12 })
+        // the plane is fitted to the finite positions only: it is the input plane everywhere, the NaN position included
+        #expect(mf.row.indices.allSatisfy { abs(mf.row[$0] - plane.row[$0]) <= 1e-12 }, "the fitted plane must stay finite")
     }
 
     /// py4DSTEM's tie rules: a field whose curl is the same at every angle and orientation (zero) keeps the plain

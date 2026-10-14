@@ -30,7 +30,7 @@ enum Slice2 {
         let v = Slice2.pins["versions"] as! [String: String]
         #expect(v["py4dstem_commit"] == "f050d207851f8accd3aa550365baaf1f38230428")
         #expect(v["numpy"] == "2.5.0")
-        #expect(Slice2.com.count == 24 && Slice2.probe.count == 18)
+        #expect(Slice2.com.count == 24 && Slice2.probe.count == 20)
     }
 
     /// 3.1, 4: the sums within 1e-10 of the float64 definition (integer cubes bit for bit), the centre of mass within
@@ -99,11 +99,12 @@ enum Slice2 {
                 let (mean, max) = try await VirtualDiffraction.meanAndMax(of: cube)
                 pattern = kind == "mean" ? mean : max
             }
+            let lower = e["lower"] as? Double ?? 0.01, upper = e["upper"] as? Double ?? 0.99, count = e["count"] as? Int ?? 100
             if e["refused"] as! Bool {
-                #expect(throws: CuboVirtualError.self) { try ProbeSize.estimate(pattern) }
+                #expect(throws: CuboVirtualError.self) { try ProbeSize.estimate(pattern, lowerThreshold: lower, upperThreshold: upper, count: count) }
                 continue
             }
-            let p = try ProbeSize.estimate(pattern)
+            let p = try ProbeSize.estimate(pattern, lowerThreshold: lower, upperThreshold: upper, count: count)
             #expect(p.radius.bitPattern == Slice2.double(e["radius"]).bitPattern, "\(name)/\(kind) radius \(p.radius) vs \(Slice2.double(e["radius"]))")
             #expect(p.centerRow.bitPattern == Slice2.double(e["center_row"]).bitPattern, "\(name)/\(kind) row \(p.centerRow)")
             #expect(p.centerColumn.bitPattern == Slice2.double(e["center_column"]).bitPattern, "\(name)/\(kind) column")
