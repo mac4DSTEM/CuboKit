@@ -54,14 +54,16 @@ public struct ScanTile: Sendable, Equatable {
     public var positionCount: Int { rows.count * shape.scanColumns }
 }
 
-/// What every cube conforms to. An actor: reads are serialised per source.
+/// What every cube conforms to. An actor: reads are serialised per source. The reads are `async`, so an adapter can
+/// forward to another asynchronous store (an app's own cube with its cache and residency) without copying the cube;
+/// the kit's `MemoryCube` and `MappedCube` satisfy them with synchronous methods.
 public protocol CubeSource: Actor {
     /// The cube's shape; fixed for the source's lifetime.
     nonisolated var shape: CubeShape { get }
     /// One pattern at scan position (`row`, `column`).
-    func readPattern(row: Int, column: Int) throws -> DiffractionPattern
+    func readPattern(row: Int, column: Int) async throws -> DiffractionPattern
     /// Contiguous scan rows; `rows` must lie inside the cube and must not be empty.
-    func readScanTile(rows: Range<Int>) throws -> ScanTile
+    func readScanTile(rows: Range<Int>) async throws -> ScanTile
 }
 
 extension CubeShape {

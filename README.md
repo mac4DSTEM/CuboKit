@@ -41,8 +41,8 @@ are recorded beside it). Measured on the synthetic pins and on five real cubes (
 | Quantity | CPU path (`.cpu`, the default) | Metal path (`.metal`) |
 |---|---|---|
 | Detector masks | identical to py4DSTEM's `make_detector` | the same mask |
-| Virtual image | integer cubes bit for bit against py4DSTEM; float cubes within 1e-10 of the float64 definition (measured: identical) | within 1e-5 of the CPU path (measured: at most 6.1e-7) |
-| Mean pattern | integer cubes bit for bit; float cubes within 1e-10 (measured: identical) | within 1e-5 (measured: at most 1.6e-7) |
+| Virtual image | integer cubes bit for bit against py4DSTEM; float cubes within 1e-10 of the float64 definition (measured: identical) | within 1e-5 of the CPU path (compensated kernels; measured: at most 2.4e-13 on the owner's cubes, 1.5e-8 on the Gate B refuter's noise cubes) |
+| Mean pattern | integer cubes bit for bit; float cubes within 1e-10 (measured: identical) | within 1e-5 (measured: at most 7.6e-14) |
 | Maximum pattern | bit for bit | bit for bit |
 | Eager against lazy, any tiling | bit for bit | the same bits for the image; the mean within 1e-5 |
 

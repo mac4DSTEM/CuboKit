@@ -127,6 +127,26 @@ import CuboCore
         #expect(pf.values == f)
     }
 
+    /// An adapter that forwards to another asynchronous store conforms with `async` reads, and the kit reads through it
+    /// the same values (the pattern mac4DSTEM's switch uses: its own array behind `CubeSource`; consumers-0.0.1.md).
+    @Test func testAnAsyncAdapterIsACubeSource() async throws {
+        actor Forwarding: CubeSource {
+            let inner: MappedCube
+            nonisolated let shape: CubeShape
+            init(_ inner: MappedCube) { self.inner = inner; shape = inner.shape }
+            func readPattern(row: Int, column: Int) async throws -> DiffractionPattern {
+                try await inner.readPattern(row: row, column: column)
+            }
+            func readScanTile(rows: Range<Int>) async throws -> ScanTile { try await inner.readScanTile(rows: rows) }
+        }
+        let lazy = try MappedCube(npy: Self.fixtures.appendingPathComponent("gaussian.npy"))
+        let adapter = Forwarding(lazy)
+        let viaAdapter = try await MemoryCube(loading: adapter, tiling: .rows(2))
+        let direct = try await MemoryCube(loading: lazy)
+        #expect(viaAdapter.values == direct.values)
+        #expect(try await adapter.readPattern(row: 5, column: 4) == (try await lazy.readPattern(row: 5, column: 4)))
+    }
+
     // MARK: The .npy container
 
     @Test func testHeaderOfANumPyFile() throws {

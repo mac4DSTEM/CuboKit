@@ -37,7 +37,10 @@ actor CuboAdapter: CubeSource {
         self.array = array
         self.shape = try CubeShape(scanRows: d.ry, scanColumns: d.rx, detectorRows: d.qy, detectorColumns: d.qx)
     }
-    func readPattern(row: Int, column: Int) async throws -> DiffractionPattern { ... }   // array.pattern(ry:rx:)
+    func readPattern(row: Int, column: Int) async throws -> DiffractionPattern {
+        let p = try await array.pattern(ry: row, rx: column)
+        return try DiffractionPattern(detectorRows: p.qy, detectorColumns: p.qx, values: p.pixels)
+    }
     func readScanTile(rows: Range<Int>) async throws -> ScanTile {
         let t = try await array.scanTile(yRange: rows)
         return try ScanTile(shape: shape, rows: rows, values: t.pixels)
@@ -45,11 +48,9 @@ actor CuboAdapter: CubeSource {
 }
 ```
 
-**One API change the adapter needs from CuboKit first**: `CubeSource`'s reads are synchronous actor methods today, and
-`FourDArray.scanTile` is `async`. Either CuboKit 0.0.2 makes the protocol's reads `async` (registered as a tier-2 API change,
-no number moves; the kit's own sources stay synchronous inside), or the adapter copies the cube into a `MemoryCube` first,
-which costs the cube's size in memory. The CuboKit session's recommendation is the first; it is on the board's hand-off
-for slice 2. The layout matches: mac4DSTEM's `[ry][rx][qy][qx]` Float32 is the kit's storage order, and its `y`/`x` are the
+`CubeSource`'s reads are `async` (changed before the first tag, 2026-10-15), so the adapter forwards to the
+app's asynchronous array without copying the cube; `CuboCoreTests.testAnAsyncAdapterIsACubeSource` holds the pattern. The
+layout matches: mac4DSTEM's `[ry][rx][qy][qx]` Float32 is the kit's storage order, and its `y`/`x` are the
 kit's row/column.
 
 ## 3. The call sites (mac4DSTEM `7d6fdbd1`)
@@ -86,7 +87,8 @@ tile prefetcher, residency, the Metal engine's other kernels, and every reader.
 3. **Virtual images in Double.** mac4DSTEM sums each position in Float32 on the GPU; the kit's default `.cpu` path sums in
    Double: exact for integer cubes (bit for bit with py4DSTEM), within 1e-10 of py4DSTEM's float64 definition for float32
    cubes (measured: identical on the owner's four cubes). Numbers move in their low bits, at most about 1e-6 relative on
-   the owner's cubes. `.metal` stays available and is within 6.1e-7 of the CPU path on the same cubes.
+   the owner's cubes. `.metal` stays available: its kernels are compensated (Dot2) and sit within 2.4e-13 of the CPU
+   path on the same cubes, so the path choice no longer moves a number a reader sees.
 4. **The mean pattern in Double, with compensation.** mac4DSTEM's tiled mean sums each tile in Float32 on the GPU and weights
    the tiles in Double; the kit's CPU mean is a compensated Double sum (identical to py4DSTEM's float64 mean on the owner's
    cubes; py4DSTEM's own float32 mean differs from it by up to 1.9e-5 on the Al–Mg–Si cube). Every consumer of the mean
