@@ -1,4 +1,4 @@
-// What mac4DSTEM (and any other app) reads from CuboKit, through the public API only. Each check prints one line; the
+// What an app reads from CuboKit, through the public API only. Each check prints one line; the
 // summary line is what run.sh reads. A cube is written to a temporary .npy, read back lazily and eagerly, and reduced on
 // both paths.
 import CuboCore
@@ -69,7 +69,7 @@ do {
     check("CuboVirtualError.innerNotBelowOuter", false)
 } catch let error as CuboVirtualError {
     check("CuboVirtualError.innerNotBelowOuter", error == .innerNotBelowOuter(inner: 2, outer: 1)
-          && error.errorDescription?.contains("mac4DSTEM") == false)
+          && error.errorDescription?.contains("app") == false)
 }
 do {
     _ = try CubeShape([1, 2, 3])
@@ -110,7 +110,7 @@ do {
                                                 column: Array(repeating: 0, count: 9)))
     check("CuboPhaseError.zeroField", false)
 } catch let error as CuboPhaseError {
-    check("CuboPhaseError.zeroField", error == .zeroField && error.errorDescription?.contains("mac4DSTEM") == false)
+    check("CuboPhaseError.zeroField", error == .zeroField && error.errorDescription?.contains("app") == false)
 }
 // Slice 3: origins, fits, centred and shifted imaging, shifted patterns.
 let (origins, originRadius) = try await OriginMeasurement.measure(of: eager, radius: 2.5, radiusScale: 1.2)

@@ -2,8 +2,8 @@
 //  DoubleFFT.swift
 //  The exact N-point complex DFT in Double for any N: vDSP's radix-2 FFT (vDSP_fft_zipD) for powers of two, Bluestein's
 //  chirp-z through a radix-2 FFT of length M ≥ 2N − 1 otherwise. Forward is NumPy's fft (e^{−2πi kn/N}, unnormalized);
-//  inverse is NumPy's ifft (e^{+2πi kn/N}, divided by N). Ported in spirit from mac4DSTEM 7d6fdbd1 Core/Compute/FFT2D.swift
-//  (which is Float32 and exact-radix for 3 and 5); here Double throughout, for the DPC iteration of slice 2 and the Fourier shifts of slice 3 (moved to CuboCore, package, in slice 3).
+//  inverse is NumPy's ifft (e^{+2πi kn/N}, divided by N). Double throughout, for the DPC iteration of slice 2
+//  and the Fourier shifts of slice 3 (moved to CuboCore, package, in slice 3).
 //
 
 import Accelerate

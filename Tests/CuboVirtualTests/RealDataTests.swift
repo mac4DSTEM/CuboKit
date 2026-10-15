@@ -1,8 +1,8 @@
 //
 //  RealDataTests.swift
-//  Registration 5.3, 5.4, gate 3: the owner's cubes and py4DSTEM's test datacube, exported as .npy with their pins by
+//  Registration 5.3, 5.4, gate 3: real cubes and py4DSTEM's test datacube, exported as .npy with their pins by
 //  `tools/slice-1/pins.py real` into the real-data directory OUTSIDE the repository. Skipped by name when it is absent,
-//  so tools/test.sh is green on a clone and complete on the owner's machine. Every distance measured is printed, so the
+//  so tools/test.sh is green on a clone and complete on a machine that has the exports. Every distance measured is printed, so the
 //  run's log is the evidence docs/status.md cites.
 //
 

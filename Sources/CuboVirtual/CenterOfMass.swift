@@ -3,9 +3,8 @@
 //  The intensity-weighted centre of mass of every pattern (registration slice 2, 3.1): py4DSTEM's
 //  `_calculate_intensities_center_of_mass` (process/phase/phase_base_class.py 613 at f050d207), in Double.
 //
-//  Adapted from mac4DSTEM 7d6fdbd1, Shaders/CenterOfMass.metal and VirtualDetector.tiledCenterOfMass. DEVIATION from
-//  mac4DSTEM, toward py4DSTEM: negative intensities are summed as they are (mac4DSTEM clamps them at 0), a zero sum gives
-//  NaN (mac4DSTEM substitutes the reference centre), and no reference is subtracted here (CuboPhase normalizes).
+//  DEVIATION from a common Float32 implementation, toward py4DSTEM: negative intensities are summed as they are (that
+//  implementation clamps them at 0), a zero sum gives NaN (it substitutes the reference centre), and no reference is subtracted here (CuboPhase normalizes).
 //
 
 import CuboCore

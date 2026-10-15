@@ -1,8 +1,8 @@
 # CuboKit CI: the hook proof and the gate (tools/test.sh = `swift test -c release`).
 #
-# Written 2026-10-15; enabling Actions on the repository is the owner's. The package needs macOS 27 and a Swift 6.2
+# Written 2026-10-15; Actions must be enabled on the repository. The package needs macOS 27 and a Swift 6.2
 # toolchain (Package.swift: `.macOS("27.0")`, tools 6.2): the runner must provide a toolchain for that SDK. The runner
-# image is `macos-latest` with the newest Xcode selected, as FormatoKit and SpectroKit; if the image lags, pin `runs-on`
+# image is `macos-latest` with the newest Xcode selected; if the image lags, pin `runs-on`
 # to the first image that carries an Xcode with the macOS 27 SDK.
 # No real data in CI: RealDataTests skip by name when ~/Library/Caches/CuboKit/real-data is absent, so tools/test.sh is
 # green without it and writes no stamp. No libhdf5 and no References/ (CuboKit has no package dependencies).

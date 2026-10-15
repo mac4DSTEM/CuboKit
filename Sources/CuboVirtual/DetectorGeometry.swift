@@ -9,8 +9,8 @@
 //      point     mask[qx, qy] = 1
 //      mask      the given array
 //  py4DSTEM's qx (first detector axis) is this kit's row, its qy the column, so the tuples pass through unchanged.
-//  Evaluated in Double, as NumPy does on np.indices minus a Python float; mac4DSTEM 7448401b
-//  (Core/Analysis/VirtualDetector.swift, makeMask and fillRadial) evaluates in Float32, which differs from py4DSTEM on a
+//  Evaluated in Double, as NumPy does on np.indices minus a Python float; a Float32
+//  implementation of the same masks differs from py4DSTEM on a
 //  pixel whose distance lies within one Float32 ulp of the radius (the pins carry one).
 //
 //  DEVIATION from py4DSTEM, in the refusing direction only: a point off the grid, a negative rectangle bound, a negative

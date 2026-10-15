@@ -4,7 +4,7 @@
 //
 //  Storage order is C order [scanRow][scanColumn][detectorRow][detectorColumn], py4DSTEM's (R_Nx, R_Ny, Q_Nx, Q_Ny).
 //  py4DSTEM's x (Rx, Qx: the first axis of a pair) is this kit's ROW; its y (Ry, Qy) is this kit's COLUMN. The kit says
-//  row and column, never x and y, so the swap mac4DSTEM documents at every call site cannot be silent here.
+//  row and column, never x and y, so the x/y swap cannot be silent here.
 //
 
 /// The four extents of a cube, scan first, in storage order.

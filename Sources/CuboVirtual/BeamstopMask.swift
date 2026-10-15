@@ -4,7 +4,7 @@
 //  (datacube/datacube.py 1013 at f050d207) on a pattern the caller passes (the mean pattern, or the maximum for
 //  `use_max_dp`), in Double, with scipy's binary_fill_holes (4-connected) and the exact Euclidean distance transform.
 //
-//  Seeds: mac4DSTEM 7f192da9 Core/Analysis/BeamstopMask.swift (Float32, the threshold index clipped to N − 1).
+//  Unlike a Float32 reference implementation that clips the threshold index to N − 1, this follows py4DSTEM in Double.
 //  DEVIATIONS, in the refusing direction: a threshold whose index is N (py4DSTEM raises IndexError), a pattern with NaN,
 //  and a cleaned mask with no false pixel (scipy's transform then measures to a virtual pixel outside the array).
 //

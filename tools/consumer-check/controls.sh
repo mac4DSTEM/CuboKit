@@ -1,5 +1,5 @@
 #!/bin/zsh
-# CuboKit consumer-check negative controls (SpectroKit's tools/consumer-check/controls.py pattern, in zsh).
+# CuboKit consumer-check negative controls (revert one `public` to `package` in a copy; the build must fail).
 #
 # The consumer package (tools/consumer-check) compiles only while every symbol it names is `public`. This proves it: for
 # each symbol below, ONE declaration is changed from `public` to `package` in a COPY of the kit (never the working tree),

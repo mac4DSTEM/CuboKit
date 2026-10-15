@@ -4,8 +4,8 @@
 //  safe math mode (no fast-math reassociation), compensated Float32 sums, Double combination on the host.
 //  Held to the CPU path within relative 1e-5 (registration 3.4).
 //
-//  Adapted from mac4DSTEM 7448401b, Shaders/VirtualMask.metal (one thread per scan position over a detector mask) and
-//  Shaders/DPStatistics.metal (one thread per detector pixel over the scan positions). Changed: every sum is compensated
+//  Two kernels: one thread per scan position over a detector mask, and one thread per detector pixel over the scan
+//  positions. Every sum is compensated
 //  (TwoSum and the fma TwoProduct, Dot2) and each thread returns its sum and its correction, which the host adds in
 //  Double (the first version's plain two-level Float32 sums missed the registered 1e-5 on zero-mean data: Gate B,
 //  2026-10-15); the tiles are combined in Double; the kernels are compiled from source so the

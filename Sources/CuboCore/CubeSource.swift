@@ -3,8 +3,7 @@
 //  How a computation gets its pixels: one pattern, or contiguous scan rows (registration 1.1). Every read returns
 //  Float32 whatever the stored element type.
 //
-//  Extracted from mac4DSTEM 7448401b, Core/Data/FourDDataSource.swift (`FourDDataSource`, `FourDScanTile`), with the
-//  app's load views, calibration, probes and file attributes left in the app: a source here is only a shape and reads.
+//  A source here is only a shape and reads: load views, calibration, probes and file attributes belong to the consumer.
 //
 
 /// One diffraction pattern, `detectorRows × detectorColumns` values, row-major.

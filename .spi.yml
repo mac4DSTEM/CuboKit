@@ -1,5 +1,5 @@
-# Swift Package Index: which modules get hosted DocC documentation. Written 2026-10-15; listing on the Index is the owner's,
-# once the repository is public. CuboKit is macOS-only today (Package.swift: macOS 27, swift-tools 6.2), so the docs build
+# Swift Package Index: which modules get hosted DocC documentation. Written 2026-10-15; listing on the Index needs the repository
+# to be public. CuboKit is macOS-only today (Package.swift: macOS 27, swift-tools 6.2), so the docs build
 # on the Index's macOS SwiftPM builder; if its Xcode lacks the macOS 27 SDK, the build waits for it. The five library
 # products are the documentation targets; CuboStrain and CuboPtycho are empty placeholders until registered, so their
 # pages carry scope only.

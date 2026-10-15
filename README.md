@@ -9,7 +9,7 @@ module.
 **Who it is for.** Anyone building a Mac app, a command-line tool or a notebook-style workflow on 4D-STEM data who wants
 processing that is documented, tested against a reference and fast on Apple silicon, instead of writing it again.
 py4DSTEM is the reference: the kit follows its definitions, names the commit it was checked against, and says where it
-differs. mac4DSTEM, an open-source macOS app, is the first app built on it.
+differs.
 
 ## Modules and their state
 
@@ -28,11 +28,19 @@ differs. mac4DSTEM, an open-source macOS app, is the first app built on it.
 
 ## The first ten minutes
 
-Export a cube from Python, then look at it:
+With no data at hand, `--synthetic` generates a small cube in memory. To look at a real one, export a cube from Python.
+py4DSTEM's public test cube, `small_datacube.dm4` (20 × 20 × 512 × 512), is downloadable with py4DSTEM itself:
 
 ```python
+import numpy as np
+import py4DSTEM
+
+py4DSTEM.io.gdrive_download("small_datacube")                   # writes small_datacube.dm4 to the working directory
+datacube = py4DSTEM.import_file("small_datacube.dm4")
 np.save("cube.npy", datacube.data)      # py4DSTEM's (R_Nx, R_Ny, Q_Nx, Q_Ny), C order
 ```
+
+Any other `DataCube` exports the same way. Then look at it:
 
 ```sh
 swift run cubo-first-look cube.npy out      # or: swift run cubo-first-look --synthetic out
@@ -103,6 +111,7 @@ swift build                         # no setup, no dependency; the Metal kernels
 tools/test.sh                       # the gate: swift test -c release; stamps .build/last-green on a clean tree
 tools/last-green.sh                 # the last green commit and whether HEAD equals it
 tools/consumer-check/run.sh         # a separate package using the public API only
+tools/readme-consumer/run.sh    # the README's own code, compiled and run
 ```
 
 The reference is not in the repository: `tools/slice-1/provision-py4dstem.sh` builds the pinned py4DSTEM environment in the
@@ -119,9 +128,8 @@ move to it. `docs/parity.md` is the checklist against py4DSTEM's documented API,
 
 GPL-3.0 (`LICENSE`, `NOTICE`). The whole package is GPL-3.0, so an app built on it must be GPL-compatible.
 
-- The cube model and the reducers are extracted from **mac4DSTEM** (GPL-3.0; `github.com/mac4DSTEM/mac4DSTEM`, commit
-  `7448401b`): the data source, resident cube, virtual detector and the `VirtualMask` and `DPStatistics` Metal kernels,
-  rewritten as a public API without the app's types. mac4DSTEM is the first app built on the kit.
+- The cube model and the reducers were extracted from a GPL-3.0 macOS app and rewritten as a public API; `NOTICE` names
+  that app, the commit and the files.
 - The detector definitions (`DetectorMask`) are a port of **py4DSTEM**'s `make_detector`, and the processing follows its
   `get_virtual_image`, `get_dp_mean`, `get_dp_max`, `get_probe_size`, `get_origin` and DPC code (GPL-3.0;
   `github.com/py4dstem/py4DSTEM`, commit `f050d207`, 0.14.19). py4DSTEM is also the reference the tests compare with.

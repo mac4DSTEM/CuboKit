@@ -3,7 +3,7 @@
 //  NumPy's .npy container, versions 1.0, 2.0 and 3.0 (registration 1.1): the magic "\x93NUMPY", the version, the
 //  header length (little-endian UInt16 for 1.0, UInt32 for 2.0 and 3.0), then a Python dict literal with 'descr',
 //  'fortran_order' and 'shape'. The kit's exchange format with py4DSTEM in slice 1 (np.save(path, datacube.data));
-//  HDF5, DM4 and the vendor formats are FormatoKit's.
+//  HDF5, DM4 and the vendor formats are out of scope here.
 //
 
 import Foundation

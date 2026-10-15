@@ -5,8 +5,8 @@
 //  slice 2's ProbeSize.estimate), zero_vacuum, zero_vacuum_sinusoid, generate_synthetic_probe, get_probe_kernel_flat,
 //  get_probe_kernel_edge_gaussian and get_probe_kernel_edge_sigmoid (braggvectors/probe.py), CPU, Double.
 //
-//  Seeds: mac4DSTEM 7f192da9 Core/Analysis/ProbeKernel.swift (Float32, kernels built on wrapped coordinates, a cosine
-//  shoulder in place of py4DSTEM's vacuum mask); the kit follows py4DSTEM's shifts and sums.
+//  A Float32 reference implementation builds kernels on wrapped coordinates with a cosine shoulder in place of
+//  py4DSTEM's vacuum mask; the kit follows py4DSTEM's shifts and sums.
 //  DEVIATION: a boolean scan mask only (py4DSTEM's 4-tuple ROI slices an all-true array, so it always takes the top-left
 //  block of the scan). Recorded quirks kept as py4DSTEM's: the first selected pattern has weight 0 in the running mean
 //  (it anchors the first alignment), and the sinusoidal damping scales the disk itself by sin(1).

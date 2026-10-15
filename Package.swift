@@ -1,13 +1,13 @@
 // swift-tools-version: 6.2
-// CuboKit — the macEM suite's 4D-STEM library: the cube model with an eager and a lazy, memory-mapped path (CuboCore,
+// CuboKit — a 4D-STEM library for the Mac: the cube model with an eager and a lazy, memory-mapped path (CuboCore,
 // slice 1); the mean and maximum diffraction pattern and virtual images from py4DSTEM's detector geometries, on the CPU
 // with Accelerate and on the GPU with Metal behind one API (CuboVirtual, slice 1); centre of mass and DPC (slice 2);
-// strain (CuboStrain) and ptychography (CuboPtycho), placeholders with their scope. The suite ROADMAP.md "Kits" row is
-// the direction; docs/registration-slice-1.md the first registration. Extracted from mac4DSTEM 7448401b (GPL-3.0),
+// strain (CuboStrain) and ptychography (CuboPtycho), placeholders with their scope. docs/registration-slice-1.md is
+// the first registration. The cube model and reducers were extracted from a GPL-3.0 app (see NOTICE), and the results are
 // checked against py4DSTEM f050d207 (GPL-3.0) as the oracle.
 //
-// Swift 6 language mode, nonisolated by default (no `.defaultIsolation`), the three upcoming features the suite's
-// packages enable, no unsafe flags (a versioned dependency cannot carry them): a consumer builds the kit optimised
+// Swift 6 language mode, nonisolated by default (no `.defaultIsolation`), the three upcoming features
+// enabled below, no unsafe flags (a versioned dependency cannot carry them): a consumer builds the kit optimised
 // itself, and tools/test.sh runs this package's tests with `-c release`. One product per module. What one module needs
 // from another is `package`, never `public`; what an app reads is `public` and is guarded by tools/consumer-check.
 import PackageDescription

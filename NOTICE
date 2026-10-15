@@ -55,3 +55,20 @@ NumPy (the .npy format; no code copied)
 
 NPYFile reads and writes the .npy container as documented in NumPy's
 numpy/lib/format.py (NEP 1). NumPy is BSD-3-Clause.
+
+
+================================================================================
+Where the parts come from
+================================================================================
+
+- The cube model and the reducers (data source, resident cube, virtual detector,
+  the VirtualMask and DPStatistics Metal kernels) were extracted from the GPL-3.0
+  macOS app mac4DSTEM (github.com/mac4DSTEM/mac4DSTEM, commit 7448401b) and
+  rewritten as a public API without the app's types. mac4DSTEM is the first app
+  built on the kit.
+- The detector definitions are a port of py4DSTEM's make_detector, and the
+  processing follows its get_virtual_image, get_dp_mean, get_dp_max,
+  get_probe_size, get_origin and DPC code (GPL-3.0, commit f050d207, 0.14.19).
+  py4DSTEM is also the reference the tests compare with.
+- The .npy reader and writer follow NumPy's documented format (BSD-3-Clause); no
+  NumPy code is copied.

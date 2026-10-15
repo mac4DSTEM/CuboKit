@@ -6,8 +6,8 @@
 //  the correlation of the zero-padded pattern with its point reflection, Re(IFFT2(FFT2(im)²)), peaks at twice the origin.
 //  With a mask (true in the pattern, false under a beamstop) py4DSTEM's three-term masked correlation.
 //
-//  Seeds: mac4DSTEM 7f192da9 Core/Analysis/FriedelOrigin.swift (Float32, NaN filled by a neighbour median, a zero
-//  denominator read as 0); the kit follows py4DSTEM in Double and IEEE arithmetic.
+//  A Float32 reference implementation fills NaN by a neighbour median and reads a zero denominator as 0; the kit follows
+//  py4DSTEM in Double and IEEE arithmetic.
 //  DEVIATION: the parabola's neighbours wrap at both ends (py4DSTEM wraps x − 1 = −1 and raises IndexError at x + 1 = 2Q).
 //
 

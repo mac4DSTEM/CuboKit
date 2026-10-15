@@ -5,9 +5,11 @@
 //      swift run cubo-first-look --synthetic [output-folder]
 //
 //  The cube is a 4D .npy file in py4DSTEM's (R_Nx, R_Ny, Q_Nx, Q_Ny) C-order layout, written in Python with
-//  `np.save("cube.npy", datacube.data)`. It is opened lazily (nothing is read until a pass needs it). The example finds
-//  the probe on the mean pattern, makes a bright-field image with a circle on the probe, measures the centre of mass of
-//  every pattern, and writes four PNGs and numbers.json. Rows and columns, never x and y.
+//  `np.save("cube.npy", datacube.data)`; py4DSTEM's public sample `small_datacube.dm4` (downloaded with
+//  `py4DSTEM.io.gdrive_download("small_datacube")`, read with `py4DSTEM.import_file`) is a cube to start with. It is
+//  opened lazily (nothing is read until a pass needs it). The example finds the probe on the mean pattern, makes a
+//  bright-field image with a circle on the probe, measures the centre of mass of every pattern, and writes four PNGs and
+//  numbers.json. Rows and columns, never x and y.
 //
 
 import CuboCore

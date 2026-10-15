@@ -4,8 +4,7 @@
 //  in Double: scipy's gaussian_filter (σ = r, truncate 4, mode nearest, rows then columns), the first argmax, and the centre
 //  of mass of the pattern within r · rscale of it.
 //
-//  Seeds: mac4DSTEM 7f192da9 Core/Analysis/OriginCalibration.swift and Shaders/OriginMeasure.metal (Float32, a CoM window
-//  without the Gaussian argmax); the kit follows py4DSTEM.
+//  A Float32 reference implementation uses a CoM window without the Gaussian argmax; the kit follows py4DSTEM.
 //
 
 import CuboCore

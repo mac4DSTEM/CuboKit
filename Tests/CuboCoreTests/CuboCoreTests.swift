@@ -128,7 +128,7 @@ import CuboCore
     }
 
     /// An adapter that forwards to another asynchronous store conforms with `async` reads, and the kit reads through it
-    /// the same values (the pattern mac4DSTEM's switch uses: its own array behind `CubeSource`; consumers-0.0.1.md).
+    /// the same values (the pattern an app uses to put its own array behind `CubeSource`; consumers-0.0.1.md).
     @Test func testAnAsyncAdapterIsACubeSource() async throws {
         actor Forwarding: CubeSource {
             let inner: MappedCube
