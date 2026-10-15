@@ -4,7 +4,7 @@ What is live, one table; then the hand-off. Rules are in `CLAUDE.md`; the regist
 parity with py4DSTEM in `docs/parity.md`; what mac4DSTEM changes to import the kit in `docs/consumers-0.0.1.md` to
 `docs/consumers-0.1.0.md`.
 
-## Live (2026-10-15 afternoon: slice 4 and the 0.1.0 candidate)
+## Live (2026-10-15 afternoon: slice 4, 0.1.0 tagged, the 0.2.0 candidate)
 
 | Area | State | Evidence |
 |---|---|---|
@@ -29,6 +29,9 @@ parity with py4DSTEM in `docs/parity.md`; what mac4DSTEM changes to import the k
 | Slice 4 Gate B | One refuter on `bc41094`, about 20 000 cases, no wrong number on realistic inputs: traps refused (an absurd upsampling factor, empty patterns), an all-false Friedel mask refused, NumPy's keep-first rule for equal maxima, messages fixed; the masked Friedel, flat-peak and weighted-mean claims restated with their conditions | `registration-slice-4.md` §9, `006fe47` |
 | 0.1.0 candidate | README standing without the suite; example executable `cubo-first-look` (`Examples/CuboFirstLook`: mean pattern, probe, BF, CoM, PNGs and numbers.json; `--synthetic` runs without data); `docs/parity.md` one row per py4DSTEM method (182 in scope: 61 done, 23 partial, 98 absent); consumer check 79 checks with 21 negative controls (`controls.sh`); CI (`.github/workflows/ci.yml`, macOS, the hook proof and `tools/test.sh`) and `.spi.yml`; the hook refuses `killall` and unpinned `pkill` | README, `docs/consumers-0.1.0.md` |
 | Platform floor | Declared macOS 27 (unchanged); the sources and tests build unchanged at a macOS 15 deployment target, and the package builds for the iOS 18 Simulator (built, not run), checked 2026-10-15 | the floor lane's report (session scratchpad) |
+| 0.2.0 generality pass | Policies as parameters with the old value as the default (OriginFit `rankTolerance`, plane fit `degeneracyTolerance`, GaussianFilter `maximumRadius`, Friedel `maximumUpsampleFactor`, median `medianWorkingBytes`; tier-2 tests); no app or suite name in Sources, test comments, README, Package.swift, the example, CI or the consumer checks (`git grep` empty; provenance in NOTICE); a DocC catalogue per module; `tools/readme-consumer` compiles and runs the README's code with a drift check; the floor declared macOS 15 / iOS 18 (owner, 13:58) | `docs/consumers-0.2.0.md` |
+| Kit asks from the app's switch | CPU centre of mass parallel per position (bit identical); `RotationSolver` parallel per angle (0.767 → 0.031 s on 330 × 330, bit identical), `curve(...)`, `isCancelled`; the Debug `-Onone` remedy documented; the zero-copy resident source deferred to 0.2.1 | `d4d5917`, consumers-0.2.0 |
+| CI | The first run failed on Swift 6.3.3 (macOS 26 runner): a test expression the older compiler could not type-check in time (fixed, `2bc04b3`), and the macOS 27 declaration above the runner (fixed by the 15 floor); not yet re-run | `gh run list -R mac4DSTEM/CuboKit` |
 | Placeholder modules | `CuboStrain`, `CuboPtycho`: a scope statement each | their placeholder tests |
 | Tests | Swift Testing (owner, 2026-10-15): 90 tests, 0 failures, release, real data included (6.5 min; the Au and Al–Mg–Si slice-4 suites take 2 min each) | `tools/test.sh` |
 | Gate | green and stamped at `bb0a02e`, the 0.1.0 candidate (and earlier at `bc41094`, slice 4's code) | `.build/last-green`, `tools/last-green.sh` |
@@ -41,18 +44,14 @@ claimed (`registration-slice-1.md` §8).
 
 ## Hand-off
 
-The owner pushes `main` and tags **0.0.4 on `fbcb869`** (slice 4 complete: code, Gate B fixes, the mutant record) and
-**0.1.0 on `bb0a02e`** (the candidate: slice 4 plus the README, the example, CI, `.spi.yml`; green and stamped); commands on
-the board row. mac4DSTEM moves from 0.0.3 to 0.1.0 at a session of its choosing (`docs/consumers-0.1.0.md`: nothing
-breaks; names shared with the app and one new error case to know).
-
-Next, from the board's `lanes/cubokit` prompt: slice 5, Bragg disk detection on slice 4's kernels and strain
-(`CuboStrain`), registered before code; then the ptychography registration (no code). The generality pass is 0.2.0
-(suite `ROADMAP.md`). A Metal path for slices 3 and 4 and DPC's filters remain later lanes.
+The owner pushes `main` and tags **0.2.0** on the stamped candidate (command on the board row); CI then runs on the push
+(`gh run list -R mac4DSTEM/CuboKit`). mac4DSTEM re-pins to 0.2.0 when it chooses (`docs/consumers-0.2.0.md`: nothing
+breaks; build the kit optimised). Next: 0.2.1 takes the zero-copy resident source (kit ask 1) first, registered; then
+slice 5, Bragg disk detection and strain, registered before code; then the ptychography registration.
 
 ## Unverified
 
-- iPadOS: builds for the iOS 18 Simulator (2026-10-15), not run; the declared floor is macOS 27.
+- iPadOS: declared iOS 18 and built for the Simulator (2026-10-15), not run on a device or simulator; macOS 15 tested only as a deployment target on macOS 27.
 - Metal: Float32 subnormals flush to zero (recorded); the Metal CoM claim covers |S| ≥ 1e-3 · Σ|wP| only (the Float32 noise
   floor SimulatoKit measured at about 3e-10 of the total intensity is the same kind of floor). Tile buffers come from
   Metal's `new…` selectors and are freed per tile (checked against SimulatoKit's autorelease finding, 2026-10-15); not

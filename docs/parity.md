@@ -312,3 +312,12 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 
 Of the 182 rows in scope: done 61 (of which the slice-4 rows are marked), partial 23, absent 98.
 Of the done rows, 25 are marked slice 4 and 36 are slices 1 to 3. The previous file lumped methods and counted 28 rows.
+
+## 0.2.0 notes (2026-10-15)
+
+- `RotationSolver` gains `curve(_:anglesDegrees:criterion:transpose:isCancelled:)` (py4DSTEM computes the same curve inside
+  `DPC.preprocess`) and runs the grid in parallel; the CPU centre of mass runs positions in parallel; both bit identical.
+- The Metal centre of mass agrees with the CPU path where |S| ≥ 1e-3 · Σ|wP| (slice 2): Float32's absolute noise floor on
+  a Metal reduction is about 3e-10 of the total intensity, so a pattern whose weighted sum is far below its total is
+  outside the claim. py4DSTEM has no GPU centre of mass to compare with.
+- The counts above are unchanged by 0.2.0 (no new py4DSTEM method).
