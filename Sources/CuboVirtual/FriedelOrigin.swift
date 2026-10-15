@@ -17,11 +17,12 @@ import Foundation
 public enum FriedelOrigin {
     /// The Friedel origin of every pattern. `mask` (detector-sized, row-major) is true in the pattern and false under a
     /// beamstop (the negation of `BeamstopMask.make`'s result); `upsampleFactor` 1 (none) or above 2 (py4DSTEM asserts
-    /// > 2 when upsampling).
+    /// > 2 when upsampling); `maximumUpsampleFactor` bounds it (1024 by default; the n × n upsampled patch grows as 2.25 u²).
     public static func measure(of source: some CubeSource, mask: [Bool]? = nil, upsampleFactor: Int = 1,
-                               tiling: ScanTiling = .automatic) async throws -> OriginMap {
+                               maximumUpsampleFactor: Int = 1024, tiling: ScanTiling = .automatic) async throws -> OriginMap {
         let shape = source.shape
-        let plan = try Plan(rows: shape.detectorRows, columns: shape.detectorColumns, mask: mask, upsampleFactor: upsampleFactor)
+        let plan = try Plan(rows: shape.detectorRows, columns: shape.detectorColumns, mask: mask, upsampleFactor: upsampleFactor,
+                            maximumUpsampleFactor: maximumUpsampleFactor)
         let n = shape.detectorCount
         var rows = [Double](repeating: 0, count: shape.scanCount), cols = rows
         for range in try tiling.ranges(for: shape) {
@@ -37,10 +38,10 @@ public enum FriedelOrigin {
     }
 
     /// The Friedel origin of one pattern (row, column).
-    public static func origin(of pattern: DetectorImage, mask: [Bool]? = nil, upsampleFactor: Int = 1) throws
-        -> (row: Double, column: Double) {
+    public static func origin(of pattern: DetectorImage, mask: [Bool]? = nil, upsampleFactor: Int = 1,
+                              maximumUpsampleFactor: Int = 1024) throws -> (row: Double, column: Double) {
         let plan = try Plan(rows: pattern.detectorRows, columns: pattern.detectorColumns, mask: mask,
-                            upsampleFactor: upsampleFactor)
+                            upsampleFactor: upsampleFactor, maximumUpsampleFactor: maximumUpsampleFactor)
         let o = plan.origin(pattern.values)
         return (o.0, o.1)
     }
@@ -53,10 +54,10 @@ public enum FriedelOrigin {
         let mRe: [Double], mIm: [Double]            // M = FFT2(maskPad)
         let m2Re: [Double], m2Im: [Double]          // IFFT2(M²)
 
-        init(rows qy: Int, columns qx: Int, mask: [Bool]?, upsampleFactor u: Int) throws {
+        init(rows qy: Int, columns qx: Int, mask: [Bool]?, upsampleFactor u: Int, maximumUpsampleFactor: Int = 1024) throws {
             guard qy > 0, qx > 0 else { throw CuboVirtualError.invalidInput("the pattern is empty (\(qy) × \(qx))") }
-            guard u == 1 || (u > 2 && u <= 1024) else {
-                throw CuboVirtualError.invalidInput("the upsampling factor must be 1 or from 3 to 1024 (got \(u))")
+            guard u == 1 || (u > 2 && u <= maximumUpsampleFactor) else {
+                throw CuboVirtualError.invalidInput("the upsampling factor must be 1 or from 3 to \(maximumUpsampleFactor) (got \(u))")
             }
             if let mask, mask.count != qy * qx {
                 throw CuboVirtualError.maskLengthMismatch(expected: qy * qx, received: mask.count)

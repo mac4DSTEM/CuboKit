@@ -68,7 +68,7 @@ runner.MUTANTS = [
     ("K4", "the bilinear weights swapped", VP, "let w00 = (1 - wr) * (1 - wc), w10 = wr * (1 - wc), w01 = (1 - wr) * wc, w11 = wr * wc",
      "let w00 = (1 - wr) * (1 - wc), w10 = (1 - wr) * wc, w01 = wr * (1 - wc), w11 = wr * wc", T, "red"),
     ("R1", "Gate B: an all-false Friedel mask accepted", FR, "if let mask, !mask.contains(true) {", "if let mask, mask.isEmpty {", T, "red"),
-    ("R2", "Gate B: no upper bound on the upsampling factor", FR, "guard u == 1 || (u > 2 && u <= 1024) else {",
+    ("R2", "Gate B: no upper bound on the upsampling factor", FR, "guard u == 1 || (u > 2 && u <= maximumUpsampleFactor) else {",
      "guard u == 1 || u > 2 else {", T, "red"),
     ("R3", "Gate B: of equal maxima the later kept", SEL, "maximum[i] = (m.isNaN || v.isNaN) ? .nan : (v > m ? v : m)",
      "maximum[i] = (m.isNaN || v.isNaN) ? .nan : (v >= m ? v : m)", T, "red"),

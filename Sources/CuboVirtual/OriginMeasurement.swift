@@ -102,9 +102,10 @@ public struct GaussianFilter: Sendable {
     public let kernel: [Double]
     public var radius: Int { (kernel.count - 1) / 2 }
 
-    /// σ must be positive, finite, with σ² representable (above about 1.5e-154) and a radius below 10⁶ pixels.
-    public init(sigma: Double) throws {
-        guard sigma > 0, sigma.isFinite, sigma * sigma >= Double.leastNormalMagnitude, 4.0 * sigma + 0.5 < 1e6 else {
+    /// σ must be positive, finite, with σ² representable (above about 1.5e-154) and a radius int(4σ + 0.5) below
+    /// `maximumRadius` pixels (10⁶ by default: a guard against a runaway kernel, not a property of the filter).
+    public init(sigma: Double, maximumRadius: Int = 1_000_000) throws {
+        guard sigma > 0, sigma.isFinite, sigma * sigma >= Double.leastNormalMagnitude, 4.0 * sigma + 0.5 < Double(maximumRadius) else {
             throw CuboVirtualError.invalidRadius(sigma)
         }
         self.sigma = sigma

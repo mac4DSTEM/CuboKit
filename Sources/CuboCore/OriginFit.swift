@@ -20,8 +20,14 @@ public enum OriginFitError: Error, Equatable, Sendable {
 
 public enum OriginFit {
     /// The fitted surface at every position of a `rows × columns` map (row-major), over its finite values.
+    /// `rankTolerance`: a design column whose remaining norm is at most this fraction of the largest column norm is left
+    /// out (the rank-deficient projection, as NumPy's lstsq); 1e-12 by default.
     public static func fit(_ values: [Double], rows: Int, columns: Int, model: OriginFitModel, robust: Bool = false,
-                           robustSteps: Int = 3, robustThreshold: Double = 2) throws -> [Double] {
+                           robustSteps: Int = 3, robustThreshold: Double = 2,
+                           rankTolerance: Double = 1e-12) throws -> [Double] {
+        guard rankTolerance >= 0, rankTolerance.isFinite else {
+            throw OriginFitError.invalidMap("the rank tolerance must be finite and not negative (\(rankTolerance))")
+        }
         guard rows > 0, columns > 0, values.count == rows * columns else {
             throw OriginFitError.invalidMap("\(values.count) values for \(rows) × \(columns)")
         }
@@ -29,7 +35,7 @@ public enum OriginFit {
         let design = Self.design(rows: rows, columns: columns, model: model)
         let p = design.count / values.count
         var mask = values.map(\.isFinite)
-        var coefficients = try solve(design, values, mask, p, model)
+        var coefficients = try solve(design, values, mask, p, model, rankTolerance)
         if robust {
             for _ in 0..<max(0, robustSteps) {
                 var squared = [Double](repeating: 0, count: values.count)
@@ -40,7 +46,7 @@ public enum OriginFit {
                 }
                 let limit = NumPySum.mean(squared) * robustThreshold * robustThreshold
                 for k in values.indices where squared[k] > limit { mask[k] = false }
-                coefficients = try solve(design, values, mask, p, model)
+                coefficients = try solve(design, values, mask, p, model, rankTolerance)
             }
         }
         return (0..<values.count).map { k in (0..<p).reduce(0.0) { $0 + design[k * p + $1] * coefficients[$1] } }
@@ -71,10 +77,11 @@ public enum OriginFit {
         return a
     }
 
-    /// Least squares over the masked rows by Householder QR. A column whose remaining norm is negligible (≤ 1e-12 of the
-    /// largest column norm) is left out with a zero coefficient: the fitted surface is then the projection onto the
+    /// Least squares over the masked rows by Householder QR. A column whose remaining norm is negligible (≤ `tolerance` of
+    /// the largest column norm, 1e-12 by default) is left out with a zero coefficient: the fitted surface is then the projection onto the
     /// design's column space, the surface NumPy's lstsq returns for a rank-deficient design (a 1 × N scan, say).
-    static func solve(_ design: [Double], _ values: [Double], _ mask: [Bool], _ p: Int, _ model: OriginFitModel) throws -> [Double] {
+    static func solve(_ design: [Double], _ values: [Double], _ mask: [Bool], _ p: Int, _ model: OriginFitModel,
+                      _ tolerance: Double = 1e-12) throws -> [Double] {
         let rowsUsed = values.indices.filter { mask[$0] && values[$0].isFinite }
         let m = rowsUsed.count
         guard m >= 1 else { throw OriginFitError.underdetermined(model) }
@@ -89,7 +96,7 @@ public enum OriginFit {
             var norm = 0.0
             for i in pos..<m { norm += a[j * m + i] * a[j * m + i] }
             norm = norm.squareRoot()
-            guard norm > 1e-12 * largest else { continue }
+            guard norm > tolerance * largest else { continue }
             let alpha = a[j * m + pos] > 0 ? -norm : norm
             var v = [Double](repeating: 0, count: m - pos)
             for i in pos..<m { v[i - pos] = a[j * m + i] }

@@ -35,8 +35,11 @@ extension VirtualDiffraction {
 
     /// A virtual diffraction pattern over a selection of positions, optionally centre-shifted (mean and max only).
     /// `.mean` and `.max` over `.all` without a shift are slice 1's `mean` and `max` on the CPU, bit for bit.
+    /// `medianWorkingBytes` bounds the median's gathered block (256 MiB by default; it changes the passes, not the result).
     public static func pattern(of source: some CubeSource, statistic: DiffractionStatistic, scan: ScanSelection = .all,
-                               shift: PatternShift? = nil, tiling: ScanTiling = .automatic) async throws -> DetectorImage {
+                               shift: PatternShift? = nil, tiling: ScanTiling = .automatic,
+                               medianWorkingBytes: Int = 256 << 20) async throws -> DetectorImage {
+        guard medianWorkingBytes > 0 else { throw CuboVirtualError.invalidInput("the median's working memory must be positive") }
         let shape = source.shape
         let weights: [Double]?
         let selected: [Int]
@@ -65,7 +68,7 @@ extension VirtualDiffraction {
         if case .all = scan, statistic != .median {
             return statistic == .mean ? try await mean(of: source, tiling: tiling) : try await max(of: source, tiling: tiling)
         }
-        if statistic == .median { return try await median(source, selected, weights, tiling) }
+        if statistic == .median { return try await median(source, selected, weights, tiling, medianWorkingBytes) }
         return try await reduce(source, statistic, selected, weights, tiling)
     }
 
@@ -107,15 +110,15 @@ extension VirtualDiffraction {
                              path: .cpu)
     }
 
-    /// The median per pixel over the selected positions (of P·w with weights). Detector pixels in blocks that fit about
-    /// 256 MB, each block gathered from every tile and sorted per pixel.
+    /// The median per pixel over the selected positions (of P·w with weights). Detector pixels in blocks that fit the
+    /// working memory, each block gathered from every tile and sorted per pixel.
     private static func median(_ source: some CubeSource, _ selected: [Int], _ weights: [Double]?,
-                               _ tiling: ScanTiling) async throws -> DetectorImage {
+                               _ tiling: ScanTiling, _ workingBytes: Int) async throws -> DetectorImage {
         let shape = source.shape
         let n = shape.detectorCount, count = selected.count
         var slot = [Int](repeating: -1, count: shape.scanCount)
         for (s, k) in selected.enumerated() { slot[k] = s }
-        let block = Swift.max(1, Swift.min(n, (256 << 20) / (8 * count)))
+        let block = Swift.max(1, Swift.min(n, workingBytes / (8 * count)))
         var out = [Double](repeating: 0, count: n)
         let ranges = try tiling.ranges(for: shape)
         var start = 0

@@ -22,14 +22,17 @@ public enum CenterOfMassReference: Sendable, Equatable {
 
     /// The fitted reference and the normalized shift `(measured − fitted)`, NaN → 0 and ±∞ → ±greatest finite (NumPy's
     /// `nan_to_num`), times `reciprocalSampling`.
+    /// `degeneracyTolerance`: the plane fit is refused when its normal determinant is at most this fraction of
+    /// max(Σu² · Σv², 1) (positions on a line); 1e-12 by default.
     public static func normalize(_ measured: ScanVectorField, reference: CenterOfMassReference,
-                                 reciprocalSampling: Double = 1) throws -> (fitted: ScanVectorField, normalized: ScanVectorField) {
+                                 reciprocalSampling: Double = 1, degeneracyTolerance: Double = 1e-12) throws
+        -> (fitted: ScanVectorField, normalized: ScanVectorField) {
         let R = measured.scanRows, C = measured.scanColumns
         let fitted: ScanVectorField
         switch reference {
         case .planeFit:
-            fitted = try ScanVectorField(scanRows: R, scanColumns: C, row: try plane(measured.row, R, C),
-                                         column: try plane(measured.column, R, C))
+            fitted = try ScanVectorField(scanRows: R, scanColumns: C, row: try plane(measured.row, R, C, degeneracyTolerance),
+                                         column: try plane(measured.column, R, C, degeneracyTolerance))
         case .constant:
             fitted = try ScanVectorField(scanRows: R, scanColumns: C,
                                          row: Array(repeating: NumPySum.mean(measured.row), count: R * C),
@@ -53,7 +56,7 @@ public enum CenterOfMassReference: Sendable, Equatable {
 
     /// The least-squares plane over the finite values, from the normal equations on centred coordinates, evaluated
     /// at every position.
-    static func plane(_ m: [Double], _ R: Int, _ C: Int) throws -> [Double] {
+    static func plane(_ m: [Double], _ R: Int, _ C: Int, _ tolerance: Double = 1e-12) throws -> [Double] {
         let finite = m.indices.filter { m[$0].isFinite }
         guard finite.count >= 3 else { throw CuboPhaseError.planeFitDegenerate }
         let n = Double(finite.count)
@@ -71,7 +74,7 @@ public enum CenterOfMassReference: Sendable, Equatable {
             sum_um += u * (m[k] - a); sum_vm += v * (m[k] - a)
         }
         let det = suu * svv - suv * suv
-        guard det > 1e-12 * Swift.max(suu * svv, 1) else { throw CuboPhaseError.planeFitDegenerate }
+        guard det > tolerance * Swift.max(suu * svv, 1) else { throw CuboPhaseError.planeFitDegenerate }
         let b = (svv * sum_um - suv * sum_vm) / det
         let c = (suu * sum_vm - suv * sum_um) / det
         return (0..<(R * C)).map { a + b * (Double($0 / C) - rMean) + c * (Double($0 % C) - cMean) }
