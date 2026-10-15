@@ -289,4 +289,5 @@ Broke:
   and column) and occurs only in F1's ill-posed cases.
 - **Not refuted on this machine** (the suite's memory rule): upsampling factors between 10⁴ and 10⁵ and Friedel on
   detectors of 1024 pixels and more. The pins of the two big cubes (Al–Mg–Si, Au) peaked above 8 GB (float64 copies) and
-  ran before the rule; they regenerate with `CUBOKIT_PINS_MEM_GB=16`, one worker at a time.
+  ran before the rule (11:20 to 11:50 CEST, uncapped, two workers at once); they regenerate through the suite's
+  `tools/memcap.sh --gb 16` with `CUBOKIT_PINS_MEM_GB=16`, one worker at a time, or with the float64 copy avoided.
