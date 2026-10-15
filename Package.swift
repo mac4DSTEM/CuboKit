@@ -27,6 +27,8 @@ let package = Package(
         .library(name: "CuboPhase", targets: ["CuboPhase"]),
         .library(name: "CuboStrain", targets: ["CuboStrain"]),
         .library(name: "CuboPtycho", targets: ["CuboPtycho"]),
+        // A first look at a cube: `swift run cubo-first-look <cube.npy> [output-folder]` (Examples/CuboFirstLook).
+        .executable(name: "cubo-first-look", targets: ["CuboFirstLook"]),
     ],
     targets: [
         // Slice 1 (docs/registration-slice-1.md 1.1): the cube's shape, sources, the eager MemoryCube, the lazy
@@ -42,6 +44,9 @@ let package = Package(
         .target(name: "CuboStrain", dependencies: ["CuboCore"], swiftSettings: settings),
         // Later: ptychography (py4DSTEM SingleslicePtychography and its family). Empty until registered.
         .target(name: "CuboPtycho", dependencies: ["CuboCore"], swiftSettings: settings),
+        // The "first ten minutes" example: CuboCore and CuboVirtual only, ImageIO for the PNGs.
+        .executableTarget(name: "CuboFirstLook", dependencies: ["CuboCore", "CuboVirtual"],
+                          path: "Examples/CuboFirstLook", swiftSettings: settings),
         .testTarget(name: "CuboCoreTests", dependencies: ["CuboCore"], swiftSettings: settings),
         .testTarget(name: "CuboVirtualTests", dependencies: ["CuboCore", "CuboVirtual"], exclude: ["Fixtures"],
                     swiftSettings: settings),

@@ -1,9 +1,17 @@
 # CuboKit
 
-The macEM suite's 4D-STEM library for macOS: a Swift package of numbers, never UI, that mac4DSTEM imports by tagged version
-and that other people can build their own apps on. It is the Mac-native counterpart of py4DSTEM's `DataCube`: the same
-numbers on the same inputs, checked against py4DSTEM at a pinned commit, with Accelerate on the CPU path and Metal on the
-accelerated path behind one API. Headless, Swift 6 strict concurrency, one SwiftPM product per module.
+A Swift package for 4D-STEM data on the Mac: the numbers, never the user interface. It is the Mac-native counterpart of
+py4DSTEM's `DataCube`: a cube of diffraction patterns, one per scan position, and the standard first processing of it
+(virtual imaging, mean and maximum patterns, centre of mass, probe size, origins, differential phase contrast), with
+Accelerate on the CPU and Metal on the GPU behind one API. Headless, Swift 6 strict concurrency, one SwiftPM product per
+module.
+
+**Who it is for.** Anyone building a Mac app, a command-line tool or a notebook-style workflow on 4D-STEM data who wants
+processing that is documented, tested against a reference and fast on Apple silicon, instead of writing it again.
+py4DSTEM is the reference: the kit follows its definitions, names the commit it was checked against, and says where it
+differs. mac4DSTEM, an open-source macOS app, is the first app built on it.
+
+## Modules and their state
 
 | Module | Scope | State |
 |---|---|---|
@@ -12,82 +20,111 @@ accelerated path behind one API. Headless, Swift 6 strict concurrency, one Swift
 | `CuboVirtual` (slice 2) | the centre of mass per position (`.cpu` and `.metal`), py4DSTEM's probe size | slice 2, `docs/registration-slice-2.md` |
 | `CuboPhase` | the centre-of-mass reference (plane fit, constant, given origins), the R–Q rotation by curl or divergence, py4DSTEM's iterative DPC | slice 2 |
 | `CuboVirtual` (slice 3) | per-position origins (`get_origin`), centred, calibrated and centre-shifted virtual images and patterns; `CuboCore`'s `OriginFit` (`fit_origin`) | slice 3, `docs/registration-slice-3.md` |
+| `CuboVirtual` (slice 4) | the median pattern and virtual diffraction over a real-space mask or weights (mean, max, median), `get_origin`'s scan mask and fast centre, the Friedel origin (`get_origin_friedel`, with a beamstop mask and DFT upsampling), the beamstop mask, the vacuum probe and the probe kernels (flat, Gaussian, sine² and logistic sigmoid) that Bragg disk detection uses | slice 4, `docs/registration-slice-4.md` (CPU) |
 | `CuboStrain` | strain maps from Bragg vectors | placeholder, a scope statement |
 | `CuboPtycho` | ptychography and tilt-corrected bright field | placeholder, a scope statement |
 
-Slice 2 (centre of mass, probe size, rotation, DPC) is held to py4DSTEM the same way: the CPU centre of mass at 0.0 px
-from the float64 definition on the owner's cubes, the probe size bit for bit, the rotation and transpose equal to
-py4DSTEM's choice, the DPC phase within 3.3e-12 of max of the float64 chain.
+`docs/status.md` has the evidence per row; `docs/parity.md` is the checklist against py4DSTEM's documented API.
 
 ## The first ten minutes
+
+Export a cube from Python, then look at it:
+
+```python
+np.save("cube.npy", datacube.data)      # py4DSTEM's (R_Nx, R_Ny, Q_Nx, Q_Ny), C order
+```
+
+```sh
+swift run cubo-first-look cube.npy out      # or: swift run cubo-first-look --synthetic out
+```
+
+`Examples/CuboFirstLook/main.swift` (about 150 lines) opens the cube lazily, computes the mean pattern, finds the probe
+on it, makes a bright-field image with a circle on the probe, measures the centre of mass of every pattern, and writes
+`mean-pattern.png`, `bright-field.png`, `com-row.png`, `com-column.png` and `numbers.json`. `--synthetic` builds a small
+cube in memory, so it runs without data. The same steps as library calls:
 
 ```swift
 import CuboCore
 import CuboVirtual
 
-// In Python: np.save("cube.npy", datacube.data)   (py4DSTEM's (R_Nx, R_Ny, Q_Nx, Q_Ny), C order)
-let cube = try MappedCube(npy: URL(fileURLWithPath: "cube.npy"))            // lazy: nothing is read yet
-let mean = try await VirtualDiffraction.mean(of: cube)                       // get_dp_mean, in Double
-let bf = try await VirtualImaging.image(of: cube,
-    geometry: .circle(centerRow: 31, centerColumn: 32, radius: 6.4))         // get_virtual_image('circle', ((31, 32), 6.4))
+// Lazy: nothing is read until a pass needs it.
+let cube = try MappedCube(npy: URL(fileURLWithPath: "cube.npy"))
+let mean = try await VirtualDiffraction.mean(of: cube)                  // get_dp_mean, in Double
+let probe = try ProbeSize.estimate(mean)                                // get_probe_size: radius, centre
+let bf = try await VirtualImaging.image(of: cube, geometry:
+    .circle(centerRow: probe.centerRow, centerColumn: probe.centerColumn, radius: probe.radius))
+let com = try await CenterOfMass.measure(of: cube)                      // com.row, com.column: detector pixels
 let adf = try await VirtualImaging.image(of: cube,
     geometry: .annulus(centerRow: 31, centerColumn: 32, inner: 18, outer: 30), path: .metal)
 ```
 
-**Rows and columns, never x and y.** py4DSTEM's first axis of a pair (`Rx`, `Qx`) is the kit's row; its second (`Ry`, `Qy`)
-the column. A py4DSTEM geometry passes through unchanged: `((qx0, qy0), r)` is `.circle(centerRow: qx0, centerColumn: qy0,
-radius: r)`.
+**Rows and columns, never x and y.** py4DSTEM's first axis of a pair (`Rx`, `Qx`) is the kit's row; its second (`Ry`,
+`Qy`) the column. A py4DSTEM geometry passes through unchanged: `((qx0, qy0), r)` is `.circle(centerRow: qx0,
+centerColumn: qy0, radius: r)`. Storage is C order `[scanRow][scanColumn][detectorRow][detectorColumn]`.
 
-## Numbers and their tolerances
+## How numbers are held
 
-The kit is held to the float64 evaluation of py4DSTEM's definitions, not to NumPy's float32 accumulator (whose own results
-are recorded beside it). Measured on the synthetic pins and on five real cubes (`docs/status.md`):
+- **The float64 definition.** Each result is held to the float64 evaluation of py4DSTEM's definition, not to NumPy's
+  float32 accumulator. py4DSTEM's own float32 results are recorded beside the float64 ones in every pin and never
+  asserted against.
+- **CPU reference, Metal within a registered tolerance.** `.cpu` is the default and the reference. `.metal` is checked
+  against it to a tolerance fixed before the code (relative 1e-5 for sums, the maximum pattern bit for bit). There is no
+  automatic choice of path: a number never depends on the hardware unless the caller asks for `.metal`, and every result
+  records the path that made it.
+- **Agreement with py4DSTEM is not validation.** It shows the port follows the definition. Truth is a closed form, a hand
+  count or a planted cube, and the tests use those too. Nothing here is validated on a microscope.
 
-| Quantity | CPU path (`.cpu`, the default) | Metal path (`.metal`) |
+| Quantity | CPU path | Metal path |
 |---|---|---|
 | Detector masks | identical to py4DSTEM's `make_detector` | the same mask |
-| Virtual image | integer cubes bit for bit against py4DSTEM; float cubes within 1e-10 of the float64 definition (measured: identical) | within 1e-5 of the CPU path (compensated kernels; measured: at most 2.4e-13 on the owner's cubes, 1.5e-8 on the Gate B refuter's noise cubes) |
-| Mean pattern | integer cubes bit for bit; float cubes within 1e-10 (measured: identical) | within 1e-5 (measured: at most 7.6e-14) |
+| Virtual image | integer cubes bit for bit against py4DSTEM; float cubes within 1e-10 of the float64 definition (measured: identical) | within 1e-5 of the CPU path (measured at most 2.4e-13 on real cubes) |
+| Mean pattern | integer cubes bit for bit; float cubes within 1e-10 (measured: identical) | within 1e-5 (measured at most 7.6e-14) |
 | Maximum pattern | bit for bit | bit for bit |
 | Eager against lazy, any tiling | bit for bit | the same bits for the image; the mean within 1e-5 |
+| Centre of mass, probe size | 0.0 px from the float64 definition on five real cubes; the probe size bit for bit against py4DSTEM | within 1.9e-10 px (for patterns whose weighted sum is not tiny; `docs/registration-slice-2.md`) |
+| Median and selected patterns, beamstop masks, origins with a mask | bit for bit (medians, maxima, masks; the masked mean within 1e-10) | CPU only |
+| Friedel origins, vacuum probes, kernels | within 2e-14 px; within 1e-12; within 1e-14 of py4DSTEM's (float64) kernels | CPU only |
 
-There is no automatic choice of path: a number never depends on the hardware unless the caller asks for `.metal`, and every
-result records the path that made it.
-
-## Licence
-
-GPL-3.0 (`LICENSE`, `NOTICE`). **Which parts come from where:**
-
-- The cube model and the reducers are extracted from **mac4DSTEM** (GPL-3.0; `github.com/mac4DSTEM/mac4DSTEM`, commit
-  `7448401b`): `FourDDataSource`, `FourDArray`, `ResidentCube`, `VirtualDetector` and the `VirtualMask` and `DPStatistics`
-  Metal kernels, rewritten as a public API without the app's types.
-- The detector definitions (`DetectorMask`) are a port of **py4DSTEM**'s `make_detector`, and the virtual image, mean and
-  maximum pattern follow its `get_virtual_image`, `get_dp_mean` and `get_dp_max` (GPL-3.0; `github.com/py4dstem/py4DSTEM`,
-  commit `f050d207`, 0.14.19). py4DSTEM is also the oracle; please cite Savitzky et al., Microscopy and Microanalysis 27,
-  712 (2021).
-- The `.npy` reader and writer follow NumPy's documented format (BSD-3-Clause); no NumPy code is copied.
-
-The whole package is GPL-3.0, so an app built on it must be GPL-compatible.
+The rotation and transpose of the DPC chain equal py4DSTEM's choice and the DPC phase is within 3.3e-12 of maximum of the
+float64 chain. Details, planted truths and the amendments after review are in the registration documents.
 
 ## Platform
 
-macOS 27 or later (`Package.swift`), Apple silicon or Intel with Metal for the `.metal` path; the `.cpu` path needs only
-Accelerate. Swift 6.2 tools, Swift 6 language mode. iPadOS is planned (the maths and `mmap` allow it) and not yet built.
+`Package.swift` declares **macOS 27** for now, and the tests run there. The sources use no API newer than macOS 15: the
+library and its tests build unchanged with the deployment target set to macOS 15 (checked 2026-10-15), and the package
+builds for the iOS 18 Simulator (built, not run). Lowering the declared floor is a decision for a later tag. Apple
+silicon or Intel with Metal for the `.metal` path; the `.cpu` path needs only Accelerate. Swift 6.2 tools (Xcode 27),
+Swift 6 language mode.
 
 ## Build and test
 
 ```sh
-swift build                         # builds alone: no setup, no dependency, the Metal kernels compile at run time
+swift build                         # no setup, no dependency; the Metal kernels compile at run time
 tools/test.sh                       # the gate: swift test -c release; stamps .build/last-green on a clean tree
 tools/last-green.sh                 # the last green commit and whether HEAD equals it
 tools/consumer-check/run.sh         # a separate package using the public API only
 ```
 
-The oracle is not in the repository: `tools/slice-1/provision-py4dstem.sh` builds the pinned py4DSTEM venv in the gitignored
-`References/`, and `tools/slice-1/pins.py` writes the pins (`synthetic`, committed) and the real-data exports (`real`,
-outside the repository, in `$CUBOKIT_REAL_DATA`). The real-data tests skip by name when that directory is absent.
+The reference is not in the repository: `tools/slice-1/provision-py4dstem.sh` builds the pinned py4DSTEM environment in the
+gitignored `References/`, and `tools/slice-1/pins.py` writes the pins (`synthetic`, committed) and the real-data exports
+(`real`, outside the repository, in `$CUBOKIT_REAL_DATA`). The real-data tests skip by name when their exports are absent,
+so `tools/test.sh` runs everywhere; with the data present it runs more.
 
-## Status
+## Versioning
 
-`docs/status.md`; the parity checklist against py4DSTEM's documented API is `docs/parity.md`. No tag yet; the first tag is
-the owner's.
+Semantic versions in the 0.x series, tagged. Each tag has `docs/consumers-x.y.z.md`, which says what an app changes to
+move to it. `docs/parity.md` is the checklist against py4DSTEM's documented API, updated at every tag.
+
+## Licence and where the parts come from
+
+GPL-3.0 (`LICENSE`, `NOTICE`). The whole package is GPL-3.0, so an app built on it must be GPL-compatible.
+
+- The cube model and the reducers are extracted from **mac4DSTEM** (GPL-3.0; `github.com/mac4DSTEM/mac4DSTEM`, commit
+  `7448401b`): the data source, resident cube, virtual detector and the `VirtualMask` and `DPStatistics` Metal kernels,
+  rewritten as a public API without the app's types. mac4DSTEM is the first app built on the kit.
+- The detector definitions (`DetectorMask`) are a port of **py4DSTEM**'s `make_detector`, and the processing follows its
+  `get_virtual_image`, `get_dp_mean`, `get_dp_max`, `get_probe_size`, `get_origin` and DPC code (GPL-3.0;
+  `github.com/py4dstem/py4DSTEM`, commit `f050d207`, 0.14.19). py4DSTEM is also the reference the tests compare with.
+  Please cite Savitzky et al., *py4DSTEM: A Software Package for Four-Dimensional Scanning Transmission Electron
+  Microscopy Data Analysis*, Microscopy and Microanalysis 27, 712 (2021).
+- The `.npy` reader and writer follow NumPy's documented format (BSD-3-Clause); no NumPy code is copied.
