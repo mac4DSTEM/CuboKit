@@ -60,17 +60,18 @@ public enum CenterOfMass {
             try Task.checkCancellation()
             let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
-            tile.values.withUnsafeBufferPointer { values in
-                for k in 0..<tile.positionCount {
-                    let p = values.baseAddress! + k * n
-                    var a = Neumaier(), b = Neumaier(), d = Neumaier()
-                    for i in 0..<n {
-                        let x = Double(p[i])
-                        a.add(x * w[i]); b.add(x * wi[i]); d.add(x * wj[i])
-                    }
-                    s[first + k] = a.value; r[first + k] = b.value; c[first + k] = d.value
+            // Positions in parallel (kit ask, 2026-10-15): each keeps its own sums in pixel order, so the result is
+            // bit identical to the sequential loop.
+            let values = tile.values
+            let found = parallelMap(tile.positionCount) { (k: Int) -> (Double, Double, Double) in
+                var a = Neumaier(), b = Neumaier(), d = Neumaier()
+                for i in 0..<n {
+                    let x = Double(values[k * n + i])
+                    a.add(x * w[i]); b.add(x * wi[i]); d.add(x * wj[i])
                 }
+                return (a.value, b.value, d.value)
             }
+            for k in found.indices { s[first + k] = found[k].0; r[first + k] = found[k].1; c[first + k] = found[k].2 }
             progress?(Double(range.upperBound) / Double(shape.scanRows))
         }
         return (s, r, c)
