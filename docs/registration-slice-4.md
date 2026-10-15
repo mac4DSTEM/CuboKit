@@ -226,4 +226,28 @@ scattering does not.
 
 ## 9. Amendments
 
-None yet.
+### 2026-10-15, at the first run
+
+- **A self-check restated normwise.** The generator's check that the vacuum probe written from 3.5 equals py4DSTEM's
+  algorithm in float64 used slice 1's relative distance; py4DSTEM's Fourier shift (an integer shift done in Fourier space)
+  leaves about 1e-14 of noise on pixels near zero, which that floor turns into 4e-10. The check, and section 4's claim for
+  the averaged probe against py4DSTEM's own on integer cubes, are normwise 1e-12 (measured: at most 3.3e-15).
+- **py4DSTEM's masked Friedel correlation squares integer patterns in their own dtype.** `im ** 2` of a uint16 pattern
+  wraps above 255, so on integer cubes py4DSTEM's own masked origins are wrong by up to 30 px (the simulated Au cube),
+  0.05 px (counts16), 3e-3 to 1e-2 px (the bullseye probe, py4DSTEM's small cube); its unmasked ones are exact. Recorded:
+  the kit follows the float64 definition (section 4's prediction of 1e-3 px against py4DSTEM's own does not hold there).
+- **The masked Friedel truth is the peak, not the parabola.** Behind the planted beamstop the masked form puts the peak at
+  exactly twice the centre, but its parabola is not symmetric (the masked normalisation is not centrosymmetric): the
+  origin is 0.033 px from the planted centre, against 1.15 px for the unmasked form on the same patterns. Section 5's
+  claim for the masked case is the peak and 0.04 px; the unmasked symmetric patterns are recovered within 1e-9 px.
+- **The beamstop refusal occurs on the planted cubes.** With `includeEdges: false` and threshold 0.3 the cleaned mask of
+  the planted disk cubes has no false pixel; the kit refuses (3.4) and the pins record py4DSTEM's result beside it.
+- **Measured** (the kit against the float64 definition; py4DSTEM's own beside it): medians bit for bit on every cube
+  (py4DSTEM's own identical on integer cubes, 6e-8 relative on the float32 ones); masked means bit for bit on integer
+  cubes and within 1e-10 elsewhere (py4DSTEM's float32 means 1e-5 relative on the owner's cubes); weighted means within
+  1e-10 of py4DSTEM's own (measured 1.1e-14), weighted max and median bit for bit with it; origins with a mask 0.0 px,
+  the fast centre equal (py4DSTEM's float32 filter flips 2 of 63 550 Au argmaxes, as in slice 3); the beamstop masks
+  identical, py4DSTEM's own identical on all six inputs; Friedel origins within 2e-14 px, no near-tie on any input
+  (py4DSTEM's complex64 origins 8.2e-7 px on the Al–Mg–Si cube, 5.5e-6 px on Au, exact on integer cubes unmasked);
+  vacuum probes within 1e-12, py4DSTEM's own 4e-10 to 1.4e-9 normwise on float32 cubes and below 3.3e-15 on integer
+  ones; the kernels within 1e-14 normwise of py4DSTEM's (all float64).

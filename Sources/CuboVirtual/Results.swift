@@ -73,6 +73,8 @@ public enum CuboVirtualError: Error, Equatable, Sendable, LocalizedError {
     case centeredAndCalibrated
     case originMapMismatch(String)
     case unsupportedOnMetal(String)
+    /// An argument py4DSTEM would turn into NaN, ∞ or an exception (an empty selection, an upsampling factor of 2, ...).
+    case invalidInput(String)
 
     public var errorDescription: String? {
         switch self {
@@ -90,6 +92,7 @@ public enum CuboVirtualError: Error, Equatable, Sendable, LocalizedError {
         case .centeredAndCalibrated: "Give the geometry either centred on the origin (pixels) or calibrated (Å⁻¹), not both."
         case .originMapMismatch(let why): "The origin map does not fit the cube: \(why)."
         case .unsupportedOnMetal(let what): "\(what) runs on the CPU only; use the .cpu path."
+        case .invalidInput(let why): "Invalid input: \(why)."
         }
     }
 }

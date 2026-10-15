@@ -219,6 +219,8 @@ def beamstop_f64(im, threshold=0.25, distance_edge=2.0, include_edges=True, sigm
     keep = binary_fill_holes(keep)
     if include_edges:
         keep[0, :] = False; keep[:, 0] = False; keep[-1, :] = False; keep[:, -1] = False
+    if keep.all():
+        raise ValueError("the cleaned mask has no pixel outside the pattern (scipy's edt measures to a virtual pixel)")
     return distance_transform_edt(keep) < distance_edge
 
 
@@ -420,10 +422,8 @@ def pin_cube(name, cube, friedel_masked=True, friedel_upsample=True, vacuum_roi=
                     ("sigma", {"sigma": 1.5, "distance_edge": 3.0}), ("radial", {"scale_radial": 0.5, "threshold": 0.2})):
         try:
             want = beamstop_f64(mean, **kw)
-        except Exception as ex:
-            bs[key] = {"kw": kw, "refused": str(ex)}; continue
-        if not np.any(~(mean >= 0) | True):
-            pass
+        except ValueError as ex:
+            bs[key] = {"kw": kw, "refused": str(ex), "mask_py4dstem": bools(beamstop_own(cube, **kw))}; continue
         own = beamstop_own(cube, **kw)
         bs[key] = {"kw": kw, "mask": bools(want), "mask_py4dstem": bools(own), "differ_py4dstem": int(np.sum(own != want))}
     e["mean_f64"] = arr(mean)

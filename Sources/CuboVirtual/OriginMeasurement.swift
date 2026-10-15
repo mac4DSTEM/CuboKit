@@ -27,13 +27,36 @@ public struct OriginMap: Sendable, Equatable {
         meanRow = NumPySum.mean(row.values)
         meanColumn = NumPySum.mean(column.values)
     }
+
+    /// py4DSTEM's `remove_NaN`: every NaN of each map becomes NumPy's mean of that map's other values (NaN stays NaN
+    /// when no value is left).
+    public func replacingNaNWithMean() -> OriginMap {
+        func filled(_ m: ScanImage) -> ScanImage {
+            let fill = NumPySum.mean(m.values.filter { !$0.isNaN })
+            return ScanImage(scanRows: m.scanRows, scanColumns: m.scanColumns, values: m.values.map { $0.isNaN ? fill : $0 },
+                             path: m.path)
+        }
+        return try! OriginMap(row: filled(row), column: filled(column))   // same shapes: cannot throw
+    }
 }
 
 public enum OriginMeasurement {
     /// py4DSTEM's get_origin: `radius` defaults to the probe size of the maximum pattern (py4DSTEM's `dp_max` default).
     public static func measure(of source: some CubeSource, radius: Double? = nil, radiusScale: Double = 1.2,
                                tiling: ScanTiling = .automatic) async throws -> (origins: OriginMap, radius: Double) {
+        try await measure(of: source, radius: radius, radiusScale: radiusScale, scanMask: nil, tiling: tiling)
+    }
+
+    /// get_origin with its scan `mask` and `fast_center` (registration slice 4, 3.2): origins only where `scanMask` is true
+    /// (row-major over the scan), NaN elsewhere; with `fastCenter` the filtered argmax itself, no centre of mass. The radius
+    /// default is the probe size of the whole cube's maximum pattern, as py4DSTEM's.
+    public static func measure(of source: some CubeSource, radius: Double? = nil, radiusScale: Double = 1.2,
+                               scanMask: [Bool]?, fastCenter: Bool = false,
+                               tiling: ScanTiling = .automatic) async throws -> (origins: OriginMap, radius: Double) {
         let shape = source.shape
+        if let scanMask, scanMask.count != shape.scanCount {
+            throw CuboVirtualError.maskLengthMismatch(expected: shape.scanCount, received: scanMask.count)
+        }
         let r: Double
         if let radius { r = radius } else {
             let max = try await VirtualDiffraction.max(of: source, tiling: tiling)
@@ -49,12 +72,14 @@ public enum OriginMeasurement {
             let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
             for k in 0..<tile.positionCount {
+                if let scanMask, !scanMask[first + k] { rows[first + k] = .nan; cols[first + k] = .nan; continue }
                 let p = (0..<n).map { Double(tile.values[k * n + $0]) }
                 let g = filter.apply(p, rows: qy, columns: qx)
                 // np.argmax: the first maximum, or the first NaN if there is one (NaN compares as the largest)
                 var best = 0
                 if let nan = g.firstIndex(where: \.isNaN) { best = nan } else { for i in 1..<n where g[i] > g[best] { best = i } }
                 let i0 = Double(best / qx), j0 = Double(best % qx)
+                if fastCenter { rows[first + k] = i0; cols[first + k] = j0; continue }
                 var s = Neumaier(), mr = Neumaier(), mc = Neumaier()
                 for i in 0..<n {   // get_CoM(dp · mask): every pixel times its 0/1 weight, so a NaN anywhere is NaN
                     let di = Double(i / qx) - i0, dj = Double(i % qx) - j0
