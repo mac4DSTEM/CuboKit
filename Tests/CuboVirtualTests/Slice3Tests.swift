@@ -41,7 +41,7 @@ enum S3 {
         log.append("origins: kit vs float64 \(dO) px, py4DSTEM own vs float64 \(e["origin_distance_py4dstem_own_vs_f64_px"]!) px")
         // the filter
         let p0 = try await cube.readPattern(row: 0, column: 0)
-        let g = GaussianFilter(sigma: r).apply(p0.values.map(Double.init), rows: shape.detectorRows, columns: shape.detectorColumns)
+        let g = try GaussianFilter(sigma: r).apply(p0.values.map(Double.init), rows: shape.detectorRows, columns: shape.detectorColumns)
         assertRelative(g, d(e["filtered_00"]), 1e-12, "\(name) filtered")
         // fits on the float64 origins
         for (key, value) in e["fits"] as! [String: [String: Any]] {
@@ -77,7 +77,12 @@ enum S3 {
         for (key, shift) in [("rounded", PatternShift.rounded(map)), ("fourier", PatternShift.fourier(map))] {
             let (mean, max) = try await VirtualDiffraction.meanAndMax(of: cube, shift: shift)
             let pm = pats[key]!
-            assertRelative(mean.values, d(pm["mean"]), 1e-10, "\(name) \(key) mean")
+            if key == "rounded" {
+                assertRelative(mean.values, d(pm["mean"]), 1e-10, "\(name) \(key) mean")
+            } else {   // the Fourier shift's error is normwise (amendment): |Δ| ≤ 1e-12 · max|want|
+                let want = d(pm["mean"]), top = want.map(abs).max()!
+                #expect(zip(mean.values, want).allSatisfy { abs($0 - $1) <= 1e-12 * top }, "\(name) fourier mean")
+            }
             if key == "rounded" {
                 assertIdentical(max.values, d(pm["max"]), "\(name) rounded max")
                 assertRelative(mean.values, d(pm["mean_py4dstem"]), 1e-10, "\(name) rounded mean vs py4DSTEM")
@@ -85,7 +90,8 @@ enum S3 {
                 let k = mine.indices.first { mine[$0] >= 0 && mine[$0].bitPattern != own[$0].bitPattern }
                 #expect(k == nil, "\(name): rounded max vs py4DSTEM where ≥ 0")
             } else {
-                assertRelative(max.values, d(pm["max"]), 1e-10, "\(name) fourier max")
+                let want = d(pm["max"]), top = want.map(abs).max()!
+                #expect(zip(max.values, want).allSatisfy { abs($0 - $1) <= 1e-12 * top }, "\(name) fourier max")
             }
             log.append("\(key) mean: py4DSTEM own vs float64 \(pm["mean_distance_py4dstem"]!)")
         }
@@ -165,12 +171,38 @@ enum S3 {
         assertRelative(shifted.values, plain.values, 1e-12, "half shifts")
     }
 
+    /// Gate B (slice 3) F1: a mirror-symmetric pattern filters to exactly symmetric values in scipy's order, so the first
+    /// of the tied maxima wins: a disk centred at (11.5, 12.5) has its origin at (11, 12) — the refuter's case.
+    @Test func testSymmetricTiesKeepTheFirstArgmax() async throws {
+        let q = (24, 25)
+        let values: [Float] = (0..<(q.0 * q.1)).map { k in
+            let i = Double(k / q.1) - 11.5, j = Double(k % q.1) - 12.5
+            return i * i + j * j < 6.1 * 6.1 ? 1000 : 0
+        }
+        let cube = try MemoryCube(shape: try CubeShape([1, 1, q.0, q.1]), values: values)
+        let (o, _) = try await OriginMeasurement.measure(of: cube, radius: 3.3, radiusScale: 1.2)
+        #expect(o.row.values[0] == 11 && o.column.values[0] == 12, "\(o.row.values[0]), \(o.column.values[0])")
+        // NaN anywhere makes the origin NaN (get_CoM(dp · mask)); the filter refuses an unusable sigma
+        var withNaN = values; withNaN[0] = .nan
+        let nanCube = try MemoryCube(shape: try CubeShape([1, 1, q.0, q.1]), values: withNaN)
+        let (n, _) = try await OriginMeasurement.measure(of: nanCube, radius: 3.3)
+        #expect(n.row.values[0].isNaN)
+        for bad in [-1.0, 0, .nan, .infinity, 1e300, 1e-160] { #expect(throws: CuboVirtualError.self) { try GaussianFilter(sigma: bad) } }
+        // a point centred on a NaN origin is refused, not trapped; a rank-deficient plane fit (1 × 5) is the projection
+        await #expect(throws: CuboVirtualError.self) {
+            try await VirtualImaging.image(of: cube, geometry: .point(row: 0, column: 0), centeredOn: (row: .nan, column: 0))
+        }
+        let line = try OriginFit.fit([1, 2, 3.5, 4, 5], rows: 1, columns: 5, model: .plane)
+        #expect(line.count == 5 && line.allSatisfy(\.isFinite))
+    }
+
     @Test func testKernelCentringAndRefusals() async throws {
-        let k = GaussianFilter(sigma: 2.6).kernel
+        let k = try GaussianFilter(sigma: 2.6).kernel
         #expect(abs(k.reduce(0, +) - 1) <= 1e-15 && k == k.reversed() && k.count == 2 * Int(4 * 2.6 + 0.5) + 1)
         // scipy's radius int(4σ + 0.5): σ = 1.7 gives 7, where int(4σ) would give 6 (mutant G1)
-        #expect(GaussianFilter(sigma: 1.7).radius == 7 && GaussianFilter(sigma: 2.6).radius == 10)
-        let flat = GaussianFilter(sigma: 1.7).apply(Array(repeating: 3.25, count: 63), rows: 7, columns: 9)
+        #expect(try GaussianFilter(sigma: 1.7).radius == 7)
+        #expect(try GaussianFilter(sigma: 2.6).radius == 10)
+        let flat = try GaussianFilter(sigma: 1.7).apply(Array(repeating: 3.25, count: 63), rows: 7, columns: 9)
         #expect(flat.allSatisfy { abs($0 - 3.25) <= 1e-14 })
         let cube = try MappedCube(npy: Fixtures.url("gaussian.npy"))
         let a = try await VirtualImaging.image(of: cube, geometry: .circle(centerRow: 0, centerColumn: 0, radius: 3.3),
@@ -187,7 +219,10 @@ enum S3 {
             try await VirtualImaging.image(of: cube, geometry: .circle(centerRow: 0, centerColumn: 0, radius: 1),
                                            centeredOn: nil, shift: .rounded(map), path: .metal)
         }
-        #expect(throws: OriginFitError.self) { try OriginFit.fit([1, 2], rows: 1, columns: 2, model: .parabola) }
+        // rank-deficient: the projection (here the data itself), as NumPy's lstsq; no finite value: refused
+        let two = try OriginFit.fit([1, 2], rows: 1, columns: 2, model: .parabola)
+        #expect(abs(two[0] - 1) <= 1e-12 && abs(two[1] - 2) <= 1e-12)
+        #expect(throws: OriginFitError.self) { try OriginFit.fit([.nan, .nan], rows: 1, columns: 2, model: .plane) }
     }
 }
 

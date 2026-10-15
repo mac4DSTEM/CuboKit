@@ -71,43 +71,51 @@ public enum OriginFit {
         return a
     }
 
-    /// Least squares over the masked rows by Householder QR.
+    /// Least squares over the masked rows by Householder QR. A column whose remaining norm is negligible (≤ 1e-12 of the
+    /// largest column norm) is left out with a zero coefficient: the fitted surface is then the projection onto the
+    /// design's column space, the surface NumPy's lstsq returns for a rank-deficient design (a 1 × N scan, say).
     static func solve(_ design: [Double], _ values: [Double], _ mask: [Bool], _ p: Int, _ model: OriginFitModel) throws -> [Double] {
         let rowsUsed = values.indices.filter { mask[$0] && values[$0].isFinite }
         let m = rowsUsed.count
-        guard m >= p else { throw OriginFitError.underdetermined(model) }
+        guard m >= 1 else { throw OriginFitError.underdetermined(model) }
         var a = [Double](repeating: 0, count: m * p)   // column-major m × p
         var b = rowsUsed.map { values[$0] }
         for (i, k) in rowsUsed.enumerated() { for j in 0..<p { a[j * m + i] = design[k * p + j] } }
-        var scale = 0.0
-        for j in 0..<p {
+        var largest = 0.0
+        for j in 0..<p { largest = max(largest, (0..<m).reduce(0.0) { $0 + a[j * m + $1] * a[j * m + $1] }.squareRoot()) }
+        var kept: [(column: Int, row: Int)] = []
+        var pos = 0
+        for j in 0..<p where pos < m {
             var norm = 0.0
-            for i in j..<m { norm += a[j * m + i] * a[j * m + i] }
+            for i in pos..<m { norm += a[j * m + i] * a[j * m + i] }
             norm = norm.squareRoot()
-            scale = max(scale, norm)
-            guard norm > 1e-13 * max(scale, 1) else { throw OriginFitError.underdetermined(model) }
-            let alpha = a[j * m + j] > 0 ? -norm : norm
-            var v = [Double](repeating: 0, count: m - j)
-            for i in j..<m { v[i - j] = a[j * m + i] }
+            guard norm > 1e-12 * largest else { continue }
+            let alpha = a[j * m + pos] > 0 ? -norm : norm
+            var v = [Double](repeating: 0, count: m - pos)
+            for i in pos..<m { v[i - pos] = a[j * m + i] }
             v[0] -= alpha
             let vnorm2 = v.reduce(0) { $0 + $1 * $1 }
-            guard vnorm2 > 0 else { continue }
-            for col in j..<p {
+            if vnorm2 > 0 {
+                for col in 0..<p {
+                    var dot = 0.0
+                    for i in pos..<m { dot += v[i - pos] * a[col * m + i] }
+                    let f = 2 * dot / vnorm2
+                    for i in pos..<m { a[col * m + i] -= f * v[i - pos] }
+                }
                 var dot = 0.0
-                for i in j..<m { dot += v[i - j] * a[col * m + i] }
+                for i in pos..<m { dot += v[i - pos] * b[i] }
                 let f = 2 * dot / vnorm2
-                for i in j..<m { a[col * m + i] -= f * v[i - j] }
+                for i in pos..<m { b[i] -= f * v[i - pos] }
             }
-            var dot = 0.0
-            for i in j..<m { dot += v[i - j] * b[i] }
-            let f = 2 * dot / vnorm2
-            for i in j..<m { b[i] -= f * v[i - j] }
+            kept.append((j, pos))
+            pos += 1
         }
+        guard !kept.isEmpty else { throw OriginFitError.underdetermined(model) }
         var x = [Double](repeating: 0, count: p)
-        for j in stride(from: p - 1, through: 0, by: -1) {
-            var s = b[j]
-            for k in (j + 1)..<p { s -= a[k * m + j] * x[k] }
-            x[j] = s / a[j * m + j]
+        for (idx, entry) in kept.enumerated().reversed() {
+            var s = b[entry.row]
+            for later in kept[(idx + 1)...] { s -= a[later.column * m + entry.row] * x[later.column] }
+            x[entry.column] = s / a[entry.column * m + entry.row]
         }
         return x
     }

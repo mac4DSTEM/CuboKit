@@ -122,6 +122,6 @@ let centredImage = try await VirtualImaging.image(of: lazy, geometry: .circle(ce
                                                   pixelSize: nil, shift: .bilinear(origins))
 check("VirtualImaging.image centred and shifted", centredImage.values.count == 12)
 let shiftedPatterns = try await VirtualDiffraction.meanAndMax(of: lazy, shift: .fourier(origins))
-check("VirtualDiffraction.meanAndMax shifted", shiftedPatterns.mean.values.count == 72 && GaussianFilter(sigma: 1).kernel.count == 9)
+check("VirtualDiffraction.meanAndMax shifted", shiftedPatterns.mean.values.count == 72 && (try GaussianFilter(sigma: 1)).kernel.count == 9)
 print("consumer-check summary: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

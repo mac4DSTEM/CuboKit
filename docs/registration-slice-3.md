@@ -141,3 +141,31 @@ one (prediction ≤ 1e-4 px). As gate 3 said, such a flip is recorded, not widen
 Measured at the first run: the kit's origins at 0.0 px from the float64 definition on every cube; the fits, filtered
 patterns, centred, calibrated, rounded and bilinear shifted images, and rounded and Fourier shifted patterns within the
 section 4 bounds (integer cubes bit for bit against py4DSTEM's own centred, calibrated and rounded images).
+
+### 2026-10-15, after the Gate B refuter on `5c82508`
+
+One refuter (Sonnet; scripts in the session scratchpad `refuter3/`). Held: the filter against scipy within 1e-12 at the
+radius boundaries and on 1 × 1 to 2 × 2 detectors; 320 random origin cases within 1e-9 px; the default radius bitwise; the
+fits within 1e-9 for every model and robust step count; every image mode within 1e-10, including exact .5 ties, negative
+and huge shifts; integer cubes bit for bit against py4DSTEM's own; every tiling bitwise equal; the rounded shifted mean
+and max bit for bit; Fourier shifts within 2e-15 of max up to 1024². Broke:
+
+- **F1, a registered claim: the argmax on exactly symmetric patterns.** The filter summed `k[t] · p` from −R to R; scipy's
+  symmetric-kernel path (ni_filters.c `NI_Correlate1D`) adds the centre term and then `(p[i − t] + p[i + t]) · k[t]` from
+  t = R down to 1, so a mirror-symmetric pattern filters to exactly tied values and the first wins. The kit's order broke the
+  ties at random: a disk centred on (11.5, 12.5) gave (12, 13) instead of (11, 12); rings and point-symmetric integer
+  patterns up to 11.8 px. Fixed: scipy's order, and the kernel normalised by NumPy's sum. After the fix: 0 px on every
+  reproduction (0 of 60 point-symmetric patterns).
+- **F2, traps where a refusal is due.** A centred `.point` with a NaN or huge origin, huge shifts (|Δ| ≈ 1e30) and a radius of
+  1e300 trapped in an integer conversion. Fixed: points refuse a non-finite or huge coordinate (Python's `int(nan)` raises);
+  shifts are reduced modulo the detector in Double first (any finite shift works); `GaussianFilter(sigma:)` now throws for a
+  σ that is not positive and finite, whose square underflows, or whose radius exceeds 10⁶ pixels.
+- **F3, rank-deficient fits.** The kit refused a plane on a 1 × N scan and a parabola or Bézier on 2 × N, where NumPy's
+  lstsq (and py4DSTEM) return a surface. Fixed: a negligible column is left out of the QR, which gives the projection onto
+  the design's column space, the same fitted surface. Section 3.2's refusal applies only when no finite value is left.
+- **F4, NaN in the pattern.** The kit skipped masked-out pixels and NaN in the argmax; the definition multiplies the whole
+  pattern by the 0/1 mask (NaN · 0 is NaN) and NumPy's argmax returns the first NaN. Fixed: both as the definition.
+- **The Fourier claim is restated in the norm the FFT obeys.** On signed data whose mean pattern has pixels near zero,
+  relative 1e-10 with slice 1's floor is unsatisfiable by any FFT (both sides err by about 5e-16 of the maximum); the claim
+  for the Fourier-shifted mean and maximum is |Δ| ≤ 1e-12 · max|want|, which the kit meets with three orders to spare.
+- Recorded: fits with offsets of 1e5 and above exceed 1e-9 px by roundoff, as the definition's own lstsq does.

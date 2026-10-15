@@ -57,12 +57,13 @@ extension VirtualImaging {
                     let m: [Double]
                     if bilinear {
                         let fr = dr.rounded(.down), fc = dc.rounded(.down), wr = dr - fr, wc = dc - fc
-                        let a = roll(mask, qy, qx, Int(fr), Int(fc)), b = roll(mask, qy, qx, Int(fr) + 1, Int(fc))
-                        let c = roll(mask, qy, qx, Int(fr), Int(fc) + 1), d = roll(mask, qy, qx, Int(fr) + 1, Int(fc) + 1)
+                        let ir = wrap(fr, qy), ic = wrap(fc, qx)
+                        let a = roll(mask, qy, qx, ir, ic), b = roll(mask, qy, qx, ir + 1, ic)
+                        let c = roll(mask, qy, qx, ir, ic + 1), d = roll(mask, qy, qx, ir + 1, ic + 1)
                         let w00 = (1 - wr) * (1 - wc), w10 = wr * (1 - wc), w01 = (1 - wr) * wc, w11 = wr * wc
                         m = (0..<n).map { a[$0] * w00 + b[$0] * w10 + c[$0] * w01 + d[$0] * w11 }
                     } else {
-                        m = roll(mask, qy, qx, Int(dr.rounded(.toNearestOrEven)), Int(dc.rounded(.toNearestOrEven)))
+                        m = roll(mask, qy, qx, wrap(dr.rounded(.toNearestOrEven), qy), wrap(dc.rounded(.toNearestOrEven), qx))
                     }
                     var s = Neumaier()
                     for i in 0..<n { s.add(Double(tile.values[k * n + i]) * m[i]) }
@@ -81,9 +82,11 @@ extension VirtualImaging {
         switch g {
         case .mask: return g
         case .point(let row, let column):
-            // py4DSTEM: int(g[0] + x0_mean) and int(g / p), truncating toward zero
-            return .point(row: Int(((Double(row) + r0) / s).rounded(.towardZero)),
-                          column: Int(((Double(column) + c0) / s).rounded(.towardZero)))
+            // py4DSTEM: int(g[0] + x0_mean) and int(g / p), truncating toward zero (a non-finite or huge value is refused,
+            // as Python's int(nan) raises)
+            let pr = ((Double(row) + r0) / s).rounded(.towardZero), pc = ((Double(column) + c0) / s).rounded(.towardZero)
+            guard pr.isFinite, pc.isFinite, abs(pr) < 1e15, abs(pc) < 1e15 else { throw CuboVirtualError.nonFiniteGeometry }
+            return .point(row: Int(pr), column: Int(pc))
         case .circle(let cr, let cc, let r):
             return .circle(centerRow: (cr + r0) / s, centerColumn: (cc + c0) / s, radius: r / s)
         case .annulus(let cr, let cc, let i, let o):
@@ -100,6 +103,12 @@ extension VirtualImaging {
         guard (map.row.values + map.column.values).allSatisfy(\.isFinite) else {
             throw CuboVirtualError.originMapMismatch("the origin map has non-finite values")
         }
+    }
+
+    /// An integral shift reduced modulo the axis length in Double first, so a shift of any finite size never traps.
+    static func wrap(_ v: Double, _ n: Int) -> Int {
+        let m = v.truncatingRemainder(dividingBy: Double(n))
+        return Int(m < 0 ? m + Double(n) : m) % n
     }
 
     /// np.roll(a, (dr, dc), axis=(0, 1)): out[i, j] = a[(i − dr) mod qy, (j − dc) mod qx].
@@ -143,7 +152,8 @@ extension VirtualDiffraction {
                     } }
                     fft.transform(&p, &im, inverse: true)
                 } else {
-                    p = VirtualImaging.roll(p, qy, qx, Int(sr.rounded(.toNearestOrEven)), Int(sc.rounded(.toNearestOrEven)))
+                    p = VirtualImaging.roll(p, qy, qx, VirtualImaging.wrap(sr.rounded(.toNearestOrEven), qy),
+                                            VirtualImaging.wrap(sc.rounded(.toNearestOrEven), qx))
                 }
                 for i in 0..<n {
                     sums[i].add(p[i])

@@ -39,11 +39,9 @@ public enum OriginMeasurement {
             let max = try await VirtualDiffraction.max(of: source, tiling: tiling)
             r = try ProbeSize.estimate(max).radius
         }
-        guard r > 0, r.isFinite, radiusScale > 0, radiusScale.isFinite else {
-            throw CuboVirtualError.invalidRadius(r)
-        }
+        guard radiusScale > 0, radiusScale.isFinite else { throw CuboVirtualError.invalidRadius(radiusScale) }
         let qy = shape.detectorRows, qx = shape.detectorColumns, n = shape.detectorCount
-        let filter = GaussianFilter(sigma: r)
+        let filter = try GaussianFilter(sigma: r)
         var rows = [Double](repeating: 0, count: shape.scanCount), cols = rows
         let limit = r * radiusScale
         for range in try tiling.ranges(for: shape) {
@@ -53,14 +51,15 @@ public enum OriginMeasurement {
             for k in 0..<tile.positionCount {
                 let p = (0..<n).map { Double(tile.values[k * n + $0]) }
                 let g = filter.apply(p, rows: qy, columns: qx)
+                // np.argmax: the first maximum, or the first NaN if there is one (NaN compares as the largest)
                 var best = 0
-                for i in 1..<n where g[i] > g[best] { best = i }
+                if let nan = g.firstIndex(where: \.isNaN) { best = nan } else { for i in 1..<n where g[i] > g[best] { best = i } }
                 let i0 = Double(best / qx), j0 = Double(best % qx)
                 var s = Neumaier(), mr = Neumaier(), mc = Neumaier()
-                for i in 0..<n {
+                for i in 0..<n {   // get_CoM(dp · mask): every pixel times its 0/1 weight, so a NaN anywhere is NaN
                     let di = Double(i / qx) - i0, dj = Double(i % qx) - j0
-                    guard hypot(di, dj) < limit else { continue }
-                    s.add(p[i]); mr.add(Double(i / qx) * p[i]); mc.add(Double(i % qx) * p[i])
+                    let v = p[i] * (hypot(di, dj) < limit ? 1.0 : 0.0)
+                    s.add(v); mr.add(Double(i / qx) * v); mc.add(Double(i % qx) * v)
                 }
                 rows[first + k] = mr.value / s.value
                 cols[first + k] = mc.value / s.value
@@ -78,27 +77,37 @@ public struct GaussianFilter: Sendable {
     public let kernel: [Double]
     public var radius: Int { (kernel.count - 1) / 2 }
 
-    public init(sigma: Double) {
+    /// σ must be positive, finite, with σ² representable (above about 1.5e-154) and a radius below 10⁶ pixels.
+    public init(sigma: Double) throws {
+        guard sigma > 0, sigma.isFinite, sigma * sigma >= Double.leastNormalMagnitude, 4.0 * sigma + 0.5 < 1e6 else {
+            throw CuboVirtualError.invalidRadius(sigma)
+        }
         self.sigma = sigma
         let R = Int(4.0 * sigma + 0.5)
         let w = (-R...R).map { exp(-0.5 / (sigma * sigma) * Double($0 * $0)) }
-        let sum = w.reduce(0, +)
+        let sum = NumPySum.pairwise(w)                   // phi_x / phi_x.sum()
         kernel = w.map { $0 / sum }
     }
 
-    /// Filters a `rows × columns` pattern (row-major).
+    /// Filters a `rows × columns` pattern (row-major) in scipy's order for a symmetric kernel (ni_filters.c
+    /// NI_Correlate1D): the centre weight times the pixel, then (p[i − t] + p[i + t]) · k[t] for t = R down to 1. The
+    /// pairing makes a mirror-symmetric pattern filter to exactly symmetric values, so exact ties stay ties.
     public func apply(_ p: [Double], rows: Int, columns: Int) -> [Double] {
-        let R = radius
+        let R = radius, k0 = kernel[R]
         var a = [Double](repeating: 0, count: p.count)
         for i in 0..<rows { for j in 0..<columns {
-            var s = 0.0
-            for t in -R...R { s += kernel[t + R] * p[min(max(i + t, 0), rows - 1) * columns + j] }
+            var s = p[i * columns + j] * k0
+            for t in stride(from: R, through: 1, by: -1) {
+                s += (p[max(i - t, 0) * columns + j] + p[min(i + t, rows - 1) * columns + j]) * kernel[R - t]
+            }
             a[i * columns + j] = s
         } }
         var b = [Double](repeating: 0, count: p.count)
         for i in 0..<rows { for j in 0..<columns {
-            var s = 0.0
-            for t in -R...R { s += kernel[t + R] * a[i * columns + min(max(j + t, 0), columns - 1)] }
+            var s = a[i * columns + j] * k0
+            for t in stride(from: R, through: 1, by: -1) {
+                s += (a[i * columns + max(j - t, 0)] + a[i * columns + min(j + t, columns - 1)]) * kernel[R - t]
+            }
             b[i * columns + j] = s
         } }
         return b
