@@ -5,8 +5,8 @@
 #
 #   run.sh            build, run the checks, print "consumer-check: all passed — N checks ..." and exit 0.
 #
-# Negative controls (reverting one `public` to `package` in a copy and requiring the build to fail) are SpectroKit's
-# tools/consumer-check/controls.py pattern; they come with the first tag's consumer notes, not this skeleton.
+# Negative controls (reverting one `public` to `package` in a copy and requiring the build to fail) are controls.sh
+# beside this script, in SpectroKit's controls.py pattern: controls.sh <scratch folder>.
 set -euo pipefail
 here=${0:A:h}
 root=${here:h:h}
@@ -14,7 +14,7 @@ die() { print -u2 "consumer-check: $*"; exit 1 }
 cd $here
 mkdir -p .build
 log=.build/consumer-check-build.log
-if ! swift build -c debug >$log 2>&1; then
+if ! swift build --jobs 2 -c debug >$log 2>&1; then
   grep -E "error" $log | head -20 >&2
   die "BUILD FAILED (full log: $here/$log)"
 fi
@@ -23,7 +23,7 @@ warnings=$(grep -c "warning:" $log || true)
 if grep -qE "CuboCoreTests|CuboVirtualTests|CuboStrainTests|CuboPtychoTests" $log; then
   die "the build log names a test-only target"
 fi
-bin=$(swift build -c debug --show-bin-path)
+bin=$(swift build --jobs 2 -c debug --show-bin-path)
 out=.build/consumer-check-run.log
 set +e
 $bin/consumer-check >$out 2>&1
