@@ -1,9 +1,10 @@
 # Status
 
 What is live, one table; then the hand-off. Rules are in `CLAUDE.md`; the registration in `docs/registration-slice-1.md`;
-parity with py4DSTEM in `docs/parity.md`; what mac4DSTEM changes to import the kit in `docs/consumers-0.0.1.md`.
+parity with py4DSTEM in `docs/parity.md`; what mac4DSTEM changes to import the kit in `docs/consumers-0.0.1.md` to
+`docs/consumers-0.1.0.md`.
 
-## Live (2026-10-15 early morning, end of the first session)
+## Live (2026-10-15 afternoon: slice 4 and the 0.1.0 candidate)
 
 | Area | State | Evidence |
 |---|---|---|
@@ -22,10 +23,16 @@ parity with py4DSTEM in `docs/parity.md`; what mac4DSTEM changes to import the k
 | Slice 3 | Registration `22c3bdd`, pins `d272160`, code `5c82508`, Gate B fixes `63dbfef`: `OriginMeasurement` (get_origin in Double, scipy's filter order), `OriginFit` (four models, robust, lstsq's projection when rank-deficient), centred, calibrated and shifted virtual images, shifted mean and max (rounded, Fourier) | `Slice3Tests`, `Slice3RealDataTests`, `docs/registration-slice-3.md` |
 | Slice 3 on real data | The five cubes: origins 0.0 px from float64; py4DSTEM's float32 filter moves 2 of 63 550 Au argmaxes (recorded); integer cubes bit for bit against py4DSTEM's centred, calibrated and rounded images | log `test-s3-final` |
 | Slice 3 Gate B and mutants | Refuter on `5c82508`: symmetric ties (F1), traps (F2), rank-deficient fits (F3), NaN (F4) fixed; the Fourier claim restated normwise. 19 mutants on `63dbfef`: 17 red, 2 registered survivors | `docs/slice-3-mutants-2026-10-15.md` |
+| Slice 4 | Registration `086999f`, pins `b4b4efd`, code `bc41094`, Gate B fixes `006fe47`: `VirtualDiffraction.median` and `.pattern(of:statistic:scan:shift:)` (mean, max, median over `.all`, `.mask`, `.weights`; shifted), `OriginMeasurement.measure(scanMask:fastCenter:)`, `OriginMap.replacingNaNWithMean`, `FriedelOrigin` (masked, DFT upsampling), `BeamstopMask`, `VacuumProbe` (`measure`, `zeroVacuum`, `dampVacuum`), `ProbeKernel` (flat, Gaussian, sine² and logistic sigmoid), `SyntheticProbe`; CPU, Double | `Slice4Tests`, `Slice4RealDataTests`, `docs/registration-slice-4.md` |
+| Slice 4 on real data | Five cubes and the owner's bullseye vacuum probe (a new export): medians, maxima and beamstop masks bit for bit; Friedel origins within 2e-14 px of the float64 definition (py4DSTEM's complex64 8.2e-7 px on Al–Mg–Si; its masked form squares uint16 in uint16, up to 30 px wrong on integer cubes, recorded); vacuum probes within 1e-12; kernels within 1e-14 of py4DSTEM's | `tools/slice-4/pins.py real`, gate log `gate-bc41094` |
+| Slice 4 break-once proof | 31 mutants on `006fe47`: 30 red, the registered survivor green (D2 needed a stronger NaN test, `537462d`) | `docs/slice-4-mutants-2026-10-15.md` |
+| Slice 4 Gate B | One refuter on `bc41094`, about 20 000 cases, no wrong number on realistic inputs: traps refused (an absurd upsampling factor, empty patterns), an all-false Friedel mask refused, NumPy's keep-first rule for equal maxima, messages fixed; the masked Friedel, flat-peak and weighted-mean claims restated with their conditions | `registration-slice-4.md` §9, `006fe47` |
+| 0.1.0 candidate | README standing without the suite; example executable `cubo-first-look` (`Examples/CuboFirstLook`: mean pattern, probe, BF, CoM, PNGs and numbers.json; `--synthetic` runs without data); `docs/parity.md` one row per py4DSTEM method (182 in scope: 61 done, 23 partial, 98 absent); consumer check 79 checks with 21 negative controls (`controls.sh`); CI (`.github/workflows/ci.yml`, macOS, the hook proof and `tools/test.sh`) and `.spi.yml`; the hook refuses `killall` and unpinned `pkill` | README, `docs/consumers-0.1.0.md` |
+| Platform floor | Declared macOS 27 (unchanged); the sources and tests build unchanged at a macOS 15 deployment target, and the package builds for the iOS 18 Simulator (built, not run), checked 2026-10-15 | the floor lane's report (session scratchpad) |
 | Placeholder modules | `CuboStrain`, `CuboPtycho`: a scope statement each | their placeholder tests |
-| Tests | Swift Testing (owner, 2026-10-15): 74 tests, 0 failures, release, real data included | `tools/test.sh` |
-| Gate | green and stamped at the closing commit | `.build/last-green`, `tools/last-green.sh` |
-| Consumer check | `tools/consumer-check`: 38 checks through the public API (slices 1 to 3), Debug, 0 warnings | `tools/consumer-check/run.sh` |
+| Tests | Swift Testing (owner, 2026-10-15): 90 tests, 0 failures, release, real data included (6.5 min; the Au and Al–Mg–Si slice-4 suites take 2 min each) | `tools/test.sh` |
+| Gate | green and stamped at `bb0a02e`, the 0.1.0 candidate (and earlier at `bc41094`, slice 4's code) | `.build/last-green`, `tools/last-green.sh` |
+| Consumer check | `tools/consumer-check`: 79 checks through the public API (slices 1 to 4), Debug, 0 warnings, at `bb0a02e`; 21 negative controls fail to build as required | `tools/consumer-check/run.sh`, `controls.sh` |
 | Break-once proof | `tools/slice-1/mutants.py`, 40 mutants on the fixed commit `1b15f21`: 38 red, the 2 registered survivors green, none unexpected | `docs/slice-1-mutants-2026-10-15.md` |
 | Gate B refuter | One refuter on `85318cd`: F1 (Metal tolerance on zero-mean data) and F2 (`.npy` overflow trap) fixed in `1b15f21`; F3, F4 made consistent; three behaviours recorded | `registration-slice-1.md` §9 |
 
@@ -34,18 +41,24 @@ claimed (`registration-slice-1.md` §8).
 
 ## Hand-off
 
-The next session starts from the suite board's `lanes/cubokit` prompt. Before it, the owner pushes `main` and may tag
-0.0.2 (commands on the board); mac4DSTEM's own session switches at a tag of its choosing (`docs/consumers-0.0.1.md`,
-`docs/consumers-0.0.2.md`).
+The owner pushes `main` and tags **0.0.4 on `fbcb869`** (slice 4 complete: code, Gate B fixes, the mutant record) and
+**0.1.0 on `bb0a02e`** (the candidate: slice 4 plus the README, the example, CI, `.spi.yml`; green and stamped); commands on
+the board row. mac4DSTEM moves from 0.0.3 to 0.1.0 at a session of its choosing (`docs/consumers-0.1.0.md`: nothing
+breaks; names shared with the app and one new error case to know).
 
-Slice 4, registered before code: the median pattern and masked virtual diffraction (`get_virtual_diffraction` with a
-real-space mask, median), `get_origin`'s real-space mask and `fast_center`, `get_origin_friedel`, the probe kernels
-(`get_vacuum_probe`, the sigmoid kernel) that disk detection needs; or strain (`CuboStrain`) if the owner prefers. A Metal
-path for the slice-3 operations and DPC's filters are later lanes.
+Next, from the board's `lanes/cubokit` prompt: slice 5, Bragg disk detection on slice 4's kernels and strain
+(`CuboStrain`), registered before code; then the ptychography registration (no code). The generality pass is 0.2.0
+(suite `ROADMAP.md`). A Metal path for slices 3 and 4 and DPC's filters remain later lanes.
 
 ## Unverified
 
-- iPadOS: not built (the maths and `mmap` allow it).
-- Metal: Float32 subnormals flush to zero (recorded); the Metal CoM claim covers |S| ≥ 1e-3 · Σ|wP| only.
+- iPadOS: builds for the iOS 18 Simulator (2026-10-15), not run; the declared floor is macOS 27.
+- Metal: Float32 subnormals flush to zero (recorded); the Metal CoM claim covers |S| ≥ 1e-3 · Σ|wP| only (the Float32 noise
+  floor SimulatoKit measured at about 3e-10 of the total intensity is the same kind of floor). Tile buffers come from
+  Metal's `new…` selectors and are freed per tile (checked against SimulatoKit's autorelease finding, 2026-10-15); not
+  measured under memory pressure.
 - Tiles larger than Metal's maximum buffer length, and Float32 overflow in Metal sums of huge finite values: not tested.
 - `.npy` files with an unaligned data offset are refused (only hand-made headers have one).
+- Slice 4: Friedel with upsampling factors of 10⁴ and above, and on detectors of 1024 pixels and more, not refuted on this
+  machine (memory rule); the masked Friedel claim excludes vanishing denominators (registration-slice-4 §9).
+- CI: the workflow has not run on GitHub (enabling Actions is the owner's); the runner must carry the macOS 27 SDK.
