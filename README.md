@@ -114,9 +114,12 @@ tools/consumer-check/run.sh         # a separate package using the public API on
 tools/readme-consumer/run.sh    # the README's own code, compiled and run
 ```
 
-The reference is not in the repository: `tools/slice-1/provision-py4dstem.sh` builds the pinned py4DSTEM environment in the
-gitignored `References/`, and `tools/slice-1/pins.py` writes the pins (`synthetic`, committed) and the real-data exports
-(`real`, outside the repository, in `$CUBOKIT_REAL_DATA`). The real-data tests skip by name when their exports are absent,
+The tests need nothing outside the package: the synthetic pins are committed. To regenerate pins, install the reference
+py4DSTEM at the pinned commit (`pip install "py4DSTEM @ git+https://github.com/py4dstem/py4DSTEM@f050d207"` in a fresh
+Python 3.12 environment, as the gitignored `References/py4dstem-venv` the scripts call; the maintainers build theirs with
+`tools/slice-1/provision-py4dstem.sh`, which reads a pinned constraints file from their own checkout). Then
+`tools/slice-N/pins.py synthetic` rewrites the committed pins and `real` writes exports of your own cubes outside the
+repository, in `$CUBOKIT_REAL_DATA`. The real-data tests skip by name when their exports are absent,
 so `tools/test.sh` runs everywhere; with the data present it runs more.
 
 ## Versioning
