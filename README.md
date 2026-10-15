@@ -98,11 +98,11 @@ float64 chain. Details, planted truths and the amendments after review are in th
 
 ## Platform
 
-`Package.swift` declares **macOS 27** for now, and the tests run there. The sources use no API newer than macOS 15: the
-library and its tests build unchanged with the deployment target set to macOS 15 (checked 2026-10-15), and the package
-builds for the iOS 18 Simulator (built, not run). Lowering the declared floor is a decision for a later tag. Apple
-silicon or Intel with Metal for the `.metal` path; the `.cpu` path needs only Accelerate. Swift 6.2 tools (Xcode 27),
-Swift 6 language mode.
+**macOS 15 or later, iOS 18 or later** (`Package.swift`, from 0.2.0). The library, its tests and the consumer checks
+build with no availability diagnostic at macOS 15 and the tests pass at that deployment target; the iOS build is checked
+for the Simulator (built, not run). Apple silicon or Intel with Metal for the `.metal` path; the `.cpu` path needs only
+Accelerate. Swift 6.2 tools or later, Swift 6 language mode. Build the kit optimised (`-c release`, or set the
+dependency's optimisation in your app): at `-Onone` a Debug app runs it tens of times slower.
 
 ## Build and test
 
