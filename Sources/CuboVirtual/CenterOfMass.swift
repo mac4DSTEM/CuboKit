@@ -59,7 +59,7 @@ public enum CenterOfMass {
             try Task.checkCancellation()
             let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
-            // Positions in parallel (kit ask, 2026-10-15): each keeps its own sums in pixel order, so the result is
+            // Positions in parallel: each keeps its own sums in pixel order, so the result is
             // bit identical to the sequential loop.
             let values = tile.values
             let found = parallelMap(tile.positionCount) { (k: Int) -> (Double, Double, Double) in

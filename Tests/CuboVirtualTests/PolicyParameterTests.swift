@@ -15,6 +15,9 @@ import CuboVirtual
         #expect(try GaussianFilter(sigma: 10).radius == 40)
         #expect(throws: CuboVirtualError.self) { try GaussianFilter(sigma: 10, maximumRadius: 40) }
         #expect(try GaussianFilter(sigma: 10, maximumRadius: 41).kernel == GaussianFilter(sigma: 10).kernel)
+        // refuter 0.2.0, F2: a lifted guard trapped (Int overflow) or exhausted memory; bounded at 10⁸ now
+        #expect(throws: CuboVirtualError.self) { try GaussianFilter(sigma: 1e9, maximumRadius: .max) }
+        #expect(throws: CuboVirtualError.self) { try GaussianFilter(sigma: 1, maximumRadius: 0) }
     }
 
     @Test func testUpsamplingCapIsAParameter() throws {
@@ -25,6 +28,13 @@ import CuboVirtual
         let raised = try FriedelOrigin.origin(of: image, upsampleFactor: 1100, maximumUpsampleFactor: 2048)
         #expect(abs(raised.row - 3.5) <= 1e-6 && abs(raised.column - 3.5) <= 1e-6, "\(raised)")
         #expect(throws: CuboVirtualError.self) { try FriedelOrigin.origin(of: image, upsampleFactor: 16, maximumUpsampleFactor: 8) }
+        // refuter 0.2.0, F2 and F3: Int.max trapped; a cap below 3 gave a garbled message
+        #expect(throws: CuboVirtualError.self) {
+            try FriedelOrigin.origin(of: image, upsampleFactor: .max, maximumUpsampleFactor: .max)
+        }
+        #expect(throws: CuboVirtualError.invalidInput("the maximum upsampling factor must be from 3 to 4096 (got 2)")) {
+            try FriedelOrigin.origin(of: image, upsampleFactor: 3, maximumUpsampleFactor: 2)
+        }
     }
 
     @Test func testMedianWorkingMemoryChangesPassesNotNumbers() async throws {

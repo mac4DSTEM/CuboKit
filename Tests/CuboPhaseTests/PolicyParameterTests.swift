@@ -19,5 +19,11 @@ import CuboPhase
         #expect(throws: CuboPhaseError.planeFitDegenerate) {
             try CenterOfMassReference.normalize(field, reference: .planeFit, degeneracyTolerance: 1)
         }
+        // refuter 0.2.0, F1: a negative tolerance hid a degenerate fit behind nan_to_num; refused now
+        for bad in [-1.0, -.infinity, .nan] {
+            #expect(throws: CuboPhaseError.self) {
+                try CenterOfMassReference.normalize(field, reference: .planeFit, degeneracyTolerance: bad)
+            }
+        }
     }
 }

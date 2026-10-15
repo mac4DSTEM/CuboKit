@@ -17,7 +17,8 @@ import Foundation
 public enum FriedelOrigin {
     /// The Friedel origin of every pattern. `mask` (detector-sized, row-major) is true in the pattern and false under a
     /// beamstop (the negation of `BeamstopMask.make`'s result); `upsampleFactor` 1 (none) or above 2 (py4DSTEM asserts
-    /// > 2 when upsampling); `maximumUpsampleFactor` bounds it (1024 by default; the n × n upsampled patch grows as 2.25 u²).
+    /// > 2 when upsampling); `maximumUpsampleFactor` bounds it (1024 by default, at most 4096; the n × n upsampled patch
+    /// grows as 2.25 u²).
     public static func measure(of source: some CubeSource, mask: [Bool]? = nil, upsampleFactor: Int = 1,
                                maximumUpsampleFactor: Int = 1024, tiling: ScanTiling = .automatic) async throws -> OriginMap {
         let shape = source.shape
@@ -56,6 +57,9 @@ public enum FriedelOrigin {
 
         init(rows qy: Int, columns qx: Int, mask: [Bool]?, upsampleFactor u: Int, maximumUpsampleFactor: Int = 1024) throws {
             guard qy > 0, qx > 0 else { throw CuboVirtualError.invalidInput("the pattern is empty (\(qy) × \(qx))") }
+            guard maximumUpsampleFactor >= 3, maximumUpsampleFactor <= 4096 else {   // the n × n patch: n = 1.5 u
+                throw CuboVirtualError.invalidInput("the maximum upsampling factor must be from 3 to 4096 (got \(maximumUpsampleFactor))")
+            }
             guard u == 1 || (u > 2 && u <= maximumUpsampleFactor) else {
                 throw CuboVirtualError.invalidInput("the upsampling factor must be 1 or from 3 to \(maximumUpsampleFactor) (got \(u))")
             }

@@ -27,6 +27,9 @@ public enum CenterOfMassReference: Sendable, Equatable {
     public static func normalize(_ measured: ScanVectorField, reference: CenterOfMassReference,
                                  reciprocalSampling: Double = 1, degeneracyTolerance: Double = 1e-12) throws
         -> (fitted: ScanVectorField, normalized: ScanVectorField) {
+        guard degeneracyTolerance >= 0, degeneracyTolerance.isFinite else {
+            throw CuboPhaseError.invalidParameter("the degeneracy tolerance must be finite and not negative (\(degeneracyTolerance))")
+        }
         let R = measured.scanRows, C = measured.scanColumns
         let fitted: ScanVectorField
         switch reference {

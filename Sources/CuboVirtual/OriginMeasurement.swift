@@ -102,8 +102,12 @@ public struct GaussianFilter: Sendable {
     public var radius: Int { (kernel.count - 1) / 2 }
 
     /// σ must be positive, finite, with σ² representable (above about 1.5e-154) and a radius int(4σ + 0.5) below
-    /// `maximumRadius` pixels (10⁶ by default: a guard against a runaway kernel, not a property of the filter).
+    /// `maximumRadius` pixels (10⁶ by default: a guard against a runaway kernel, not a property of the filter; at most
+    /// 10⁸, where the kernel alone holds 1.6 GB).
     public init(sigma: Double, maximumRadius: Int = 1_000_000) throws {
+        guard maximumRadius > 0, maximumRadius <= 100_000_000 else {
+            throw CuboVirtualError.invalidInput("the maximum radius must be from 1 to 10⁸ pixels (got \(maximumRadius))")
+        }
         guard sigma > 0, sigma.isFinite, sigma * sigma >= Double.leastNormalMagnitude, 4.0 * sigma + 0.5 < Double(maximumRadius) else {
             throw CuboVirtualError.invalidRadius(sigma)
         }
