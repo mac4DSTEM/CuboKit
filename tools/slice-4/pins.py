@@ -9,7 +9,25 @@ export-bullseye -> $CUBOKIT_REAL_DATA/bullseye.npy (the owner's 20 vacuum-probe 
 real -> $CUBOKIT_REAL_DATA/<name>-s4-pins.json beside slice 1's exports.
 py4DSTEM's own results beside the float64 evaluation of each definition (section 3), which the kit is held to.
 """
-import datetime, importlib.util, json, os, sys, warnings
+import datetime, importlib.util, json, os, resource, sys, warnings
+# The suite's memory cap (owner, 2026-10-15 12:30): 8 GB by default, set before anything else is loaded. This macOS
+# refuses RLIMIT_AS and RLIMIT_DATA outright (setrlimit: "current limit exceeds maximum limit"), so the cap is a watchdog:
+# a thread that ends the process with exit code 3 once its peak resident size passes the cap. The two big cubes (almgsi,
+# auref) need about 12 GB for their float64 copies: CUBOKIT_PINS_MEM_GB=16, one worker at a time (registration 9).
+import threading, time
+_cap = int(float(os.environ.get("CUBOKIT_PINS_MEM_GB", "8")) * (1 << 30))
+
+
+def _watchdog():
+    while True:
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss      # bytes on macOS
+        if peak > _cap:
+            print(f"pins.py: peak resident size {peak >> 20} MB passed the cap of {_cap >> 20} MB: stopped", file=sys.stderr)
+            os._exit(3)
+        time.sleep(0.5)
+
+
+threading.Thread(target=_watchdog, daemon=True).start()
 warnings.filterwarnings("ignore")
 import numpy as np
 from scipy.ndimage import binary_fill_holes, distance_transform_edt, gaussian_filter
