@@ -12,7 +12,8 @@ T = "Slice4Tests/"
 runner.MUTANTS = [
     ("D1", "an even median as the upper middle", SEL, "return c % 2 == 1 ? v[c / 2] : (v[c / 2 - 1] + v[c / 2]) / 2",
      "return c % 2 == 1 ? v[c / 2] : v[c / 2]", T, "red"),
-    ("D2", "NaN ignored by the median", SEL, "if v.contains(where: \\.isNaN) { return .nan }", "v = v", T, "red"),
+    ("D2", "NaN ignored by the median", SEL, "if v.contains(where: \\.isNaN) { return .nan }",
+     "if false, v.contains(where: \\.isNaN) { return .nan }", T, "red"),
     ("D3", "the mask mean divided by the scan count", SEL, "let count = weights == nil ? Double(selected.count) : total.value",
      "let count = weights == nil ? Double(take.count) : total.value", T, "red"),
     ("D4", "weights normalised by the count", SEL, "let count = weights == nil ? Double(selected.count) : total.value",

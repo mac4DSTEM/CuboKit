@@ -263,10 +263,11 @@ enum S4 {
     /// By hand, the edges of the definitions: NaN in a median; the maximum of negative data; the Friedel origin reported
     /// modulo the detector (np.remainder); the threshold index rounded half to even; holes filled with 4-connectivity.
     @Test func testEdgesByHand() async throws {
-        let nan = try MemoryCube(shape: CubeShape(scanRows: 1, scanColumns: 3, detectorRows: 1, detectorColumns: 2),
-                                 values: [1, 5, .nan, 6, 3, 7])
+        // NaN first among five: a sort leaves it in front and the middle finite, so only the NaN rule makes it NaN
+        let nan = try MemoryCube(shape: CubeShape(scanRows: 1, scanColumns: 5, detectorRows: 1, detectorColumns: 2),
+                                 values: [.nan, 5, 1, 6, 2, 7, 3, 8, 4, 9])
         let m = try await VirtualDiffraction.median(of: nan)
-        #expect(m.values[0].isNaN && m.values[1] == 6)
+        #expect(m.values[0].isNaN && m.values[1] == 7)
         let negative = try MemoryCube(shape: CubeShape(scanRows: 2, scanColumns: 2, detectorRows: 1, detectorColumns: 2),
                                       values: [-4, -9, -3, -8, -5, -7, -6, -10])
         let all = [true, true, true, true]
