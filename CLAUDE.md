@@ -11,7 +11,7 @@ their planned scope). Rules only here; state in `docs/status.md`.
 
 1. The suite's `../CLAUDE.md` (board, tiers, how we work) and `../ROADMAP.md`, "Kits" (the direction, phase 5, the licence
    rule, the Apple-infrastructure requirements).
-2. `docs/registration-slice-1.md` and `docs/registration-slice-2.md`: what each slice makes, the definitions, the pins,
+2. `docs/registration-slice-1.md`, `-slice-2.md` and `-slice-3.md`: what each slice makes, the definitions, the pins,
    the tolerances per quantity, the gates, the amendments after Gate B.
 3. `docs/status.md`: what is live, the hand-off, what is unverified. `docs/parity.md`: the checklist against py4DSTEM.
 4. `../SpectroKit/CLAUDE.md`: the model for a kit repo (this file follows it).
