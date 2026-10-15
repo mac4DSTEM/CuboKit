@@ -141,7 +141,10 @@ public enum ProbeKernel {
         let qstd2 = NumPySum.pairwise(zip(q2, k).map { $0 * $1 }) / sk
         let g = q2.map { exp(-$0 / (2 * qstd2 * (sigma * sigma))) }
         let sg = NumPySum.pairwise(g)
-        guard sk != 0, sk.isFinite, sg > 0 else { throw CuboVirtualError.invalidInput("the probe sums to \(sk)") }
+        guard sk != 0, sk.isFinite else { throw CuboVirtualError.invalidInput("the probe sums to \(sk)") }
+        guard sg > 0, sg.isFinite else {
+            throw CuboVirtualError.invalidInput("the Gaussian sums to \(sg) (σ_q² = \(qstd2), σ = \(sigma))")
+        }
         return image(probe, k.indices.map { k[$0] / sk - g[$0] / sg })
     }
 
@@ -163,11 +166,15 @@ public enum ProbeKernel {
             s = q.map { 1 / (1 + exp(($0 - mid) / width)) }
         }
         let sk = NumPySum.pairwise(k), ss = NumPySum.pairwise(s)
-        guard sk != 0, sk.isFinite, ss > 0 else { throw CuboVirtualError.invalidInput("the probe sums to \(sk)") }
+        guard sk != 0, sk.isFinite else { throw CuboVirtualError.invalidInput("the probe sums to \(sk)") }
+        guard ss > 0, ss.isFinite else { throw CuboVirtualError.invalidInput("the trench sums to \(ss) (radii \(ri), \(ro))") }
         return image(probe, k.indices.map { k[$0] / sk - s[$0] / ss })
     }
 
     static func center(_ probe: DetectorImage, _ origin: (row: Double, column: Double)?) throws -> (Double, Double) {
+        guard probe.detectorRows > 0, probe.detectorColumns > 0 else {
+            throw CuboVirtualError.invalidInput("the probe is empty (\(probe.detectorRows) × \(probe.detectorColumns))")
+        }
         if let origin {
             guard origin.row.isFinite, origin.column.isFinite else { throw CuboVirtualError.invalidInput("the origin must be finite") }
             return (origin.row, origin.column)

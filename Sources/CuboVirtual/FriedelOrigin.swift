@@ -54,11 +54,15 @@ public enum FriedelOrigin {
         let m2Re: [Double], m2Im: [Double]          // IFFT2(M²)
 
         init(rows qy: Int, columns qx: Int, mask: [Bool]?, upsampleFactor u: Int) throws {
-            guard u == 1 || u > 2 else {
-                throw CuboVirtualError.invalidInput("the upsampling factor must be 1 or above 2 (got \(u))")
+            guard qy > 0, qx > 0 else { throw CuboVirtualError.invalidInput("the pattern is empty (\(qy) × \(qx))") }
+            guard u == 1 || (u > 2 && u <= 1024) else {
+                throw CuboVirtualError.invalidInput("the upsampling factor must be 1 or from 3 to 1024 (got \(u))")
             }
             if let mask, mask.count != qy * qx {
                 throw CuboVirtualError.maskLengthMismatch(expected: qy * qx, received: mask.count)
+            }
+            if let mask, !mask.contains(true) {   // every masked correlation is then noise over noise (Gate B F1)
+                throw CuboVirtualError.invalidInput("the mask keeps no pixel of the pattern")
             }
             self.qy = qy; self.qx = qx; ny = 2 * qy; nx = 2 * qx; self.u = u
             fft = FFT2D(rows: 2 * qy, columns: 2 * qx)

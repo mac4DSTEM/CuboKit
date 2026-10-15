@@ -251,3 +251,42 @@ scattering does not.
   (py4DSTEM's complex64 origins 8.2e-7 px on the Al–Mg–Si cube, 5.5e-6 px on Au, exact on integer cubes unmasked);
   vacuum probes within 1e-12, py4DSTEM's own 4e-10 to 1.4e-9 normwise on float32 cubes and below 3.3e-15 on integer
   ones; the kernels within 1e-14 normwise of py4DSTEM's (all float64).
+
+### 2026-10-15, after the Gate B refuter on `bc41094`
+
+One refuter (Sonnet; scripts in the session scratchpad `refuter4/`, about 20 000 cases). No wrong number on realistic
+inputs. Held: Friedel origins within 7e-15 px (u = 1) and 2.2e-13 px (u = 64) on random patterns of 1 × 1 to 257 × 255
+(Bluestein lengths included), 9.6e-12 px on Bragg-like 257 × 255; beamstop masks identical to scipy in 16 812 cases and
+574 distance-transform stress cases (512 × 512 down to 1 × 1, distances exactly √2, √5, √13, √50); selections, medians and
+every tiling bit for bit in value; shifted selections normwise 1.2e-15; origins with masks as slice 3; vacuum probes,
+estimates and damping exact or within 2.9e-16; kernels within 6.2e-15 of the float64 definition for origins up to ±1e7.
+Broke:
+
+- **F1, the masked Friedel claim on ill-posed masks.** Where `term2 − term3` vanishes in exact arithmetic (an all-false
+  mask; a mask keeping a few percent of a pattern with exact zeros), `cc` is roundoff over roundoff and two FFTs pick
+  different peaks with a large gap. Fixed in part: an all-false mask is refused. Restated: the masked claim covers peaks
+  where `|term2 − term3| ≥ 1e-9 · max |term2|`; elsewhere the definition is ill-posed and nothing is claimed. Measured:
+  realistic beamstop masks (70 % kept or more) and dense patterns at any mask fraction are clean.
+- **F2, flat-topped correlations.** The parabola's denominator can be 1e-8 of `max |cc|` while the top-two gap is 3e-9
+  (an engineered pattern): 5.3e-9 px. Restated: the 1e-9 px claim holds where `|4 c₀ − 2 c₊ − 2 c₋| ≥ 1e-6 · max |cc|`.
+- **F3, the weighted mean against `np.sum`.** With cancelling weights (Σ|w| / |Σw| = 1e6 to 1e12) the kit differs from
+  NumPy's sum by 1e-9 to 1e-3 relative and equals `math.fsum` exactly: NumPy's pairwise sum is the inaccurate side.
+  Restated: relative 1e-10 against the float64 definition where Σ|w| / |Σw| ≤ 1e4; exact against a correctly rounded sum.
+- **F4, an absurd upsampling factor trapped** (`u = Int.max`) or exhausted memory (`u = 2⁴⁰`). Fixed: factors above 1024
+  are refused (py4DSTEM has no bound).
+- **F5, an empty pattern or probe trapped** (`FFT2D` of 0, a roll modulo 0) in `FriedelOrigin.origin`, `ProbeKernel.gaussian`
+  and `.sigmoid`. Fixed: refused.
+- **F6, messages and refusals.** The Gaussian and logistic kernels reported "the probe sums to …" when their own
+  normalisation was NaN (σ_q² = 0, an underflowing width); fixed: the message names it. Recorded refusals beyond 3.4:
+  `BeamstopMask` with `sigma < 0` (py4DSTEM ignores it) and `sigma` below 1.5e-154 (slice 3's filter refuses it; py4DSTEM
+  returns the pattern unchanged).
+- **F7, the sign of zero.** Of equal maxima (±0) the kit kept the later one; NumPy's `np.max` and `np.maximum` keep the
+  first. Fixed in slice 4's reducers. Recorded: slice 1's `.all` maximum (vDSP) is unchanged, and the median's choice
+  between −0 and +0 follows the sort, so "bit for bit" for medians and slice 1's maximum means equal in value.
+- **F8, F9, wording.** The vacuum probe's averaged claim has the same near-tie exception as the alignment shifts; origins
+  are compared by circular distance (an origin within roundoff of 0 may read as Q); `replacingNaNWithMean` keeps ±∞ as
+  NumPy does. The registered wrap of the parabola's neighbours is unreachable without a mask (`cc` is 0 on the last row
+  and column) and occurs only in F1's ill-posed cases.
+- **Not refuted on this machine** (the suite's memory rule): upsampling factors between 10⁴ and 10⁵ and Friedel on
+  detectors of 1024 pixels and more. The pins of the two big cubes (Al–Mg–Si, Au) peaked above 8 GB (float64 copies) and
+  ran before the rule; they regenerate with `CUBOKIT_PINS_MEM_GB=16`, one worker at a time.

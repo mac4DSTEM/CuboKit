@@ -28,8 +28,8 @@ public struct OriginMap: Sendable, Equatable {
         meanColumn = NumPySum.mean(column.values)
     }
 
-    /// py4DSTEM's `remove_NaN`: every NaN of each map becomes NumPy's mean of that map's other values (NaN stays NaN
-    /// when no value is left).
+    /// py4DSTEM's `remove_NaN`: every NaN of each map becomes NumPy's mean of that map's non-NaN values (±∞ included;
+    /// NaN stays NaN when every value is NaN).
     public func replacingNaNWithMean() -> OriginMap {
         func filled(_ m: ScanImage) -> ScanImage {
             let fill = NumPySum.mean(m.values.filter { !$0.isNaN })

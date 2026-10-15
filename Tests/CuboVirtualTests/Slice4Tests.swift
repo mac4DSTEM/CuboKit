@@ -290,6 +290,35 @@ enum S4 {
         #expect(hole.indices.filter { hole[$0] } == [0])
     }
 
+    /// Gate B on bc41094 (registration 9): the refusals for an all-false Friedel mask, an upsampling factor above 1024 and
+    /// an empty pattern or probe (each trapped or was ill-posed); NumPy's keep-first rule for equal maxima (±0); the
+    /// kernels' messages name the normalisation that failed.
+    @Test func testGateBRegressions() async throws {
+        let cube = try MappedCube(npy: Fixtures.url("friedel_plain.npy"))
+        await #expect(throws: CuboVirtualError.invalidInput("the mask keeps no pixel of the pattern")) {
+            try await FriedelOrigin.measure(of: cube, mask: Array(repeating: false, count: 32 * 34))
+        }
+        await #expect(throws: CuboVirtualError.self) { try await FriedelOrigin.measure(of: cube, upsampleFactor: 1025) }
+        _ = try await FriedelOrigin.measure(of: cube, upsampleFactor: 3)
+        let empty = S4.image([], 0, 5)
+        #expect(throws: CuboVirtualError.self) { try FriedelOrigin.origin(of: empty) }
+        #expect(throws: CuboVirtualError.self) { try ProbeKernel.gaussian(empty, sigma: 2, origin: (row: 0, column: 0)) }
+        #expect(throws: CuboVirtualError.self) {
+            try ProbeKernel.sigmoid(empty, innerRadius: 1, outerRadius: 2, origin: (row: 0, column: 0))
+        }
+        do {   // a 1 × 1 probe: σ_q² = 0, the Gaussian's sum is NaN; the probe's sum (2.5) is fine
+            _ = try ProbeKernel.gaussian(S4.image([2.5], 1, 1), sigma: 1, origin: (row: 0, column: 0))
+            Issue.record("a 1 × 1 Gaussian kernel must be refused")
+        } catch let CuboVirtualError.invalidInput(why) {
+            #expect(why.hasPrefix("the Gaussian sums to"), "\(why)")
+        }
+        // ±0: np.max keeps the first of equal values, at each pixel in scan order
+        let zeros = try MemoryCube(shape: CubeShape(scanRows: 1, scanColumns: 2, detectorRows: 1, detectorColumns: 2),
+                                   values: [0, -0.0, -0.0, 0])
+        let mx = try await VirtualDiffraction.pattern(of: zeros, statistic: .max, scan: .mask([true, true]))
+        #expect(mx.values[0].sign == .plus && mx.values[1].sign == .minus, "\(mx.values.map(\.sign))")
+    }
+
     /// 5: the fast centre of the planted disk cube is the planted centre; excluded positions are NaN, selected ones
     /// equal the unmasked run bit for bit; remove_NaN fills with the mean of the rest.
     @Test func testOriginsTruth() async throws {

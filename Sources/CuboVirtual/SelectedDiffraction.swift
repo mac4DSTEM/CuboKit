@@ -89,7 +89,8 @@ extension VirtualDiffraction {
                 for i in 0..<n {
                     let v = weights == nil ? Double(tile.values[k * n + i]) : Double(tile.values[k * n + i]) * w
                     if statistic == .mean { sums[i].add(v) } else {
-                        maximum[i] = (maximum[i].isNaN || v.isNaN) ? .nan : Swift.max(maximum[i], v)
+                        let m = maximum[i]    // np.max: NaN wins; of equal values (±0) the first is kept
+                        maximum[i] = (m.isNaN || v.isNaN) ? .nan : (v > m ? v : m)
                     }
                 }
             }
@@ -189,7 +190,8 @@ extension VirtualDiffraction {
                 for i in 0..<n {
                     let v = weights == nil ? p[i] : p[i] * w
                     if statistic == .mean { moved[i].add(v) } else {
-                        top[i] = (top[i].isNaN || v.isNaN) ? .nan : Swift.max(top[i], v)
+                        let m = top[i]        // np.maximum(acc, moved): of equal values the accumulated one
+                        top[i] = (m.isNaN || v.isNaN) ? .nan : (v > m ? v : m)
                     }
                 }
             }
