@@ -1,8 +1,11 @@
 """CuboKit slice 4: the pin generator (docs/registration-slice-4.md).
 
-    References/py4dstem-venv/bin/python -I -B tools/slice-4/pins.py synthetic
-    References/py4dstem-venv/bin/python -I -B tools/slice-4/pins.py export-bullseye
-    References/py4dstem-venv/bin/python -I -B tools/slice-4/pins.py real [name ...]
+    ../tools/memcap.sh -- References/py4dstem-venv/bin/python -I -B tools/slice-4/pins.py synthetic
+    ../tools/memcap.sh -- References/py4dstem-venv/bin/python -I -B tools/slice-4/pins.py export-bullseye
+    ../tools/memcap.sh [--gb 16] -- References/py4dstem-venv/bin/python -I -B tools/slice-4/pins.py real [name ...]
+
+The suite's memcap.sh (a watchdog on the process tree, 8 GB by default) is the enforcer; the watchdog thread below is a
+second guard. One worker at a time; almgsi and auref need --gb 16 (and CUBOKIT_PINS_MEM_GB=16).
 
 synthetic -> Tests/CuboVirtualTests/Fixtures/slice-4-pins.json (+ planted cubes as .npy), before any Swift;
 export-bullseye -> $CUBOKIT_REAL_DATA/bullseye.npy (the owner's 20 vacuum-probe images as a 1 x 20 x 250 x 250 cube);
