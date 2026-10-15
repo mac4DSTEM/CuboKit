@@ -32,18 +32,27 @@ public enum RotationSolver {
     /// py4DSTEM's default search: −89 … 89 degrees in steps of 1.
     public static let defaultAnglesDegrees: [Double] = (0..<179).map { Double($0) - 89 }
 
+    /// The criterion at each angle for one orientation, exactly as `solve` computes it (its `curve` for
+    /// `transpose: false`, its `curveTransposed` for `true`), the angles evaluated in parallel. Throws
+    /// `CancellationError` when `isCancelled` returns true (asked per angle); never a partial curve.
+    public static func curve(_ normalized: ScanVectorField, anglesDegrees: [Double],
+                             criterion: RotationCriterion = .minimizeCurl, transpose: Bool,
+                             isCancelled: (@Sendable () -> Bool)? = nil) throws -> [Double] {
+        try requireUsable(normalized)
+        let angles = anglesDegrees.filter(\.isFinite)
+        guard !angles.isEmpty, angles.count == anglesDegrees.count else { throw CuboPhaseError.invalidAngles }
+        return try scores(normalized, angles, [transpose], maximize: criterion == .maximizeDivergence,
+                          isCancelled: isCancelled)[0]
+    }
+
     public static func solve(_ normalized: ScanVectorField, anglesDegrees: [Double] = defaultAnglesDegrees,
                              criterion: RotationCriterion = .minimizeCurl, forceRotationDegrees: Double? = nil,
-                             forceTranspose: Bool? = nil) throws -> RotationSolution {
+                             forceTranspose: Bool? = nil, isCancelled: (@Sendable () -> Bool)? = nil) throws -> RotationSolution {
+        try requireUsable(normalized)
         let R = normalized.scanRows, C = normalized.scanColumns
-        guard R >= 3, C >= 3 else { throw CuboPhaseError.scanTooSmallForRotation(rows: R, columns: C) }
-        guard normalized.row.allSatisfy(\.isFinite), normalized.column.allSatisfy(\.isFinite) else {
-            throw CuboPhaseError.invalidField("the rotation search needs a finite field (normalize applies nan_to_num)")
-        }
         let maximize = criterion == .maximizeDivergence
         func score(_ deg: Double, _ transpose: Bool) -> Double {
-            let (x, y) = rotate(normalized, radians: deg * (.pi / 180), transpose: transpose)
-            return maximize ? divergence(x, y, R, C) : curl(x, y, R, C)
+            scoreAt(normalized, deg, transpose, maximize: maximize)
         }
         func better(_ a: Double, than b: Double) -> Bool { maximize ? a > b : a < b }
         func best(_ curve: [Double]) -> Int {
@@ -51,6 +60,7 @@ public enum RotationSolver {
             for i in curve.indices where better(curve[i], than: curve[k]) { k = i }
             return k
         }
+        if isCancelled?() == true { throw CancellationError() }
         var degrees: Double, transposed: Bool
         var angles: [Double] = [], plain: [Double] = [], trans: [Double] = []
         if let forced = forceRotationDegrees {
@@ -68,12 +78,12 @@ public enum RotationSolver {
             guard !angles.isEmpty, angles.count == anglesDegrees.count else { throw CuboPhaseError.invalidAngles }
             if let t = forceTranspose {
                 transposed = t
-                let curve = angles.map { score($0, t) }
+                let curve = try scores(normalized, angles, [t], maximize: maximize, isCancelled: isCancelled)[0]
                 if t { trans = curve } else { plain = curve }
                 degrees = angles[best(curve)]
             } else {
-                plain = angles.map { score($0, false) }
-                trans = angles.map { score($0, true) }
+                let both = try scores(normalized, angles, [false, true], maximize: maximize, isCancelled: isCancelled)
+                plain = both[0]; trans = both[1]
                 let i = best(plain), j = best(trans)
                 // py4DSTEM keeps the plain orientation on a tie (≤ for the curl, ≥ for the divergence).
                 transposed = better(trans[j], than: plain[i])
@@ -85,6 +95,33 @@ public enum RotationSolver {
         return RotationSolution(degrees: degrees, radians: radians, transposed: transposed, anglesDegrees: angles,
                                 curve: plain, curveTransposed: trans,
                                 corrected: try ScanVectorField(scanRows: R, scanColumns: C, row: x, column: y))
+    }
+
+    /// The criterion curve over the angles for each requested orientation, every (orientation, angle) on its own core;
+    /// each value is `scoreAt`, so the curve is bit identical to the sequential one.
+    private static func scores(_ normalized: ScanVectorField, _ angles: [Double], _ transposes: [Bool], maximize: Bool,
+                               isCancelled: (@Sendable () -> Bool)?) throws -> [[Double]] {
+        let n = angles.count
+        let flat = try parallelScores(n * transposes.count, isCancelled: isCancelled) { (k: Int) -> Double in
+            scoreAt(normalized, angles[k % n], transposes[k / n], maximize: maximize)
+        }
+        return transposes.indices.map { (o: Int) -> [Double] in Array(flat[(o * n)..<((o + 1) * n)]) }
+    }
+
+    /// The criterion at one angle and orientation.
+    private static func scoreAt(_ normalized: ScanVectorField, _ deg: Double, _ transpose: Bool, maximize: Bool) -> Double {
+        let R = normalized.scanRows, C = normalized.scanColumns
+        let (x, y) = rotate(normalized, radians: deg * (.pi / 180), transpose: transpose)
+        return maximize ? divergence(x, y, R, C) : curl(x, y, R, C)
+    }
+
+    /// The scan must be at least 3 × 3 and the field finite.
+    private static func requireUsable(_ normalized: ScanVectorField) throws {
+        let R = normalized.scanRows, C = normalized.scanColumns
+        guard R >= 3, C >= 3 else { throw CuboPhaseError.scanTooSmallForRotation(rows: R, columns: C) }
+        guard normalized.row.allSatisfy(\.isFinite), normalized.column.allSatisfy(\.isFinite) else {
+            throw CuboPhaseError.invalidField("the rotation search needs a finite field (normalize applies nan_to_num)")
+        }
     }
 
     /// x' = cos·x − sin·y, y' = sin·x + cos·y; transposed, the components swapped first.
