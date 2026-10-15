@@ -20,7 +20,7 @@ let settings: [SwiftSetting] = [
 
 let package = Package(
     name: "CuboKit",
-    platforms: [.macOS("27.0")],
+    platforms: [.macOS(.v15), .iOS(.v18)],
     products: [
         .library(name: "CuboCore", targets: ["CuboCore"]),
         .library(name: "CuboVirtual", targets: ["CuboVirtual"]),

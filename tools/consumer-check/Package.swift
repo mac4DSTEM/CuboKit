@@ -12,7 +12,7 @@ let kit = URL(fileURLWithPath: Context.packageDirectory).deletingLastPathCompone
 
 let package = Package(
     name: "ConsumerCheck",
-    platforms: [.macOS("27.0")],
+    platforms: [.macOS(.v15)],
     dependencies: [.package(path: "../..")],
     targets: [
         .executableTarget(name: "consumer-check", dependencies: [
