@@ -159,7 +159,7 @@ import CuboCore
 
     @Test func testWriteRoundTripsAndPadsAsNumPy() async throws {
         let url = scratch.appendingPathComponent("w.npy")
-        let values = (0..<(2 * 3 * 4 * 5)).map { Float($0) * 0.25 - 3 }
+        let values: [Float] = (0..<120).map { (k: Int) -> Float in Float(k) * 0.25 - 3 }   // 2 · 3 · 4 · 5; typed for older compilers
         try NPYFile.write(values, shape: [2, 3, 4, 5], to: url)
         let h = try NPYFile.header(of: url)
         #expect(h.dataOffset % 64 == 0); #expect(h.shape == [2, 3, 4, 5])
