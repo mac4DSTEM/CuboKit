@@ -1,0 +1,107 @@
+{
+ "app": {
+  "commit": "c809679c8ee23a355da6af4f63665aaf64f90d0d",
+  "file": "mac4DSTEM/Core/Analysis/DiffractionEmbedding.swift",
+  "file_sha256": "4bede2743f1d8e10a6544645926e7a0b29ba5eb07eeeacdd0f0d6274b32e4006"
+ },
+ "cases": {
+  "appEmbedA": {
+   "binnedSize": 4,
+   "columns": 10,
+   "rows": 12
+  },
+  "appEmbedB": {
+   "binnedSize": 8,
+   "columns": 6,
+   "rows": 5
+  },
+  "appEmbedC": {
+   "binnedSize": 16,
+   "columns": 16,
+   "rows": 16
+  },
+  "appKm3": {
+   "columns": 3,
+   "groups": 3,
+   "layout": "input: data(n*d); output: centroids(k*d), labels(n)",
+   "rows": 90,
+   "seed": 1
+  },
+  "appKm4": {
+   "columns": 3,
+   "groups": 4,
+   "layout": "input: data(n*d); output: centroids(k*d), labels(n)",
+   "rows": 90,
+   "seed": 7
+  },
+  "appKm5": {
+   "columns": 8,
+   "groups": 5,
+   "layout": "input: data(n*d); output: centroids(k*d), labels(n)",
+   "rows": 60,
+   "seed": 12345
+  },
+  "kmBlobs": {
+   "clusters": 3,
+   "columns": 3,
+   "layout": "input: data(n*d), initialCentroids(k*d); output: centroids(k*d), labels(n), inertia, nIter",
+   "maxIterations": 300,
+   "nIter": 7,
+   "rows": 90,
+   "tolerance": 0.0001
+  },
+  "kmCapped": {
+   "clusters": 4,
+   "columns": 3,
+   "layout": "input: data(n*d), initialCentroids(k*d); output: centroids(k*d), labels(n), inertia, nIter",
+   "maxIterations": 2,
+   "nIter": 2,
+   "rows": 90,
+   "tolerance": 0.0
+  },
+  "kmEmpty": {
+   "clusters": 3,
+   "columns": 3,
+   "layout": "input: data(n*d), initialCentroids(k*d); output: centroids(k*d), labels(n), inertia, nIter",
+   "maxIterations": 300,
+   "nIter": 4,
+   "rows": 90,
+   "tolerance": 0.0001
+  },
+  "kmTol": {
+   "clusters": 4,
+   "columns": 3,
+   "layout": "input: data(n*d), initialCentroids(k*d); output: centroids(k*d), labels(n), inertia, nIter",
+   "maxIterations": 300,
+   "nIter": 2,
+   "rows": 90,
+   "tolerance": 0.5
+  },
+  "pcaA": {
+   "appComponents": 4,
+   "appLayout": "mean(d), components(k*d), eigenvalues divisor n (k), ratio(k), coordinates(n*k); all Float32-rounded except eigenvalues",
+   "columns": 8,
+   "components": 4,
+   "layout": "mean(d), components(k*d), explainedVariance(k), ratio(k), singularValues(k), scores(n*k)",
+   "rows": 60
+  },
+  "pcaB": {
+   "columns": 10,
+   "components": 5,
+   "layout": "mean(d), components(k*d), explainedVariance(k), ratio(k), singularValues(k), scores(n*k)",
+   "rows": 6
+  }
+ },
+ "sign_convention": "sklearn svd_flip(u_based_decision=True): the largest-|score| entry of each component (first index on ties) is positive",
+ "source_sha256": {
+  "sklearn_kmeans": "b50a0e2620fa4a44e07baf3addf3293ffa49379a844f9b6aaa3ef95036c6d08a",
+  "sklearn_pca": "295f26ec221fc497baa4ab95d396fdb2bcf430a01d8f7e429e8aa026d0c96a56",
+  "sklearn_svd_flip": "a8f70d70c85092b7c43f368328f0523e72560e7845fd22e3697c17e8be57a89f"
+ },
+ "versions": {
+  "numpy": "2.5.0",
+  "python": "3.12.4",
+  "scikit_learn": "1.4.2",
+  "scipy": "1.18.0"
+ }
+}
