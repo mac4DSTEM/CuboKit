@@ -378,3 +378,11 @@ compiles the original app helper text. Binary f64 pins cover planted strain and
 a public DM4 crop. Absolute tolerance 1e-10, maximum measured fit gap 5.33e-15
 and strain gap 8.88e-16; all three original-source options have gap/tolerance 0.
 Conventions, bounds and reproducibility: `docs/strain.md`.
+
+## Frame transforms (crop and bin of origins)
+
+| py4DSTEM | CuboKit | Status |
+|---|---|---|
+| `crop_data_diffraction` / `crop_data_real` (slicing) | `FrameTransform.cropMap` (scan-indexed maps), `movePosition` (offsets) | done; exact selection |
+| `bin_data_diffraction` Q pixel size × N | `FrameTransform.binnedPixelSize` | done |
+| origins and lengths under crop/bin | `movePosition`, `moveOriginMap`, `binnedLength`, `binnedCoordinate`, `sourceCoordinate` | py4DSTEM leaves them untouched; these are the mac4DSTEM app rules (pixel-centre bin, half-open bounds), pinned to the app source at c809679c, not to py4DSTEM |
