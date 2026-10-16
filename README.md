@@ -25,6 +25,10 @@ differs.
 | `CuboStrain` | strain maps from Bragg vectors | placeholder, a scope statement |
 | `CuboPtycho` | ptychography and tilt-corrected bright field | placeholder, a scope statement |
 
+`CuboCore` also provides `HotPixelFilter.filter` for eager Float32 cubes, plus
+mean-pattern classification and single-frame replacement entry points. It follows
+the pinned reference's threshold arithmetic and sequential median replacement.
+
 `docs/status.md` has the evidence per row; `docs/parity.md` is the checklist against py4DSTEM's documented API.
 
 ## The first ten minutes

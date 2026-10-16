@@ -85,7 +85,7 @@ CuPy, `dask`), the row says n/a once per method, not per argument.
 | `thin_R` | — | absent (planned: reshape slice) |
 | `pad_Q` | — | absent (planned: reshape slice) |
 | `resample_Q` (bilinear, `conserve_array_sums`) | — | absent (planned: reshape slice) |
-| `filter_hot_pixels` (`thresh`, `ind_compare`, `return_mask`) | — | absent (planned: mac4DSTEM's `HotPixelFilter` is the seed, app today) |
+| `filter_hot_pixels` (`thresh`, `ind_compare`, `return_mask`) | `HotPixelFilter.filter`, `.mask`, `.replacing` | done: eager Float32 cube, means/masks/pixels pinned bit for bit; wrapped classification and clipped sequential replacement |
 | `median_filter_masked_pixels` | — | absent (planned: with `filter_hot_pixels`) |
 
 ## `DataCube`: probe, beam stop and background methods (datacube/datacube.py)
@@ -305,7 +305,7 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | DataCube: virtual images | 9 | 7 | 1 | 1 |
 | DataCube: virtual diffraction | 10 | 9 | 0 | 1 |
 | DataCube: calibration-bound properties and coordinates | 5 | 0 | 1 | 4 |
-| DataCube: reshaping and pre-processing | 13 | 0 | 0 | 13 |
+| DataCube: reshaping and pre-processing | 13 | 1 | 0 | 12 |
 | DataCube: probe, beam stop and background methods | 10 | 5 | 0 | 5 |
 | Calibration entries | 21 | 0 | 12 | 9 |
 | Calibration processes | 23 | 11 | 3 | 9 |
@@ -315,10 +315,10 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | Bragg vectors and disk detection | 17 | 0 | 0 | 17 |
 | Parallax | 9 | 0 | 1 | 8 |
 | Ptychography | 11 | 0 | 0 | 11 |
-| **Total** | **182** | **61** | **24** | **97** |
+| **Total** | **182** | **62** | **24** | **96** |
 
-Of the 182 rows in scope: done 61 (of which the slice-4 rows are marked), partial 24, absent 97.
-Of the done rows, 25 are marked slice 4 and 36 are slices 1 to 3. The previous file lumped methods and counted 28 rows.
+Of the 182 rows in scope: done 62 (of which the slice-4 rows are marked), partial 24, absent 96.
+Of the done rows, 25 are marked slice 4, 36 are slices 1 to 3, and one is hot-pixel filtering. The previous file lumped methods and counted 28 rows.
 
 ## 0.2.0 notes (2026-10-15)
 
@@ -337,3 +337,14 @@ Of the done rows, 25 are marked slice 4 and 36 are slices 1 to 3. The previous f
 
 Generator `tools/idpc/pins.py` explicitly distinguishes this oracle from py4DSTEM's
 iterative `DPC`. Absolute phase tolerance `1e-12` rad; details in `docs/idpc.md`.
+
+## Hot-pixel filtering details
+
+| py4DSTEM f050d207 | CuboKit | State |
+|---|---|---|
+| `DataCube.filter_hot_pixels` | `HotPixelFilter.filter` | done for eager Float32 cubes; exact NumPy strided/pairwise mean order, wrapped 21-pixel classification, row-major sequential clipped medians |
+
+This refines the preprocessing row above (not counted twice). Generator
+`tools/hot-pixels/pins.py` calls the actual pinned method. Eight fixtures (30,403 bytes)
+pin means, masks and every cleaned sample bit for bit. Measured gap 0; tolerance 0.
+Supported input and numerical details: `docs/hot-pixels.md`.

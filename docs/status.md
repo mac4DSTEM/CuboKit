@@ -108,3 +108,26 @@ product 202.180 s. Full log `.build/idpc-full.log`; red/green focused logs along
 The available Codex reviewer found no numerical/API blocker; Sonnet is unavailable.
 Source fingerprint metadata was added at review. No push, tag or merge. The suite
 board connector is unavailable, so this status document holds the hand-back.
+
+## R2 hot-pixel hand-back
+
+Second change on `codex/dpc-hotpixel`: public Sendable numerical hot-pixel APIs
+in CuboCore (`HotPixelFilter.filter`, `.mask`, `.replacing`, typed input error).
+The eight actual py4DSTEM fixtures pin Float32 mean samples, masks and all cleaned
+pixels bit for bit. NumPy's strided/pairwise accumulation and positive-zero median
+accumulator are preserved. Fixture size 30,403 bytes; measured gap and tolerance 0.
+Three focused tests pass. Red baseline: 38 issues against zero/identity placeholders;
+the 1×1 pairwise case separately failed the sequential implementation, and two
+signed-zero median cases failed four checks before their correction.
+Generator, detailed numerical conventions and fixture provenance: `docs/hot-pixels.md`.
+Independent review (available Codex model; Sonnet unavailable) found no remaining
+blocker after the pairwise and signed-zero fixes. Full gate is recorded below.
+
+Cross-branch commits, fixture generation, gaps, supported scope and the parked
+strain policy question are collected in `docs/r2-handback.md`. No owner approval
+is implied, and no push/tag/merge was performed.
+
+Final hot-pixel gate after the signed-zero correction: `tools/test.sh --jobs 4`
+passed **109 tests**, zero failures and zero skips; slowest product 198.595 s.
+Full log `.build/hotpixel-full.log`; the earlier full run is preserved separately.
+All three focused hot-pixel tests also pass on the final source and eight pins.
