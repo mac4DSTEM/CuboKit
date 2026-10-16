@@ -261,7 +261,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | py4DSTEM | CuboKit | State |
 |---|---|---|
 | `Parallax(datacube, energy, ...)` | `CuboPtycho` | absent (planned: `CuboPtycho`, placeholder) |
-| `Parallax.preprocess` (`edge_blend`, `dp_mask`, `threshold_intensity`, descan correction, `realspace_mask`) | `CuboPtycho` | absent (planned: `CuboPtycho`) |
+| `Parallax.preprocess` (`edge_blend`, `dp_mask`, `threshold_intensity`, descan correction, `realspace_mask`) | `ParallaxPreprocessing.prepare` | partial: constant normalization, selection/mask, edge window and padding; no descan/polynomial normalization/real-space mask. Default windowed retention follows reference; `.unwindowed` follows app (independent source transcription pin). |
 | `Parallax.reconstruct` (alignment bins, upsampling, regularisation) | `CuboParallax.ParallaxAlignment` | partial: CPU Double cross-correlation, matrix-DFT refinement (default factor 8), periodic shifts and fixed/running-reference stacks; no grouping, schedules, regularisation or full reconstruction (`docs/parallax-alignment.md`) |
 | `Parallax.guess_common_aberrations` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `Parallax.subpixel_alignment` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
@@ -313,11 +313,11 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | DPC and the phase base class's preprocessing | 20 | 13 | 4 | 3 |
 | Strain | 14 | 0 | 0 | 14 |
 | Bragg vectors and disk detection | 17 | 0 | 0 | 17 |
-| Parallax | 9 | 0 | 1 | 8 |
+| Parallax | 9 | 0 | 2 | 7 |
 | Ptychography | 11 | 0 | 1 | 10 |
-| **Total** | **182** | **62** | **25** | **95** |
+| **Total** | **182** | **62** | **26** | **94** |
 
-Of the 182 rows in scope: done 62 (of which the slice-4 rows are marked), partial 25, absent 95.
+Of the 182 rows in scope: done 62 (of which the slice-4 rows are marked), partial 26, absent 94.
 Of the done rows, 25 are marked slice 4, 36 are slices 1 to 3, and one is hot-pixel filtering. The previous file lumped methods and counted 28 rows.
 
 ## 0.2.0 notes (2026-10-15)
@@ -358,3 +358,8 @@ Supported input and numerical details: `docs/hot-pixels.md`.
 
 Pins: `tools/ptycho/pins.py`, `Tests/CuboPtychoTests/Fixtures/ptycho.json`.
 Tolerance `2e-6` normwise maximum error with unit floor; see DocC Scope for numerical limits.
+
+Preprocessing pins: `tools/parallax/preprocess_pins.py`, four cases, approximately 114 KB.
+Normwise maximum tolerance `2e-6` with unit floor (Double port vs Float32 storage);
+measured maximum gap `1.34e-7`. App unwindowed stack independently transcribed from
+`ParallaxPreprocessing.swift` at the app source pin; no app types are included.

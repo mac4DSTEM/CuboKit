@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add CuboParallax constant-order bright-field preprocessing: detector selection,
+  reciprocal vectors, radian probe angles, sine-squared blending and centered padding.
+  Default windowed stack retention follows py4DSTEM; `.unwindowed` retains the app KDE input.
+
 - Add CuboCore hot-pixel filtering, wrapped 21-pixel classification and sequential
   clipped-window median replacement. Float32 mean accumulation matches py4DSTEM,
   including the contiguous pairwise reduction for a 1×1 detector. Eight small fixtures
