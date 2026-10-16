@@ -22,7 +22,7 @@ differs.
 | `CuboVirtual` (slice 3) | per-position origins (`get_origin`), centred, calibrated and centre-shifted virtual images and patterns; `CuboCore`'s `OriginFit` (`fit_origin`) | slice 3, `docs/registration-slice-3.md` |
 | `CuboVirtual` (slice 4) | the median pattern and virtual diffraction over a real-space mask or weights (mean, max, median), `get_origin`'s scan mask and fast centre, the Friedel origin (`get_origin_friedel`, with a beamstop mask and DFT upsampling), the beamstop mask, the vacuum probe and the probe kernels (flat, Gaussian, sine² and logistic sigmoid) that Bragg disk detection uses | slice 4, `docs/registration-slice-4.md` (CPU) |
 | `CuboStrain` | strain maps from Bragg vectors | placeholder, a scope statement |
-| `CuboPtycho` | ptychography and tilt-corrected bright field | placeholder, a scope statement |
+| `CuboPtycho` | CPU probe construction and full-batch single-slice complex-object gradient descent from preprocessed amplitudes | fixed positions; selected constraints; py4DSTEM pins |
 
 `docs/status.md` has the evidence per row; `docs/parity.md` is the checklist against py4DSTEM's documented API.
 

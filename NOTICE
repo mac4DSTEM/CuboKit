@@ -72,3 +72,11 @@ Where the parts come from
   py4DSTEM is also the reference the tests compare with.
 - The .npy reader and writer follow NumPy's documented format (BSD-3-Clause); no
   NumPy code is copied.
+
+CPU ptychography additions:
+PtychographyProbe and SingleslicePtychography follow py4DSTEM 0.14.19
+(f050d207851f8accd3aa550365baaf1f38230428), process/phase/utils.py
+(ComplexProbe), ptychographic_methods.py and ptychographic_constraints.py.
+The numerical extraction was informed by mac4DSTEM c809679c, files
+Core/Analysis/PtychographyPreparation.swift and SingleslicePtychography.swift.
+App preparation, settings, progress, provenance and presentation are excluded.

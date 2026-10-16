@@ -1,12 +1,30 @@
 # Scope
 
-``CuboPtycho`` is a placeholder. It holds no processing yet, and ``CuboPtycho/scope`` returns this statement as text.
-The module is not registered yet, so it has no numbers to validate.
+The module builds corner-centered, unit-norm probes and performs CPU single-slice,
+complex-object, full-batch gradient descent from preprocessed diffraction amplitudes.
+All public inputs and outputs are Sendable values. See ``PtychographyProbe`` and
+``SingleslicePtychography``. Probe sampling and wavelength use Å; angles use radians.
 
-The planned scope is iterative ptychography, following py4DSTEM's phase retrieval:
+Supported probe aberrations are defocus (C10 = −defocus), polar two-fold astigmatism
+and C30. Coherence envelopes and other aberrations are not implemented.
 
-- single-slice ptychography first (py4DSTEM's `SingleslicePtychography`), then mixed-state and multislice;
-- tilt-corrected bright field (parallax), with its aberration fit;
-- Metal first, with a CPU reference and a registered tolerance between float32 and float64.
+Reconstruction uses periodic object patches, ties-to-even rounding, Fourier shifts
+of the probe for fractional positions, the reference's normalized gradient updates,
+and an object amplitude cap of one (or unit amplitude for pure-phase objects).
+Probe updating can be disabled. Positions stay fixed. No CoM centering, probe support,
+probe aperture constraint, smoothing, position refinement, batching or preprocessing
+is implicit. These choices correspond to explicitly disabled options in py4DSTEM.
+The probe adjoint intentionally follows the reference's sum without undoing each
+fractional shift. Input probes are already normalized to the measured intensities
+by the caller when needed; the engine does not change their initial normalization.
 
-Its tests will need truth from simulated probes and multislice data, not only from agreement with py4DSTEM.
+The regression fixture pins the actual py4DSTEM 0.14.19 (`f050d207`) `ComplexProbe`
+and `SingleslicePtychography.reconstruct`, with a fixed synthetic object and seed.
+The engine uses Double arithmetic; the Python state is complex64. Agreement on these
+fixtures is within `2e-6` max absolute error with a unit scale floor, not bit-exact.
+Exact Fourier zeros have undefined phase; roundoff may choose different phases near
+those zeros, particularly for a uniform starting object and a hard aperture.
+This fixture uses a nonuniform initial object. Agreement is not microscope validation.
+
+Mixed-state and multislice reconstruction, additional constraints, preprocessing,
+position refinement and acceleration remain future work. Parallax is outside this API.
