@@ -386,3 +386,5 @@ Conventions, bounds and reproducibility: `docs/strain.md`.
 | `crop_data_diffraction` / `crop_data_real` (slicing) | `FrameTransform.cropMap` (scan-indexed maps), `movePosition` (offsets) | done; exact selection |
 | `bin_data_diffraction` Q pixel size × N | `FrameTransform.binnedPixelSize` | done |
 | origins and lengths under crop/bin | `movePosition`, `moveOriginMap`, `binnedLength`, `binnedCoordinate`, `sourceCoordinate` | py4DSTEM leaves them untouched; these are the mac4DSTEM app rules (pixel-centre bin, half-open bounds), pinned to the app source at c809679c, not to py4DSTEM |
+
+`binnedLength` and `binnedPixelSize` are trivial scalar rules, tested by hand-written asserts, not by the source pin; callers own the check that a scan map matches the source scan before `cropMap`.

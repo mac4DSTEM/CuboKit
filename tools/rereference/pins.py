@@ -18,7 +18,7 @@ out["coords"] = [{"v": float(v), "bin": b, "binned": float(binned(v, b)), "sourc
                  for v in [0, 3.25, 31.5, -0.5, 100.75] for b in [1, 2, 3, 4]]
 pos = []
 for c, r, co, ro, b, w, h in [(130, 126, 64, 64, 1, 128, 128), (70, 70, 64, 64, 2, 64, 64), (64, 64, 64, 64, 4, 32, 32),
-                              (10, 10, 64, 64, 1, 128, 128), (float('nan'), 5, 0, 0, 1, 8, 8), (0, 0, 0, 0, 2, 8, 8)]:
+                              (10, 10, 64, 64, 1, 128, 128), (float('nan'), 5, 0, 0, 1, 8, 8), (0, 0, 0, 0, 2, 8, 8), (-0.5, -0.5, 0, 0, 1, 8, 8), (7.5, 7.49, 0, 0, 1, 8, 8), (7.5, 3, 0, 0, 1, 8, 8), (-0.51, 3, 0, 0, 1, 8, 8)]:
     mc, mr = binned(f(c) - f(co), b), binned(f(r) - f(ro), b)
     pos.append({"c": c if c == c else None, "r": r, "co": co, "ro": ro, "bin": b, "w": w, "h": h,
                 "inside": inside(mc, mr, w, h), "mc": float(mc) if np.isfinite(mc) else None, "mr": float(mr)})
