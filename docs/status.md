@@ -2,41 +2,31 @@
 
 What is live, one table; then the hand-off. Rules are in `CLAUDE.md`; the registration in `docs/registration-slice-1.md`;
 parity with py4DSTEM in `docs/parity.md`; what mac4DSTEM changes to import the kit in `docs/consumers-0.0.1.md` to
-`docs/consumers-0.1.0.md`.
+`docs/consumers-0.1.0.md`, `docs/consumers-0.2.0.md`; from 0.3.0 the `CHANGELOG.md` Migration paragraph.
 
-## Parallax alignment hand-off (2026-10-16)
+## 0.3.0 (2026-10-16)
 
-Local branch `codex/parallax-alignment`, based on `main` at `c1f0293`; no push or tag.
-The first parallax alignment slice adds `CuboParallax` as a separate product, keeping the README's
-DPC-focused `CuboPhase` independently usable. Public Sendable API: `ParallaxShift`,
-`ParallaxAlignment.shift`, `.shifted`, `.align` and `ParallaxAlignmentResult`.
-CPU Double, Accelerate/Bluestein FFT, matrix-DFT refinement (default factor 8), fixed/running references;
-no app types, Metal or UI. Full reconstruction, grouping, schedules and shift-basis fitting remain future work.
+Seven pieces on the CPU (Double unless stated), each pinned to py4DSTEM 0.14.19 (`f050d207`), scikit-learn 1.4.2
+or a transcription of the app source, with the mac4DSTEM differences as named options (details in `CHANGELOG.md` and the per-module
+documents):
 
-- Regression fixture: `Tests/CuboParallaxTests/Fixtures/alignment.json`, four three-frame stacks
-  (integer/wrapped, odd fractional, noisy running-reference, public DM4 crop), including shifts, shifted pixels,
-  means and DFT patches. Relative normwise tolerance `1e-10` with unit scale floor; no bit-for-bit claim.
-  Extra shift pins cover factors 3, 7, 16 and 64. The planted smooth fractional check separately allows
-  `5e-4` with the same scale, reflecting the estimator's interpolation accuracy.
-- Regeneration: `../tools/memcap.sh -- ../References/CuboKit/py4dstem-venv/bin/python -I -B tools/parallax/pins.py`.
-  py4DSTEM `f050d207` (0.14.19), Python 3.12.4, NumPy 2.5.0, SciPy 1.18.0; the generator enforces versions,
-  checks the source pin and compares installed oracle files to that checkout. Only public test data is cropped;
-  the input SHA-256 and selection are in the fixture. No owner's data is copied.
-- Red baseline: four tests failed against placeholders, then the direct matrix-patch test also failed with a
-  zero patch (five tests, 23 issues). Final `tools/test.sh`: **104 tests, all green, no skips**, including the
-  five new tests and existing real data. Log: `/private/tmp/cuboparallax-full.log`; the slowest test product took
-  517.862 seconds. No new green stamp was written because the sources were uncommitted during the required gate.
-- `tools/readme-consumer/run.sh`: both README Swift blocks compile warning-free in a separate package and run.
-  README module map/example, DocC, `CHANGELOG.md` Unreleased and parity rows accompany the API.
-- Independent pre-commit numerical/test/doc review: no correctness blockers; an obsolete internal shared-caller
-  comment was removed. The available Codex review model was used because Sonnet is not exposed in this session.
-- No unresolved numerical discrepancies on the pinned fixtures. Large-stack memory/performance and iOS runtime
-  behavior are unverified for this slice. Numerical conventions and limits: `docs/parallax-alignment.md`.
+| Module | State | Document |
+|---|---|---|
+| `CuboParallax` | alignment (matrix-DFT, fixed/running reference), constant-order preprocessing, aberration fit and correction, depth sectioning, subpixel KDE upsampling with position correction | `docs/parallax-alignment.md` |
+| `CuboPtycho` | probe construction and full-batch single-slice complex-object gradient descent (fixed positions) | `docs/ptycho.md` |
+| `CuboStrain` | basis selection, indexing, lattice fits, references, rotated strain; three named compatibility options | `docs/strain.md` |
+| `CuboBragg` | `find_Bragg_disks` (pattern, stack, cube) and `ProbeRingHint` | `docs/bragg.md` |
+| `CuboEmbedding` | PCA, k-means; the app's variants as named options | `docs/embedding.md` |
+| `CuboPhase` | Fourier iDPC | `docs/idpc.md` |
+| `CuboCore` | `HotPixelFilter`, `FrameTransform` (origin re-reference under crop and bin) | `docs/hot-pixels.md` |
 
-Process limitation: the suite board was not updated because its required `ArtifactData` connector is unavailable
-in this session. This repository's status and parity documents contain the hand-off; no other suite folder was edited.
+Parity with py4DSTEM (182 rows in scope): 73 done, 36 partial, 73 absent (`docs/parity.md`). Gate: `tools/test.sh`
+(`swift test -c release`); its result for the tagged commit is the CI run after the owner's push. Not yet provided:
+full parallax reconstruction (grouping, schedules, regularisation), multi-slice and other ptychography methods, GPU
+paths for the new modules. Large-stack memory and iOS runtime behaviour of the new modules are unverified.
 
-## Live (2026-10-15 afternoon: slice 4, 0.1.0 tagged, the 0.2.0 candidate)
+
+## Record through 0.2.0 (2026-10-15)
 
 | Area | State | Evidence |
 |---|---|---|
@@ -77,12 +67,13 @@ in this session. This repository's status and parity documents contain the hand-
 Validation: nothing here is validated on a microscope. Agreement with py4DSTEM and recovery of planted cubes are what is
 claimed (`registration-slice-1.md` §8).
 
+
 ## Hand-off
 
-The owner pushes `main` and tags **0.2.0** on the stamped candidate (command on the board row); CI then runs on the push
-(`gh run list -R mac4DSTEM/CuboKit`). mac4DSTEM re-pins to 0.2.0 when it chooses (`docs/consumers-0.2.0.md`: nothing
-breaks; build the kit optimised). Next: 0.2.1 takes the zero-copy resident source (kit ask 1) first, registered; then
-slice 5, Bragg disk detection and strain, registered before code; then the ptychography registration.
+The owner pushes `main` and tags **0.3.0** (`docs/consumers-0.2.0.md` is the last per-version consumer note; from 0.3.0
+the Migration paragraph in `CHANGELOG.md` replaces it); CI then runs on the push (`gh run list -R mac4DSTEM/CuboKit`).
+The new modules are additive: mac4DSTEM re-pins when it chooses. Next: the remaining parity rows (`docs/parity.md`
+absent and partial), full parallax reconstruction, further ptychography methods.
 
 ## Unverified
 
@@ -97,61 +88,3 @@ slice 5, Bragg disk detection and strain, registered before code; then the ptych
   machine (memory rule); the masked Friedel claim excludes vanishing denominators (registration-slice-4 §9).
 - CI: the first run (Swift 6.3.3, macOS 26 runner) failed on the type-check and the macOS 27 declaration, both fixed; the next push re-runs it.
 
-## R2 Fourier iDPC hand-back
-
-Branch `codex/dpc-hotpixel`, based on `main` at `52dbb31` (the parallax commit now
-on main), in `_worktrees/CuboKit-r2`. This branch is independent of `codex/ptycho`.
-CPU `IDPC.integrate` and `integratePhysical`, explicit periodic/centered padding,
-regularization, anisotropic sampling and physical calibration. `docs/idpc.md`
-records the NumPy transcription oracle, fixture generation, tolerance and gaps.
-Two new tests failed against the zero-output baseline (10 issues), then passed.
-Full `tools/test.sh --jobs 4`: **106 tests, zero failures, zero skips**; slowest
-product 202.180 s. Full log `.build/idpc-full.log`; red/green focused logs alongside.
-The available Codex reviewer found no numerical/API blocker; Sonnet is unavailable.
-Source fingerprint metadata was added at review. No push, tag or merge. The suite
-board connector is unavailable, so this status document holds the hand-back.
-
-## R2 hot-pixel hand-back
-
-Second change on `codex/dpc-hotpixel`: public Sendable numerical hot-pixel APIs
-in CuboCore (`HotPixelFilter.filter`, `.mask`, `.replacing`, typed input error).
-The eight actual py4DSTEM fixtures pin Float32 mean samples, masks and all cleaned
-pixels bit for bit. NumPy's strided/pairwise accumulation and positive-zero median
-accumulator are preserved. Fixture size 30,403 bytes; measured gap and tolerance 0.
-Three focused tests pass. Red baseline: 38 issues against zero/identity placeholders;
-the 1×1 pairwise case separately failed the sequential implementation, and two
-signed-zero median cases failed four checks before their correction.
-Generator, detailed numerical conventions and fixture provenance: `docs/hot-pixels.md`.
-Independent review (available Codex model; Sonnet unavailable) found no remaining
-blocker after the pairwise and signed-zero fixes. Full gate is recorded below.
-
-Cross-branch commits, fixture generation, gaps, supported scope and the parked
-strain policy question are collected in `docs/r2-handback.md`. No owner approval
-is implied, and no push/tag/merge was performed.
-
-Final hot-pixel gate after the signed-zero correction: `tools/test.sh --jobs 4`
-passed **109 tests**, zero failures and zero skips; slowest product 198.595 s.
-Full log `.build/hotpixel-full.log`; the earlier full run is preserved separately.
-All three focused hot-pixel tests also pass on the final source and eight pins.
-
-## R2 ptychography hand-back
-
-Local branch `codex/ptycho`, based on main `c1f0293`, in `_worktrees/CuboKit-r2`.
-No push, tag or merge. CPU probe and single-slice complex-object full-batch engine;
-precise scope, fixture creation, tolerance and measured gaps: `docs/ptycho.md`.
-The available Codex reviewer found no operator mismatch; Sonnet was unavailable.
-The board connector is unavailable, so the suite board was not updated.
-
-Strain task parked under the explicit no-deviation rule. The read-only app source at
-`origin/main` documents intensity-once weighted least squares (Python squares the
-intensity), robust/MAD reference selection (Python uses plain component medians),
-and cluster-consensus automatic basis selection (Python uses histogram maxima).
-Open question: should CuboStrain follow Python exactly, omitting/replacing those app
-algorithms, or expose the app algorithms separately with explicit deviation claims?
-No owner approval is implied. No CuboStrain numbers or API were changed.
-
-Validation: full `tools/test.sh --jobs 4` passed **102 tests**, zero failures and
-zero skips (all existing real-data fixtures present). Slowest product: 292.173 s;
-new numerical suite: 3 tests, approximately 0.02 s. Red baseline: the probe and
-three-iteration tests failed against zero/identity placeholders. Full log is kept
-in the worktree's ignored `.build/ptycho-full.log`; focused red/green logs alongside it.

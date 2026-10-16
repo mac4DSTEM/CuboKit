@@ -265,9 +265,9 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `Parallax.reconstruct` (alignment bins, upsampling, regularisation) | `CuboParallax.ParallaxAlignment` | partial: CPU Double cross-correlation, matrix-DFT refinement (default factor 8), periodic shifts and fixed/running-reference stacks; no grouping, schedules, regularisation or full reconstruction (`docs/parallax-alignment.md`) |
 | `Parallax.guess_common_aberrations` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `Parallax.subpixel_alignment` | `CuboParallax.ParallaxSubpixel` | partial: factor heuristic, bilinear/Lanczos KDE, Gaussian, low-pass; position correction (`correctPositions`, reference semantics incl. regularisation); no `virtual_detector_mask` or integer-pixel rolling |
-| `Parallax.aberration_fit` | `CuboParallax.ParallaxAberrationFitter` | low order (C1, C12a/b, rotation, transpose) and higher-order global/recursive fits; reference basis default, app basis (`.selectedCentroid`) as option; tolerances in `AberrationTests` |
-| `Parallax.aberration_correct` | `CuboParallax.ParallaxAberrationCorrection` | CTF sign/phase correction; reference ignores `q_highpass` (default), `.apply` is the app behaviour |
-| `Parallax.depth_section` | `CuboParallax.ParallaxDepthSectioning` | complete CPU Double; `.defocusOnly` pinned to py4DSTEM (`use_CTF_fit=False`); `.fullFit` pinned to the app transcription because the reference's `use_CTF_fit=True` crashes at 0.14.19; plotting not ported |
+| `Parallax.aberration_fit` | `CuboParallax.ParallaxAberrationFitter` | done: low order (C1, C12a/b, rotation, transpose) and higher-order global/recursive fits; reference basis default, app basis (`.selectedCentroid`) as option; tolerances in `AberrationTests` |
+| `Parallax.aberration_correct` | `CuboParallax.ParallaxAberrationCorrection` | done: CTF sign/phase correction; reference ignores `q_highpass` (default), `.apply` is the app behaviour |
+| `Parallax.depth_section` | `CuboParallax.ParallaxDepthSectioning` | done: CPU Double; `.defocusOnly` pinned to py4DSTEM (`use_CTF_fit=False`); `.fullFit` pinned to the app transcription because the reference's `use_CTF_fit=True` crashes at 0.14.19; plotting not ported |
 | `Parallax.object_cropped` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `show_shifts`, `show_probe_position_shifts`, `visualize` | — | n/a (plotting) |
 
@@ -295,7 +295,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `PtychographyOptimizer`, `OptimizationParameter` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | the constraint and method mixins (`ObjectNDConstraintsMixin`, `ProbeMethodsMixin`, ...), `ComplexProbe`, `AffineTransform` | — | n/a (internals; their features count under the classes above) |
 
-## Count (slices 1 to 4 and initial parallax alignment)
+## Count (0.3.0)
 
 Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows excluded). One row is one method or option group.
 
@@ -312,16 +312,15 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | Probe | 14 | 12 | 1 | 1 |
 | DPC and the phase base class's preprocessing | 20 | 13 | 4 | 3 |
 | Strain | 14 | 5 | 6 | 3 |
-| Bragg vectors and disk detection | 17 | 0 | 0 | 17 |
-| Parallax | 9 | 0 | 2 | 7 |
-
 | Bragg vectors and disk detection | 17 | 3 | 3 | 11 |
-| Parallax | 9 | 0 | 1 | 8 |
+| Parallax | 9 | 3 | 3 | 3 |
 | Ptychography | 11 | 0 | 1 | 10 |
-| **Total** | **182** | **70** | **34** | **78** |
+| **Total** | **182** | **73** | **36** | **73** |
 
-Of the 182 rows in scope: done 70 (of which the slice-4 rows are marked), partial 34, absent 78.
-Of the done rows, 25 are marked slice 4, 36 are slices 1 to 3, one is hot-pixel filtering, five are strain numerics, and three are Bragg disk detection. The previous file lumped methods and counted 28 rows.
+Of the 182 rows in scope: done 73, partial 36, absent 73 (the 0.1.0 count was 61, 23, 98). Of the done rows, 25 are
+slice 4, 36 slices 1 to 3, one is hot-pixel filtering, five strain numerics, three Bragg disk detection, and three
+parallax (aberration fit, aberration correction, depth sectioning). The parallax alignment, preprocessing and subpixel
+rows and the CPU ptychography row stay partial; the details tables below refine them and are not counted twice.
 
 ## 0.2.0 notes (2026-10-15)
 

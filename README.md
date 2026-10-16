@@ -21,16 +21,16 @@ differs.
 | `CuboPhase` | the centre-of-mass reference (plane fit, constant, given origins), the R–Q rotation by curl or divergence, py4DSTEM's iterative DPC, Fourier iDPC with explicit boundary/calibration | slices 2 and Fourier iDPC |
 | `CuboVirtual` (slice 3) | per-position origins (`get_origin`), centred, calibrated and centre-shifted virtual images and patterns; `CuboCore`'s `OriginFit` (`fit_origin`) | slice 3, `docs/registration-slice-3.md` |
 | `CuboVirtual` (slice 4) | the median pattern and virtual diffraction over a real-space mask or weights (mean, max, median), `get_origin`'s scan mask and fast centre, the Friedel origin (`get_origin_friedel`, with a beamstop mask and DFT upsampling), the beamstop mask, the vacuum probe and the probe kernels (flat, Gaussian, sine² and logistic sigmoid) that Bragg disk detection uses | slice 4, `docs/registration-slice-4.md` (CPU) |
-| `CuboParallax` | matrix-DFT cross-correlation alignment, periodic Fourier shifts and fixed/running-reference image stacks (Double, CPU; default factor 8) | first parallax slice; `docs/parallax-alignment.md` |
+| `CuboParallax` | matrix-DFT cross-correlation alignment, periodic Fourier shifts and fixed/running-reference image stacks (Double, CPU; default factor 8), constant-order preprocessing, aberration fit and correction, depth sectioning, subpixel upsampling with position correction | py4DSTEM pins; `docs/parallax-alignment.md` |
 | `CuboStrain` | basis selection from histogram maxima, measured-direction indexing, lattice fits, references and rotated strain tensors | CPU Double primary path; three original-source compatibility options; `docs/strain.md` |
 | `CuboEmbedding` | PCA and Lloyd k-means on row-major matrices; binned diffraction feature vectors | CPU Double, scikit-learn 1.4.2 pins; mac4DSTEM variants as named options; `docs/embedding.md` |
-
 | `CuboBragg` | py4DSTEM's `find_Bragg_disks`: hybrid cross-correlation with a probe kernel, maxima, the filter cascade, parabolic and multicorr refinement, per pattern, stack or cube; the app's `ProbeRingHint` | CPU Double; mac4DSTEM differences as named options; py4DSTEM and app-source pins; `docs/bragg.md` |
 | `CuboPtycho` | CPU probe construction and full-batch single-slice complex-object gradient descent from preprocessed amplitudes | fixed positions; selected constraints; py4DSTEM pins |
 
 `CuboCore` also provides `HotPixelFilter.filter` for eager Float32 cubes, plus
 mean-pattern classification and single-frame replacement entry points. It follows
-the pinned reference's threshold arithmetic and sequential median replacement.
+the pinned reference's threshold arithmetic and sequential median replacement. `FrameTransform` re-references
+detector positions, scan crops and per-position origin maps under crop and bin.
 
 `docs/status.md` has the evidence per row; `docs/parity.md` is the checklist against py4DSTEM's documented API.
 
@@ -80,7 +80,7 @@ centerColumn: qy0, radius: r)`. Storage is C order `[scanRow][scanColumn][detect
 
 ## Parallax image alignment
 
-`CuboParallax` starts the parallax slice with CPU cross-correlation alignment and matrix-DFT subpixel refinement.
+`CuboParallax` holds the parallax pieces: CPU cross-correlation alignment with matrix-DFT subpixel refinement, preprocessing, aberration fit and correction, depth sectioning and subpixel upsampling.
 The default upsampling factor is 8. Inputs and outputs use Double; translations are in row/column pixels with
 periodic boundaries. A stack can use a fixed reference (default) or `runningAverage: true` as in py4DSTEM.
 
@@ -159,8 +159,15 @@ so `tools/test.sh` runs everywhere; with the data present it runs more.
 
 ## Versioning
 
-Semantic versions in the 0.x series, tagged. Each tag has `docs/consumers-x.y.z.md`, which says what an app changes to
-move to it. `docs/parity.md` is the checklist against py4DSTEM's documented API, updated at every tag.
+Semantic versions in the 0.x series, tagged; the current release is **0.3.0**. Add it to a package with
+
+```swift
+.package(url: "https://github.com/mac4DSTEM/CuboKit.git", exact: "0.3.0")
+```
+
+and list the products you use (`CuboCore`, `CuboVirtual`, `CuboPhase`, `CuboParallax`, `CuboStrain`, `CuboBragg`,
+`CuboPtycho`, `CuboEmbedding`). `CHANGELOG.md` has an entry per release, with a Migration paragraph where a consumer must
+change something (up to 0.2.0, `docs/consumers-x.y.z.md` said it). `docs/parity.md` is the checklist against py4DSTEM's documented API, updated at every tag.
 
 ## Licence and where the parts come from
 
