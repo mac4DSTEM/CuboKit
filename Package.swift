@@ -42,7 +42,6 @@ let package = Package(
         // divergence, py4DSTEM's iterative DPC (Double, Accelerate's FFT with Bluestein for other lengths).
         .target(name: "CuboPhase", dependencies: ["CuboCore"], swiftSettings: settings),
         .target(name: "CuboParallax", dependencies: ["CuboCore"], swiftSettings: settings),
-        // Later: strain from Bragg vectors (py4DSTEM StrainMap). Empty until registered.
         .target(name: "CStrainLAPACK", cSettings: [.define("ACCELERATE_NEW_LAPACK")], linkerSettings: [.linkedFramework("Accelerate")]),
         .target(name: "CuboStrain", dependencies: ["CuboCore", "CStrainLAPACK"], swiftSettings: settings),
         // Later: ptychography (py4DSTEM SingleslicePtychography and its family). Empty until registered.
