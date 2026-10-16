@@ -1,12 +1,15 @@
 # Scope
 
-``CuboStrain`` is a placeholder. It holds no processing yet, and ``CuboStrain/scope`` returns this statement as text.
-The module is not registered yet, so it has no numbers to validate.
+``LatticeStrain`` provides per-pattern lattice fitting and strain tensors, using
+caller-supplied Bragg vectors and histogram maxima. The caller supplies scan shape,
+valid-position masks, reference ROI selection, histogram construction and peak detection.
 
-The planned scope is strain maps from Bragg vectors, following py4DSTEM's `StrainMap`:
+Primary algorithms follow py4DSTEM f050d207: intensity-squared fitting, plain
+component medians and the reference strain/rotation conventions. SVD provides
+minimum-norm solutions, including rank-deficient indexing and fitting.
 
-- choosing and fitting basis vectors, and `get_strain` with its coordinate rotation;
-- a reference lattice taken from a region of interest or from the whole scan;
-- checks against py4DSTEM at its pinned commit, and against planted lattices with known strain.
-
-The module consumes Bragg vectors. Where disk detection lives is decided when the module is registered.
+Explicit compatibility methods preserve Float32 cluster consensus, intensity-once
+normal equations and MAD-reference selection. Their independent pins execute the
+original numerical source. They do not include the local robust-refit pipeline.
+Compatibility inputs must convert to finite Float32 and have magnitude below 1e10;
+this bound prevents unsafe spatial-hash conversion. Primary inputs use finite Double.
