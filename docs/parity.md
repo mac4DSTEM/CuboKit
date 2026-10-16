@@ -215,20 +215,20 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 
 | py4DSTEM | CuboKit | State |
 |---|---|---|
-| `StrainMap(braggvectors)`, `braggvectors`, `rshape`, `qshape`, `origin`, `reset_calstate` | `CuboStrain` | absent (planned: `CuboStrain`, placeholder) |
-| `choose_basis_vectors` (`index_g1`, `index_g2`, `index_origin`, `subpixel`, `upsample_factor`, `sigma`, intensity and spacing thresholds) | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `set_hkl` | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `set_max_peak_spacing` | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `fit_basis_vectors` (`mask`, `max_peak_spacing`) | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `get_strain` (`gvects`, `coordinate_rotation`) | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `get_reference_g1g2` | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `latticevectors.index_bragg_directions` | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `latticevectors.add_indices_to_braggvectors` | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `latticevectors.fit_lattice_vectors` | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `latticevectors.fit_lattice_vectors_all_DPs` | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `latticevectors.get_reference_g1g2`, `get_strain_from_reference_g1g2` | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `latticevectors.get_rotated_strain_map` | `CuboStrain` | absent (planned: `CuboStrain`) |
-| `BraggVectors.to_strainmap` | `CuboStrain` | absent (planned: `CuboStrain`) |
+| `StrainMap(braggvectors)`, state properties, `reset_calstate` | — | absent: state/orchestration not ported |
+| `choose_basis_vectors` | `LatticeStrain.chooseBasis` | partial: numeric selection from supplied histogram maxima; peak extraction external |
+| `set_hkl` | — | absent |
+| `set_max_peak_spacing` | `index(...maximumSpacing:)` | partial: stateless argument, no visualization/state |
+| `fit_basis_vectors` (`mask`, `max_peak_spacing`) | `index` then `fit` | partial: caller maps positions and mask |
+| `get_strain` (`gvects`, `coordinate_rotation`) | `reference` then `strain` | partial: caller maps positions and ROI |
+| `get_reference_g1g2` | `LatticeStrain.reference` | done for caller-selected bases |
+| `latticevectors.index_bragg_directions` | `LatticeStrain.index(directions:basis:)` | done: minimum-norm SVD and ties-to-even |
+| `latticevectors.add_indices_to_braggvectors` | `LatticeStrain.index(peaks:directions:maximumSpacing:)` | partial: caller handles scan mask/coordinate shifts |
+| `latticevectors.fit_lattice_vectors` | `LatticeStrain.fit` | done |
+| `latticevectors.fit_lattice_vectors_all_DPs` | per-pattern `fit` | partial: caller maps scan positions |
+| `latticevectors.get_reference_g1g2`, `get_strain_from_reference_g1g2` | `reference`, `strain` | done |
+| `latticevectors.get_rotated_strain_map` | `strain(...coordinateRotation:)` | done |
+| `BraggVectors.to_strainmap` | — | absent: state/orchestration not ported |
 | `show_strain`, `show_reference_directions`, `show_lattice_vectors`, `show_bragg_indexing` | — | n/a (plotting) |
 
 ## Bragg vectors and disk detection (braggvectors/)
@@ -311,14 +311,14 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | Calibration processes | 23 | 11 | 3 | 9 |
 | Probe | 14 | 12 | 1 | 1 |
 | DPC and the phase base class's preprocessing | 20 | 13 | 4 | 3 |
-| Strain | 14 | 0 | 0 | 14 |
+| Strain | 14 | 5 | 6 | 3 |
 | Bragg vectors and disk detection | 17 | 0 | 0 | 17 |
 | Parallax | 9 | 0 | 1 | 8 |
 | Ptychography | 11 | 0 | 1 | 10 |
-| **Total** | **182** | **62** | **25** | **95** |
+| **Total** | **182** | **67** | **31** | **84** |
 
-Of the 182 rows in scope: done 62 (of which the slice-4 rows are marked), partial 25, absent 95.
-Of the done rows, 25 are marked slice 4, 36 are slices 1 to 3, and one is hot-pixel filtering. The previous file lumped methods and counted 28 rows.
+Of the 182 rows in scope: done 67 (of which the slice-4 rows are marked), partial 31, absent 84.
+Of the done rows, 25 are marked slice 4, 36 are slices 1 to 3, one is hot-pixel filtering, and five are strain numerics. The previous file lumped methods and counted 28 rows.
 
 ## 0.2.0 notes (2026-10-15)
 
@@ -358,3 +358,23 @@ Supported input and numerical details: `docs/hot-pixels.md`.
 
 Pins: `tools/ptycho/pins.py`, `Tests/CuboPtychoTests/Fixtures/ptycho.json`.
 Tolerance `2e-6` normwise maximum error with unit floor; see DocC Scope for numerical limits.
+
+## Reciprocal lattice strain details
+
+| Reference / source | CuboKit | State |
+|---|---|---|
+| `StrainMap.choose_basis_vectors` | `LatticeStrain.chooseBasis` | numeric selection done; caller supplies intensity-ordered histogram maxima; histogram construction/peak extraction external |
+| `index_bragg_directions`, `StrainMap.fit_basis_vectors` indexing | `LatticeStrain.index` overloads | done for supplied histogram directions; nearest-direction inclusive spacing and ties-to-even indices |
+| `fit_lattice_vectors` | `LatticeStrain.fit` | done: intensity squared objective, minimum-norm SVD, mean-distance residual |
+| `get_reference_g1g2` | `LatticeStrain.reference` | done: plain component medians of caller-selected valid ROI |
+| `get_strain_from_reference_g1g2`, `get_rotated_strain_map` | `LatticeStrain.strain` | done: py4DSTEM reference, rotation and theta signs; caller maps per scan position |
+| App c809679c intensity-once fit | `fitIntensityOnce` | named option: Float32 vectors, Double normal equations, weight floor 1e-6, RMS residual; original helper pin |
+| App c809679c MAD reference | `referenceMAD` | named option: Float32 MAD rejection with 2% scale floor and half-population fallback; original helper pin |
+| App c809679c cluster-consensus selection | `chooseBasisConsensus` | named option: repeated vector clusters, bounded condition/support scoring; original helper pin |
+
+These rows refine the strain headline; orchestration and plotting are not APIs.
+`tools/strain/pins.py` calls the actual pinned Python functions and independently
+compiles the original app helper text. Binary f64 pins cover planted strain and
+a public DM4 crop. Absolute tolerance 1e-10, maximum measured fit gap 5.33e-15
+and strain gap 8.88e-16; all three original-source options have gap/tolerance 0.
+Conventions, bounds and reproducibility: `docs/strain.md`.

@@ -1,14 +1,7 @@
 # ``CuboStrain``
 
-Strain maps from Bragg vectors. The module is a placeholder: its scope is stated here, and no processing is
-implemented yet.
+CPU reciprocal lattice fitting, reference selection and rotated infinitesimal strain.
 
-## Topics
-
-### Articles
-
-- <doc:Scope>
-
-### The module
-
-- ``CuboStrain``
+Use ``LatticeStrain`` for the pinned reference conventions, or its explicitly named
+compatibility methods for intensity-once fits, MAD references and cluster consensus.
+Detector row is the reference first coordinate; detector column is the second.

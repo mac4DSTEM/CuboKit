@@ -42,8 +42,8 @@ let package = Package(
         // divergence, py4DSTEM's iterative DPC (Double, Accelerate's FFT with Bluestein for other lengths).
         .target(name: "CuboPhase", dependencies: ["CuboCore"], swiftSettings: settings),
         .target(name: "CuboParallax", dependencies: ["CuboCore"], swiftSettings: settings),
-        // Later: strain from Bragg vectors (py4DSTEM StrainMap). Empty until registered.
-        .target(name: "CuboStrain", dependencies: ["CuboCore"], swiftSettings: settings),
+        .target(name: "CStrainLAPACK", cSettings: [.define("ACCELERATE_NEW_LAPACK")], linkerSettings: [.linkedFramework("Accelerate")]),
+        .target(name: "CuboStrain", dependencies: ["CuboCore", "CStrainLAPACK"], swiftSettings: settings),
         // Later: ptychography (py4DSTEM SingleslicePtychography and its family). Empty until registered.
         .target(name: "CuboPtycho", dependencies: ["CuboCore"], swiftSettings: settings),
         // The "first ten minutes" example: CuboCore and CuboVirtual only, ImageIO for the PNGs.
@@ -56,7 +56,7 @@ let package = Package(
                     exclude: ["Fixtures"], swiftSettings: settings),
         .testTarget(name: "CuboParallaxTests", dependencies: ["CuboCore", "CuboParallax"],
                     resources: [.copy("Fixtures")], swiftSettings: settings),
-        .testTarget(name: "CuboStrainTests", dependencies: ["CuboStrain"], swiftSettings: settings),
+        .testTarget(name: "CuboStrainTests", dependencies: ["CuboStrain"], exclude: ["Fixtures"], swiftSettings: settings),
         .testTarget(name: "CuboPtychoTests", dependencies: ["CuboPtycho"], exclude: ["Fixtures"], swiftSettings: settings),
     ],
     swiftLanguageModes: [.v6]

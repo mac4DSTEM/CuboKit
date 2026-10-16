@@ -1,0 +1,79 @@
+{
+  "py4dstem": "f050d207851f8accd3aa550365baaf1f38230428",
+  "numpy": "2.5.0",
+  "python": "3.12.4",
+  "app": "c809679c8ee23a355da6af4f63665aaf64f90d0d",
+  "appSHA256": "d77ce5c818df445a07fb03f8f7ea604ff484fb845ef8fe065658e0a078988c83",
+  "crop": {
+    "file": "small_datacube.dm4",
+    "sha256": "235e15f6d40afb8e71be90d9133e7910d76afd08502926ae2c49793e107f9f39",
+    "selection": "[0,0,200:312,200:312]"
+  },
+  "arrays": {
+    "indexInputs": [
+      3,
+      6
+    ],
+    "indexOutputs": [
+      3,
+      2
+    ],
+    "maxima": [
+      12,
+      2
+    ],
+    "selectedBasis": [
+      4
+    ],
+    "fits": [
+      4,
+      7
+    ],
+    "reference": [
+      4
+    ],
+    "appFits": [
+      4,
+      7
+    ],
+    "appBases": [
+      6,
+      4
+    ],
+    "appReference": [
+      4
+    ],
+    "consensus": [
+      4,
+      5,
+      3
+    ],
+    "appBasis": [
+      4
+    ],
+    "input0": [
+      9,
+      5
+    ],
+    "input1": [
+      9,
+      5
+    ],
+    "input2": [
+      9,
+      5
+    ],
+    "input3": [
+      12,
+      5
+    ],
+    "strain0": [
+      4,
+      4
+    ],
+    "strain1": [
+      4,
+      4
+    ]
+  }
+}

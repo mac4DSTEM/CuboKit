@@ -106,3 +106,10 @@ PtychographyProbe and SingleslicePtychography follow py4DSTEM 0.14.19
 The numerical extraction was informed by mac4DSTEM c809679c, files
 Core/Analysis/PtychographyPreparation.swift and SingleslicePtychography.swift.
 App preparation, settings, progress, provenance and presentation are excluded.
+
+CuboStrain's ConsensusNumerics compatibility helpers derive from the GPL-3.0
+mac4DSTEM Core/Analysis/StrainMapping.swift at
+c809679c8ee23a355da6af4f63665aaf64f90d0d. Access qualifiers and type names were
+adapted, and diagnostic printing removed; numeric Float32 helper arithmetic is retained.
+Primary lattice algorithms follow py4DSTEM f050d207 process/strain/latticevectors.py
+and process/strain/strain.py. tools/strain/pins.py records both source fingerprints.

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add CuboStrain basis selection from histogram maxima, measured-direction indexing,
+  intensity-squared lattice fits, median references and rotated infinitesimal strain.
+  Separate intensity-once, MAD-reference and cluster-consensus compatibility APIs
+  preserve the original source numerics. Small binary fixtures pin both conventions.
+
 - Add CuboCore hot-pixel filtering, wrapped 21-pixel classification and sequential
   clipped-window median replacement. Float32 mean accumulation matches py4DSTEM,
   including the contiguous pairwise reduction for a 1×1 detector. Eight small fixtures
