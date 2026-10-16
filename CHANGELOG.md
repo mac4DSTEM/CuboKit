@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add CuboParallax subpixel kernel-density upsampling (`ParallaxSubpixel`): the upsample-factor heuristic and bilinear/Lanczos deposition with Gaussian blur and optional sinc low-pass, pinned to py4DSTEM 0.14.19 `subpixel_alignment` (measured gap 4e-7, tolerance 1e-4; the reference accumulates in Float32). The reference and the app agree on the KDE formulas, including the Lanczos second-axis window quirk, so there is no separate app option. Probe-position correction is not yet ported.
+
 - Add CuboParallax depth sectioning (`ParallaxDepthSectioning`), py4DSTEM `depth_section` semantics. The reference path (defocus-only sign CTF, optional information-limit envelope) is pinned to py4DSTEM 0.14.19 at 2e-7 measured (tolerance 1e-5, complex64 reference); py4DSTEM's `use_CTF_fit=True` raises a TypeError at that version, so the full-fit CTF (`.fullFit`, the app's behaviour) is pinned to a NumPy transcription of the app source.
 
 - Add CuboParallax aberration fitting (`ParallaxAberrationFitter`: polar-decomposition low order C1/C12/rotation, higher-order global/recursive fits) and CTF phase correction (`ParallaxAberrationCorrection`). Pinned to py4DSTEM 0.14.19 `aberration_fit`/`aberration_correct` (fit coefficients to 2e-4 relative against a Float32 reference basis, low order and rotation to 1e-10, corrected image to 2e-6). The reference ignores `q_highpass`; the app applies it, so `.reference` is the default and `.apply` is the app option, with `.detectorGrid`/`.selectedCentroid` basis conventions, the app pinned to a NumPy transcription of the app source.
