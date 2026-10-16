@@ -94,3 +94,40 @@ slice 5, Bragg disk detection and strain, registered before code; then the ptych
 - Slice 4: Friedel with upsampling factors of 10⁴ and above, and on detectors of 1024 pixels and more, not refuted on this
   machine (memory rule); the masked Friedel claim excludes vanishing denominators (registration-slice-4 §9).
 - CI: the first run (Swift 6.3.3, macOS 26 runner) failed on the type-check and the macOS 27 declaration, both fixed; the next push re-runs it.
+
+## R2 Fourier iDPC hand-back
+
+Branch `codex/dpc-hotpixel`, based on `main` at `52dbb31` (the parallax commit now
+on main), in `_worktrees/CuboKit-r2`. This branch is independent of `codex/ptycho`.
+CPU `IDPC.integrate` and `integratePhysical`, explicit periodic/centered padding,
+regularization, anisotropic sampling and physical calibration. `docs/idpc.md`
+records the NumPy transcription oracle, fixture generation, tolerance and gaps.
+Two new tests failed against the zero-output baseline (10 issues), then passed.
+Full `tools/test.sh --jobs 4`: **106 tests, zero failures, zero skips**; slowest
+product 202.180 s. Full log `.build/idpc-full.log`; red/green focused logs alongside.
+The available Codex reviewer found no numerical/API blocker; Sonnet is unavailable.
+Source fingerprint metadata was added at review. No push, tag or merge. The suite
+board connector is unavailable, so this status document holds the hand-back.
+
+## R2 hot-pixel hand-back
+
+Second change on `codex/dpc-hotpixel`: public Sendable numerical hot-pixel APIs
+in CuboCore (`HotPixelFilter.filter`, `.mask`, `.replacing`, typed input error).
+The eight actual py4DSTEM fixtures pin Float32 mean samples, masks and all cleaned
+pixels bit for bit. NumPy's strided/pairwise accumulation and positive-zero median
+accumulator are preserved. Fixture size 30,403 bytes; measured gap and tolerance 0.
+Three focused tests pass. Red baseline: 38 issues against zero/identity placeholders;
+the 1×1 pairwise case separately failed the sequential implementation, and two
+signed-zero median cases failed four checks before their correction.
+Generator, detailed numerical conventions and fixture provenance: `docs/hot-pixels.md`.
+Independent review (available Codex model; Sonnet unavailable) found no remaining
+blocker after the pairwise and signed-zero fixes. Full gate is recorded below.
+
+Cross-branch commits, fixture generation, gaps, supported scope and the parked
+strain policy question are collected in `docs/r2-handback.md`. No owner approval
+is implied, and no push/tag/merge was performed.
+
+Final hot-pixel gate after the signed-zero correction: `tools/test.sh --jobs 4`
+passed **109 tests**, zero failures and zero skips; slowest product 198.595 s.
+Full log `.build/hotpixel-full.log`; the earlier full run is preserved separately.
+All three focused hot-pixel tests also pass on the final source and eight pins.

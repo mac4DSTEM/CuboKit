@@ -49,11 +49,11 @@ let package = Package(
         // The "first ten minutes" example: CuboCore and CuboVirtual only, ImageIO for the PNGs.
         .executableTarget(name: "CuboFirstLook", dependencies: ["CuboCore", "CuboVirtual"],
                           path: "Examples/CuboFirstLook", swiftSettings: settings),
-        .testTarget(name: "CuboCoreTests", dependencies: ["CuboCore"], swiftSettings: settings),
+        .testTarget(name: "CuboCoreTests", dependencies: ["CuboCore"], exclude: ["Fixtures"], swiftSettings: settings),
         .testTarget(name: "CuboVirtualTests", dependencies: ["CuboCore", "CuboVirtual"], exclude: ["Fixtures"],
                     swiftSettings: settings),
         .testTarget(name: "CuboPhaseTests", dependencies: ["CuboCore", "CuboPhase", "CuboVirtual"],
-                    swiftSettings: settings),
+                    exclude: ["Fixtures"], swiftSettings: settings),
         .testTarget(name: "CuboParallaxTests", dependencies: ["CuboCore", "CuboParallax"],
                     resources: [.copy("Fixtures")], swiftSettings: settings),
         .testTarget(name: "CuboStrainTests", dependencies: ["CuboStrain"], swiftSettings: settings),

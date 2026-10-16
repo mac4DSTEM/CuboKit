@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Add CuboCore hot-pixel filtering, wrapped 21-pixel classification and sequential
+  clipped-window median replacement. Float32 mean accumulation matches py4DSTEM,
+  including the contiguous pairwise reduction for a 1×1 detector. Eight small fixtures
+  pin means, masks and all filtered pixels bit for bit to py4DSTEM 0.14.19.
+
+- Add CPU Fourier iDPC integration in CuboPhase, with periodic or centered zero-padded
+  boundaries, explicit regularization, anisotropic sampling and projected-phase calibration.
+  Regression pins use a NumPy float64 transcription of the app Fourier integration;
+  this is separate from the existing py4DSTEM iterative DPC.
+
 - Add the CPU-only `CuboParallax` product: Double-precision matrix-DFT correlation refinement,
   periodic Fourier translation, and fixed/running-reference stack alignment (default upsampling factor 8).
   Public inputs and results are Sendable and independent of app types. Four small stacks pin shifts,

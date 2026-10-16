@@ -18,12 +18,16 @@ differs.
 | `CuboCore` | the cube: `CubeShape` (scan rows and columns, detector rows and columns), `CubeSource`, the eager `MemoryCube`, the lazy memory-mapped `MappedCube` (ten element types, converted to Float32 on read), NumPy's `.npy` container | slice 1, `docs/registration-slice-1.md` |
 | `CuboVirtual` | py4DSTEM's virtual detectors (point, circle, annulus, rectangle, any mask), virtual bright- and dark-field images, the mean and maximum diffraction pattern, on `.cpu` or `.metal` | slice 1 |
 | `CuboVirtual` (slice 2) | the centre of mass per position (`.cpu` and `.metal`), py4DSTEM's probe size | slice 2, `docs/registration-slice-2.md` |
-| `CuboPhase` | the centre-of-mass reference (plane fit, constant, given origins), the R–Q rotation by curl or divergence, py4DSTEM's iterative DPC | slice 2 |
+| `CuboPhase` | the centre-of-mass reference (plane fit, constant, given origins), the R–Q rotation by curl or divergence, py4DSTEM's iterative DPC, Fourier iDPC with explicit boundary/calibration | slices 2 and Fourier iDPC |
 | `CuboVirtual` (slice 3) | per-position origins (`get_origin`), centred, calibrated and centre-shifted virtual images and patterns; `CuboCore`'s `OriginFit` (`fit_origin`) | slice 3, `docs/registration-slice-3.md` |
 | `CuboVirtual` (slice 4) | the median pattern and virtual diffraction over a real-space mask or weights (mean, max, median), `get_origin`'s scan mask and fast centre, the Friedel origin (`get_origin_friedel`, with a beamstop mask and DFT upsampling), the beamstop mask, the vacuum probe and the probe kernels (flat, Gaussian, sine² and logistic sigmoid) that Bragg disk detection uses | slice 4, `docs/registration-slice-4.md` (CPU) |
 | `CuboParallax` | matrix-DFT cross-correlation alignment, periodic Fourier shifts and fixed/running-reference image stacks (Double, CPU; default factor 8) | first parallax slice; `docs/parallax-alignment.md` |
 | `CuboStrain` | strain maps from Bragg vectors | placeholder, a scope statement |
 | `CuboPtycho` | ptychography and tilt-corrected bright field | placeholder, a scope statement |
+
+`CuboCore` also provides `HotPixelFilter.filter` for eager Float32 cubes, plus
+mean-pattern classification and single-frame replacement entry points. It follows
+the pinned reference's threshold arithmetic and sequential median replacement.
 
 `docs/status.md` has the evidence per row; `docs/parity.md` is the checklist against py4DSTEM's documented API.
 
