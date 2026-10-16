@@ -24,7 +24,7 @@ import Testing
     /// Cuts `expected` into consecutive pieces of the given lengths.
     func split(_ a: [Double], _ lengths: [Int]) -> [[Double]] {
         var at = 0
-        return lengths.map { defer { at += $0 }; return Array(a[at..<(at + $0)]) }
+        return lengths.map { n in defer { at += n }; return Array(a[at..<(at + n)]) }
     }
 
     // MARK: scikit-learn PCA
