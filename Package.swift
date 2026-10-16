@@ -57,7 +57,7 @@ let package = Package(
         .testTarget(name: "CuboParallaxTests", dependencies: ["CuboCore", "CuboParallax"],
                     resources: [.copy("Fixtures")], swiftSettings: settings),
         .testTarget(name: "CuboStrainTests", dependencies: ["CuboStrain"], swiftSettings: settings),
-        .testTarget(name: "CuboPtychoTests", dependencies: ["CuboPtycho"], swiftSettings: settings),
+        .testTarget(name: "CuboPtychoTests", dependencies: ["CuboPtycho"], exclude: ["Fixtures"], swiftSettings: settings),
     ],
     swiftLanguageModes: [.v6]
 )

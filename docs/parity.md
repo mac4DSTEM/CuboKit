@@ -282,7 +282,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 
 | py4DSTEM | CuboKit | State |
 |---|---|---|
-| `SingleslicePtychography` (`preprocess`, `reconstruct`) | `CuboPtycho` | absent (planned: `CuboPtycho`, placeholder) |
+| `SingleslicePtychography` (`preprocess`, `reconstruct`) | `CuboPtycho` | partial: CPU single-slice gradient descent from preprocessed amplitudes; scope below |
 | `MultislicePtychography` (`preprocess`, `reconstruct`) | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `MixedstatePtychography` (`preprocess`, `reconstruct`) | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `MixedstateMultislicePtychography` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
@@ -314,10 +314,10 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | Strain | 14 | 0 | 0 | 14 |
 | Bragg vectors and disk detection | 17 | 0 | 0 | 17 |
 | Parallax | 9 | 0 | 1 | 8 |
-| Ptychography | 11 | 0 | 0 | 11 |
-| **Total** | **182** | **62** | **24** | **96** |
+| Ptychography | 11 | 0 | 1 | 10 |
+| **Total** | **182** | **62** | **25** | **95** |
 
-Of the 182 rows in scope: done 62 (of which the slice-4 rows are marked), partial 24, absent 96.
+Of the 182 rows in scope: done 62 (of which the slice-4 rows are marked), partial 25, absent 95.
 Of the done rows, 25 are marked slice 4, 36 are slices 1 to 3, and one is hot-pixel filtering. The previous file lumped methods and counted 28 rows.
 
 ## 0.2.0 notes (2026-10-15)
@@ -348,3 +348,13 @@ This refines the preprocessing row above (not counted twice). Generator
 `tools/hot-pixels/pins.py` calls the actual pinned method. Eight fixtures (30,403 bytes)
 pin means, masks and every cleaned sample bit for bit. Measured gap 0; tolerance 0.
 Supported input and numerical details: `docs/hot-pixels.md`.
+
+## CPU ptychography details (refines the headline above; not counted twice)
+
+| py4DSTEM f050d207 | CuboKit | State |
+|---|---|---|
+| `ComplexProbe.build` | `PtychographyProbe.build` | partial: defocus, C12, C30, hard/cosine aperture; no coherence envelopes |
+| `SingleslicePtychography.reconstruct` gradient descent | `SingleslicePtychography.reconstruct` | partial: preprocessed amplitudes, complex object, fixed positions, full batches, probe updates and threshold/pure-phase constraints; other constraints disabled |
+
+Pins: `tools/ptycho/pins.py`, `Tests/CuboPtychoTests/Fixtures/ptycho.json`.
+Tolerance `2e-6` normwise maximum error with unit floor; see DocC Scope for numerical limits.

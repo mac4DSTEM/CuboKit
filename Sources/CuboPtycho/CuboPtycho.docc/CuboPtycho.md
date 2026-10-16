@@ -1,14 +1,18 @@
 # ``CuboPtycho``
 
-Ptychography and tilt-corrected bright field. The module is a placeholder: its scope is stated here, and no processing is
-implemented yet.
+CPU probe construction and single-slice ptychography from numerical arrays.
 
 ## Topics
 
-### Articles
+### Processing
+
+- ``PtychographyProbe``
+- ``SingleslicePtychography``
+- ``PtychographyArray``
+- ``PtychographyPosition``
+- ``PtychographyError``
+
+### Supported scope
 
 - <doc:Scope>
-
-### The module
-
 - ``CuboPtycho``

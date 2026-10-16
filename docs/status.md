@@ -65,7 +65,7 @@ in this session. This repository's status and parity documents contain the hand-
 | Kit asks from the app's switch | CPU centre of mass parallel per position (bit identical); `RotationSolver` parallel per angle (0.767 → 0.031 s on 330 × 330, bit identical), `curve(...)`, `isCancelled`; the Debug `-Onone` remedy documented; the zero-copy resident source deferred to 0.2.1 | `d4d5917`, consumers-0.2.0 |
 | CI | The first run failed on Swift 6.3.3 (macOS 26 runner): a test expression the older compiler could not type-check in time (fixed, `2bc04b3`), and the macOS 27 declaration above the runner (fixed by the 15 floor); not yet re-run | `gh run list -R mac4DSTEM/CuboKit` |
 | References | `References/` is a link to the org folder's `../References/CuboKit` (2026-10-15, gitignored; the pinned py4DSTEM clone, venv and test data live there; scripts and venv shebangs resolve through the link); the real-data exports stay in `~/Library/Caches/CuboKit/real-data` | `ls -l References` |
-| Placeholder modules | `CuboStrain`, `CuboPtycho`: a scope statement each | their placeholder tests |
+| Placeholder module | `CuboStrain`: a scope statement; source/reference policy question parked | its placeholder test |
 | Tests | Swift Testing (owner, 2026-10-15): 90 tests, 0 failures, release, real data included (6.5 min; the Au and Al–Mg–Si slice-4 suites take 2 min each) | `tools/test.sh` |
 | Gate | green and stamped at `bb0a02e`, the 0.1.0 candidate (and earlier at `bc41094`, slice 4's code) | `.build/last-green`, `tools/last-green.sh` |
 | Consumer check | `tools/consumer-check`: 79 checks through the public API (slices 1 to 4), Debug, 0 warnings, at `bb0a02e`; 21 negative controls fail to build as required | `tools/consumer-check/run.sh`, `controls.sh` |
@@ -131,3 +131,25 @@ Final hot-pixel gate after the signed-zero correction: `tools/test.sh --jobs 4`
 passed **109 tests**, zero failures and zero skips; slowest product 198.595 s.
 Full log `.build/hotpixel-full.log`; the earlier full run is preserved separately.
 All three focused hot-pixel tests also pass on the final source and eight pins.
+
+## R2 ptychography hand-back
+
+Local branch `codex/ptycho`, based on main `c1f0293`, in `_worktrees/CuboKit-r2`.
+No push, tag or merge. CPU probe and single-slice complex-object full-batch engine;
+precise scope, fixture creation, tolerance and measured gaps: `docs/ptycho.md`.
+The available Codex reviewer found no operator mismatch; Sonnet was unavailable.
+The board connector is unavailable, so the suite board was not updated.
+
+Strain task parked under the explicit no-deviation rule. The read-only app source at
+`origin/main` documents intensity-once weighted least squares (Python squares the
+intensity), robust/MAD reference selection (Python uses plain component medians),
+and cluster-consensus automatic basis selection (Python uses histogram maxima).
+Open question: should CuboStrain follow Python exactly, omitting/replacing those app
+algorithms, or expose the app algorithms separately with explicit deviation claims?
+No owner approval is implied. No CuboStrain numbers or API were changed.
+
+Validation: full `tools/test.sh --jobs 4` passed **102 tests**, zero failures and
+zero skips (all existing real-data fixtures present). Slowest product: 292.173 s;
+new numerical suite: 3 tests, approximately 0.02 s. Red baseline: the probe and
+three-iteration tests failed against zero/identity placeholders. Full log is kept
+in the worktree's ignored `.build/ptycho-full.log`; focused red/green logs alongside it.

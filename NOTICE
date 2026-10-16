@@ -98,3 +98,11 @@ cube mean follows NumPy Float32 semantics, not the app's Double mean policy.
 The contiguous Float32 summation order follows NumPy 2.5.0 pairwise_sum's
 published algorithm (BSD-3-Clause); its Swift implementation is independently
 written. NumPy copyright (c) 2005-2026 NumPy Developers.
+
+CPU ptychography additions:
+PtychographyProbe and SingleslicePtychography follow py4DSTEM 0.14.19
+(f050d207851f8accd3aa550365baaf1f38230428), process/phase/utils.py
+(ComplexProbe), ptychographic_methods.py and ptychographic_constraints.py.
+The numerical extraction was informed by mac4DSTEM c809679c, files
+Core/Analysis/PtychographyPreparation.swift and SingleslicePtychography.swift.
+App preparation, settings, progress, provenance and presentation are excluded.
