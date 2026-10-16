@@ -94,3 +94,17 @@ slice 5, Bragg disk detection and strain, registered before code; then the ptych
 - Slice 4: Friedel with upsampling factors of 10⁴ and above, and on detectors of 1024 pixels and more, not refuted on this
   machine (memory rule); the masked Friedel claim excludes vanishing denominators (registration-slice-4 §9).
 - CI: the first run (Swift 6.3.3, macOS 26 runner) failed on the type-check and the macOS 27 declaration, both fixed; the next push re-runs it.
+
+## R2 Fourier iDPC hand-back
+
+Branch `codex/dpc-hotpixel`, based on `main` at `52dbb31` (the parallax commit now
+on main), in `_worktrees/CuboKit-r2`. This branch is independent of `codex/ptycho`.
+CPU `IDPC.integrate` and `integratePhysical`, explicit periodic/centered padding,
+regularization, anisotropic sampling and physical calibration. `docs/idpc.md`
+records the NumPy transcription oracle, fixture generation, tolerance and gaps.
+Two new tests failed against the zero-output baseline (10 issues), then passed.
+Full `tools/test.sh --jobs 4`: **106 tests, zero failures, zero skips**; slowest
+product 202.180 s. Full log `.build/idpc-full.log`; red/green focused logs alongside.
+The available Codex reviewer found no numerical/API blocker; Sonnet is unavailable.
+Source fingerprint metadata was added at review. No push, tag or merge. The suite
+board connector is unavailable, so this status document holds the hand-back.

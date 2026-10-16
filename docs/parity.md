@@ -328,3 +328,12 @@ Of the done rows, 25 are marked slice 4 and 36 are slices 1 to 3. The previous f
   a Metal reduction is about 3e-10 of the total intensity, so a pattern whose weighted sum is far below its total is
   outside the claim. py4DSTEM has no GPU centre of mass to compare with.
 - The counts above are unchanged by 0.2.0 (no new py4DSTEM method).
+
+## Fourier iDPC (app algorithm; outside the py4DSTEM method totals)
+
+| Reference | CuboKit | State |
+|---|---|---|
+| NumPy transcription of app Fourier iDPC | `IDPC.integrate`, `integratePhysical`, `IDPCPhysicalCalibration`, `IDPCBoundary` | done: periodic/centered zero-padded boundaries, regularization and physical sampling; CPU Double |
+
+Generator `tools/idpc/pins.py` explicitly distinguishes this oracle from py4DSTEM's
+iterative `DPC`. Absolute phase tolerance `1e-12` rad; details in `docs/idpc.md`.

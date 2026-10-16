@@ -29,3 +29,9 @@ enter it.
 ### Errors
 
 - ``CuboPhaseError``
+
+### Fourier integration
+
+- ``IDPC``
+- ``IDPCBoundary``
+- ``IDPCPhysicalCalibration``

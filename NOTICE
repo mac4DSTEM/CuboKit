@@ -84,3 +84,8 @@ process/utils/cross_correlate.py, preprocess/utils.py and process/phase/parallax
 Matrix-DFT method: Guizar-Sicairos, Thurman and Fienup, Optics Letters 33,
 156-158 (2008). Public test-data crop: py4DSTEM small_datacube.dm4; source
 SHA-256 and selection are recorded in the fixture.
+
+Fourier iDPC additions:
+IDPC's numerical integration follows mac4DSTEM c809679c, file
+Core/Analysis/DPC.swift (GPL-3.0). Its regression oracle is an explicitly named
+NumPy float64 transcription, distinct from py4DSTEM iterative DPC.
