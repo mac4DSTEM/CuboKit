@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add CuboParallax aberration fitting (`ParallaxAberrationFitter`: polar-decomposition low order C1/C12/rotation, higher-order global/recursive fits) and CTF phase correction (`ParallaxAberrationCorrection`). Pinned to py4DSTEM 0.14.19 `aberration_fit`/`aberration_correct` (fit coefficients to 2e-4 relative against a Float32 reference basis, low order and rotation to 1e-10, corrected image to 2e-6). The reference ignores `q_highpass`; the app applies it, so `.reference` is the default and `.apply` is the app option, with `.detectorGrid`/`.selectedCentroid` basis conventions, the app pinned to a NumPy transcription of the app source.
+
 - Add CuboParallax constant-order bright-field preprocessing: detector selection,
   reciprocal vectors, radian probe angles, sine-squared blending and centered padding.
   Default windowed stack retention follows py4DSTEM; `.unwindowed` retains the app KDE input.

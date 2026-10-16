@@ -265,8 +265,8 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `Parallax.reconstruct` (alignment bins, upsampling, regularisation) | `CuboParallax.ParallaxAlignment` | partial: CPU Double cross-correlation, matrix-DFT refinement (default factor 8), periodic shifts and fixed/running-reference stacks; no grouping, schedules, regularisation or full reconstruction (`docs/parallax-alignment.md`) |
 | `Parallax.guess_common_aberrations` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `Parallax.subpixel_alignment` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `Parallax.aberration_fit` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `Parallax.aberration_correct` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
+| `Parallax.aberration_fit` | `CuboParallax.ParallaxAberrationFitter` | low order (C1, C12a/b, rotation, transpose) and higher-order global/recursive fits; reference basis default, app basis (`.selectedCentroid`) as option; tolerances in `AberrationTests` |
+| `Parallax.aberration_correct` | `CuboParallax.ParallaxAberrationCorrection` | CTF sign/phase correction; reference ignores `q_highpass` (default), `.apply` is the app behaviour |
 | `Parallax.depth_section` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `Parallax.object_cropped` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `show_shifts`, `show_probe_position_shifts`, `visualize` | — | n/a (plotting) |
