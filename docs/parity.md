@@ -261,13 +261,13 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | py4DSTEM | CuboKit | State |
 |---|---|---|
 | `Parallax(datacube, energy, ...)` | `CuboPtycho` | absent (planned: `CuboPtycho`, placeholder) |
-| `Parallax.preprocess` (`edge_blend`, `dp_mask`, `threshold_intensity`, descan correction, `realspace_mask`) | `CuboPtycho` | absent (planned: `CuboPtycho`) |
+| `Parallax.preprocess` (`edge_blend`, `dp_mask`, `threshold_intensity`, descan correction, `realspace_mask`) | `ParallaxPreprocessing.prepare` | partial: constant normalization, selection/mask, edge window and padding; no descan/polynomial normalization/real-space mask. Default windowed retention follows reference; `.unwindowed` follows app (independent source transcription pin). |
 | `Parallax.reconstruct` (alignment bins, upsampling, regularisation) | `CuboParallax.ParallaxAlignment` | partial: CPU Double cross-correlation, matrix-DFT refinement (default factor 8), periodic shifts and fixed/running-reference stacks; no grouping, schedules, regularisation or full reconstruction (`docs/parallax-alignment.md`) |
 | `Parallax.guess_common_aberrations` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `Parallax.subpixel_alignment` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `Parallax.aberration_fit` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `Parallax.aberration_correct` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `Parallax.depth_section` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
+| `Parallax.subpixel_alignment` | `CuboParallax.ParallaxSubpixel` | partial: factor heuristic, bilinear/Lanczos KDE, Gaussian, low-pass; no `virtual_detector_mask`, integer-pixel rolling or position correction |
+| `Parallax.aberration_fit` | `CuboParallax.ParallaxAberrationFitter` | low order (C1, C12a/b, rotation, transpose) and higher-order global/recursive fits; reference basis default, app basis (`.selectedCentroid`) as option; tolerances in `AberrationTests` |
+| `Parallax.aberration_correct` | `CuboParallax.ParallaxAberrationCorrection` | CTF sign/phase correction; reference ignores `q_highpass` (default), `.apply` is the app behaviour |
+| `Parallax.depth_section` | `CuboParallax.ParallaxDepthSectioning` | complete CPU Double; `.defocusOnly` pinned to py4DSTEM (`use_CTF_fit=False`); `.fullFit` pinned to the app transcription because the reference's `use_CTF_fit=True` crashes at 0.14.19; plotting not ported |
 | `Parallax.object_cropped` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `show_shifts`, `show_probe_position_shifts`, `visualize` | — | n/a (plotting) |
 
@@ -313,7 +313,7 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | DPC and the phase base class's preprocessing | 20 | 13 | 4 | 3 |
 | Strain | 14 | 5 | 6 | 3 |
 | Bragg vectors and disk detection | 17 | 0 | 0 | 17 |
-| Parallax | 9 | 0 | 1 | 8 |
+| Parallax | 9 | 0 | 2 | 7 |
 | Ptychography | 11 | 0 | 1 | 10 |
 | **Total** | **182** | **67** | **31** | **84** |
 
@@ -378,3 +378,8 @@ compiles the original app helper text. Binary f64 pins cover planted strain and
 a public DM4 crop. Absolute tolerance 1e-10, maximum measured fit gap 5.33e-15
 and strain gap 8.88e-16; all three original-source options have gap/tolerance 0.
 Conventions, bounds and reproducibility: `docs/strain.md`.
+Preprocessing pins: `tools/parallax/preprocess_pins.py`, four cases, approximately 114 KB.
+Normwise maximum tolerance `2e-6` with unit floor (Double port vs Float32 storage);
+measured maximum gap `1.34e-7`. App unwindowed stack independently transcribed from
+`ParallaxPreprocessing.swift` at the app source pin; no app types are included.
+

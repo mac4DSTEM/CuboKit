@@ -1,6 +1,6 @@
 # ``CuboParallax``
 
-Double-precision CPU cross-correlation alignment for parallax image stacks.
+Double-precision CPU parallax processing: alignment, preprocessing, aberration fit and correction, depth sectioning and subpixel upsampling.
 
 Estimate the translation from a moving image to a reference with
 ``ParallaxAlignment/shift(reference:moving:rows:columns:upsampleFactor:)``.
@@ -17,6 +17,28 @@ The default factor-8 matrix-DFT refinement follows py4DSTEM 0.14.19.
 - ``ParallaxShift``
 - ``ParallaxAlignmentResult``
 
+### Preprocessing
+
+- ``ParallaxPreprocessing``
+- ``ParallaxPreprocessingResult``
+
+### Aberrations
+
+- ``ParallaxAberrationFitter``
+- ``ParallaxAberrationTerm``
+- ``ParallaxAberrationCorrection``
+- ``ParallaxCorrectionResult``
+
+### Depth sectioning and subpixel upsampling
+
+- ``ParallaxDepthSectioning``
+- ``ParallaxDepthCTF``
+- ``ParallaxSubpixel``
+- ``ParallaxSubpixelResult``
+- ``ParallaxUpsampleLimits``
+
 ### Errors
+
+- ``ParallaxError``
 
 - ``ParallaxAlignmentError``
