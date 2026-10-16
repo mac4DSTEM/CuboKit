@@ -378,3 +378,17 @@ compiles the original app helper text. Binary f64 pins cover planted strain and
 a public DM4 crop. Absolute tolerance 1e-10, maximum measured fit gap 5.33e-15
 and strain gap 8.88e-16; all three original-source options have gap/tolerance 0.
 Conventions, bounds and reproducibility: `docs/strain.md`.
+
+## Embedding: PCA and k-means (not py4DSTEM; scikit-learn 1.4.2 is the reference)
+
+These rows sit outside the py4DSTEM tallies above. py4DSTEM's own featurization calls scikit-learn's PCA.
+
+| Reference / source | CuboKit | State |
+|---|---|---|
+| `sklearn.decomposition.PCA(n_components=k, svd_solver="full")`: `components_`, `explained_variance_`, `explained_variance_ratio_`, `singular_values_`, `mean_`, `transform` | `PCA.fit`, `PCA.transform` | done: `svd_flip` u-based sign; covariance eigen route, not SVD; whiten, `n_components` fractions/`mle`, other solvers, `inverse_transform`, `score` absent |
+| `sklearn.cluster.KMeans(init=<array>, n_init=1, algorithm="lloyd")`: `cluster_centers_`, `labels_`, `inertia_`, `n_iter_` | `KMeans.fit` | done: strict and tolerance stopping, empty-cluster relocation (single empty cluster pinned), final relabel; k-means++ / random init, `n_init`, sample weights, elkan, `predict`, `transform` absent |
+| mac4DSTEM `DiffractionEmbedding` covariance PCA (c809679c) | `PCA.fit(..., variant: .diffractionEmbeddingApp)` | named option: Float32, divisor rows, raw LAPACK sign, clamped component count; original-source pin |
+| mac4DSTEM `DiffractionEmbedding.kMeans` | `KMeans.fitSeeded` | named option: splitmix64 k-means++, 50 passes, no tolerance; original-source pin |
+| mac4DSTEM `DiffractionEmbedding.embed` (log1p, max-normalise, box bin) | `DiffractionFeatures.binnedVector` | no external counterpart; original-source pin to Float32 rounding |
+
+Pins: `tools/embedding/pins.py`, `Tests/CuboEmbeddingTests/Fixtures/embedding.json`. Gaps and conventions: `docs/embedding.md`.

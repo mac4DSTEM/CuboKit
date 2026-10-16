@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add CuboEmbedding: `PCA` (scikit-learn 1.4.2 `svd_flip` sign convention, covariance divisor rows - 1) and `KMeans`
+  (scikit-learn Lloyd from caller-given centroids), pinned to scikit-learn. mac4DSTEM's Float32 covariance PCA,
+  seeded k-means and binned diffraction feature vector are separate named options pinned to its original source.
+  Binary fixtures under 50 KB; see `docs/embedding.md`.
+
 - Add CuboStrain basis selection from histogram maxima, measured-direction indexing,
   intensity-squared lattice fits, median references and rotated infinitesimal strain.
   Separate intensity-once, MAD-reference and cluster-consensus compatibility APIs
