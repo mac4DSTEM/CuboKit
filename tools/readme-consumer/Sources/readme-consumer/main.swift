@@ -36,4 +36,18 @@ let com = try await CenterOfMass.measure(of: cube)                      // com.r
 let adf = try await VirtualImaging.image(of: cube,
     geometry: .annulus(centerRow: 31, centerColumn: 32, inner: 18, outer: 30), path: .metal)
 
-print("readme-consumer summary: 1 swift block from README.md compiled and ran")
+import CuboParallax
+
+// Three asymmetric features in a small row-major reference image.
+let alignmentRows = 8, alignmentColumns = 10
+var alignmentReference = [Double](repeating: 0, count: alignmentRows * alignmentColumns)
+alignmentReference[13] = 1
+alignmentReference[36] = 0.7
+alignmentReference[62] = 0.3
+let moving = try ParallaxAlignment.shifted(alignmentReference,
+    rows: alignmentRows, columns: alignmentColumns, by: .init(row: 2, column: -3))
+let alignment = try ParallaxAlignment.align([moving], reference: alignmentReference,
+    rows: alignmentRows, columns: alignmentColumns)
+print(alignment.shifts[0])  // translation applied to moving; alignment.images and alignment.mean are row-major
+
+print("readme-consumer summary: 2 swift blocks from README.md compiled and ran")

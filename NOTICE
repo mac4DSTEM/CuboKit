@@ -72,3 +72,15 @@ Where the parts come from
   py4DSTEM is also the reference the tests compare with.
 - The .npy reader and writer follow NumPy's documented format (BSD-3-Clause); no
   NumPy code is copied.
+
+Parallax alignment slice
+------------------------
+CuboParallax's matrix-DFT refinement and Fourier alignment are adapted from
+mac4DSTEM c809679c8ee23a355da6af4f63665aaf64f90d0d,
+mac4DSTEM/Core/Compute/MatrixDFTCorrelation.swift and
+mac4DSTEM/Core/Analysis/ParallaxAlignment.swift (GPL-3.0), and follow
+py4DSTEM f050d207851f8accd3aa550365baaf1f38230428, process/utils/multicorr.py,
+process/utils/cross_correlate.py, preprocess/utils.py and process/phase/parallax.py.
+Matrix-DFT method: Guizar-Sicairos, Thurman and Fienup, Optics Letters 33,
+156-158 (2008). Public test-data crop: py4DSTEM small_datacube.dm4; source
+SHA-256 and selection are recorded in the fixture.

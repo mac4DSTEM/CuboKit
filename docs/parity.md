@@ -262,7 +262,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 |---|---|---|
 | `Parallax(datacube, energy, ...)` | `CuboPtycho` | absent (planned: `CuboPtycho`, placeholder) |
 | `Parallax.preprocess` (`edge_blend`, `dp_mask`, `threshold_intensity`, descan correction, `realspace_mask`) | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `Parallax.reconstruct` (alignment bins, upsampling, regularisation) | `CuboPtycho` | absent (planned: `CuboPtycho`) |
+| `Parallax.reconstruct` (alignment bins, upsampling, regularisation) | `CuboParallax.ParallaxAlignment` | partial: CPU Double cross-correlation, matrix-DFT refinement (default factor 8), periodic shifts and fixed/running-reference stacks; no grouping, schedules, regularisation or full reconstruction (`docs/parallax-alignment.md`) |
 | `Parallax.guess_common_aberrations` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `Parallax.subpixel_alignment` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `Parallax.aberration_fit` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
@@ -270,6 +270,13 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `Parallax.depth_section` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `Parallax.object_cropped` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `show_shifts`, `show_probe_position_shifts`, `visualize` | — | n/a (plotting) |
+
+`CuboParallax` also exposes the alignment utilities used within the partial reconstruction row:
+
+| py4DSTEM utility | CuboKit | State |
+|---|---|---|
+| `align_images_fourier`, `upsampled_correlation`, `dftUpsample` | `ParallaxAlignment.shift(reference:moving:rows:columns:upsampleFactor:)` | done for finite, nonconstant real images; CPU Double, factors 3...64; default factor 8; `1e-10` normwise relative tolerance with unit floor |
+| `get_shifted_ar(periodic=True, bilinear=False)` | `ParallaxAlignment.shifted(_:rows:columns:by:)` | done for finite real images at least 3 × 3; CPU Double; `1e-10` normwise relative tolerance with unit floor |
 
 ## Ptychography (process/phase/)
 
@@ -288,7 +295,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `PtychographyOptimizer`, `OptimizationParameter` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | the constraint and method mixins (`ObjectNDConstraintsMixin`, `ProbeMethodsMixin`, ...), `ComplexProbe`, `AffineTransform` | — | n/a (internals; their features count under the classes above) |
 
-## Count (2026-10-15, slices 1 to 4)
+## Count (slices 1 to 4 and initial parallax alignment)
 
 Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows excluded). One row is one method or option group.
 
@@ -306,11 +313,11 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | DPC and the phase base class's preprocessing | 20 | 13 | 4 | 3 |
 | Strain | 14 | 0 | 0 | 14 |
 | Bragg vectors and disk detection | 17 | 0 | 0 | 17 |
-| Parallax | 9 | 0 | 0 | 9 |
+| Parallax | 9 | 0 | 1 | 8 |
 | Ptychography | 11 | 0 | 0 | 11 |
-| **Total** | **182** | **61** | **23** | **98** |
+| **Total** | **182** | **61** | **24** | **97** |
 
-Of the 182 rows in scope: done 61 (of which the slice-4 rows are marked), partial 23, absent 98.
+Of the 182 rows in scope: done 61 (of which the slice-4 rows are marked), partial 24, absent 97.
 Of the done rows, 25 are marked slice 4 and 36 are slices 1 to 3. The previous file lumped methods and counted 28 rows.
 
 ## 0.2.0 notes (2026-10-15)

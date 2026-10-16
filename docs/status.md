@@ -4,6 +4,38 @@ What is live, one table; then the hand-off. Rules are in `CLAUDE.md`; the regist
 parity with py4DSTEM in `docs/parity.md`; what mac4DSTEM changes to import the kit in `docs/consumers-0.0.1.md` to
 `docs/consumers-0.1.0.md`.
 
+## Parallax alignment hand-off (2026-10-16)
+
+Local branch `codex/parallax-alignment`, based on `main` at `c1f0293`; no push or tag.
+The first parallax alignment slice adds `CuboParallax` as a separate product, keeping the README's
+DPC-focused `CuboPhase` independently usable. Public Sendable API: `ParallaxShift`,
+`ParallaxAlignment.shift`, `.shifted`, `.align` and `ParallaxAlignmentResult`.
+CPU Double, Accelerate/Bluestein FFT, matrix-DFT refinement (default factor 8), fixed/running references;
+no app types, Metal or UI. Full reconstruction, grouping, schedules and shift-basis fitting remain future work.
+
+- Regression fixture: `Tests/CuboParallaxTests/Fixtures/alignment.json`, four three-frame stacks
+  (integer/wrapped, odd fractional, noisy running-reference, public DM4 crop), including shifts, shifted pixels,
+  means and DFT patches. Relative normwise tolerance `1e-10` with unit scale floor; no bit-for-bit claim.
+  Extra shift pins cover factors 3, 7, 16 and 64. The planted smooth fractional check separately allows
+  `5e-4` with the same scale, reflecting the estimator's interpolation accuracy.
+- Regeneration: `../tools/memcap.sh -- ../References/CuboKit/py4dstem-venv/bin/python -I -B tools/parallax/pins.py`.
+  py4DSTEM `f050d207` (0.14.19), Python 3.12.4, NumPy 2.5.0, SciPy 1.18.0; the generator enforces versions,
+  checks the source pin and compares installed oracle files to that checkout. Only public test data is cropped;
+  the input SHA-256 and selection are in the fixture. No owner's data is copied.
+- Red baseline: four tests failed against placeholders, then the direct matrix-patch test also failed with a
+  zero patch (five tests, 23 issues). Final `tools/test.sh`: **104 tests, all green, no skips**, including the
+  five new tests and existing real data. Log: `/private/tmp/cuboparallax-full.log`; the slowest test product took
+  517.862 seconds. No new green stamp was written because the sources were uncommitted during the required gate.
+- `tools/readme-consumer/run.sh`: both README Swift blocks compile warning-free in a separate package and run.
+  README module map/example, DocC, `CHANGELOG.md` Unreleased and parity rows accompany the API.
+- Independent pre-commit numerical/test/doc review: no correctness blockers; an obsolete internal shared-caller
+  comment was removed. The available Codex review model was used because Sonnet is not exposed in this session.
+- No unresolved numerical discrepancies on the pinned fixtures. Large-stack memory/performance and iOS runtime
+  behavior are unverified for this slice. Numerical conventions and limits: `docs/parallax-alignment.md`.
+
+Process limitation: the suite board was not updated because its required `ArtifactData` connector is unavailable
+in this session. This repository's status and parity documents contain the hand-off; no other suite folder was edited.
+
 ## Live (2026-10-15 afternoon: slice 4, 0.1.0 tagged, the 0.2.0 candidate)
 
 | Area | State | Evidence |

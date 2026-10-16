@@ -21,6 +21,7 @@ differs.
 | `CuboPhase` | the centre-of-mass reference (plane fit, constant, given origins), the R–Q rotation by curl or divergence, py4DSTEM's iterative DPC | slice 2 |
 | `CuboVirtual` (slice 3) | per-position origins (`get_origin`), centred, calibrated and centre-shifted virtual images and patterns; `CuboCore`'s `OriginFit` (`fit_origin`) | slice 3, `docs/registration-slice-3.md` |
 | `CuboVirtual` (slice 4) | the median pattern and virtual diffraction over a real-space mask or weights (mean, max, median), `get_origin`'s scan mask and fast centre, the Friedel origin (`get_origin_friedel`, with a beamstop mask and DFT upsampling), the beamstop mask, the vacuum probe and the probe kernels (flat, Gaussian, sine² and logistic sigmoid) that Bragg disk detection uses | slice 4, `docs/registration-slice-4.md` (CPU) |
+| `CuboParallax` | matrix-DFT cross-correlation alignment, periodic Fourier shifts and fixed/running-reference image stacks (Double, CPU; default factor 8) | first parallax slice; `docs/parallax-alignment.md` |
 | `CuboStrain` | strain maps from Bragg vectors | placeholder, a scope statement |
 | `CuboPtycho` | ptychography and tilt-corrected bright field | placeholder, a scope statement |
 
@@ -69,6 +70,33 @@ let adf = try await VirtualImaging.image(of: cube,
 **Rows and columns, never x and y.** py4DSTEM's first axis of a pair (`Rx`, `Qx`) is the kit's row; its second (`Ry`,
 `Qy`) the column. A py4DSTEM geometry passes through unchanged: `((qx0, qy0), r)` is `.circle(centerRow: qx0,
 centerColumn: qy0, radius: r)`. Storage is C order `[scanRow][scanColumn][detectorRow][detectorColumn]`.
+
+## Parallax image alignment
+
+`CuboParallax` starts the parallax slice with CPU cross-correlation alignment and matrix-DFT subpixel refinement.
+The default upsampling factor is 8. Inputs and outputs use Double; translations are in row/column pixels with
+periodic boundaries. A stack can use a fixed reference (default) or `runningAverage: true` as in py4DSTEM.
+
+```swift
+import CuboParallax
+
+// Three asymmetric features in a small row-major reference image.
+let alignmentRows = 8, alignmentColumns = 10
+var alignmentReference = [Double](repeating: 0, count: alignmentRows * alignmentColumns)
+alignmentReference[13] = 1
+alignmentReference[36] = 0.7
+alignmentReference[62] = 0.3
+let moving = try ParallaxAlignment.shifted(alignmentReference,
+    rows: alignmentRows, columns: alignmentColumns, by: .init(row: 2, column: -3))
+let alignment = try ParallaxAlignment.align([moving], reference: alignmentReference,
+    rows: alignmentRows, columns: alignmentColumns)
+print(alignment.shifts[0])  // translation applied to moving; alignment.images and alignment.mean are row-major
+```
+
+On the four regression stacks, shifts, shifted pixels, means and DFT patches match the pinned py4DSTEM oracle
+within `1e-10` normwise relative error, with a unit scale floor. This is oracle agreement, not a guarantee that an arbitrary image has an unambiguous
+correlation peak. Full parallax reconstruction, detector grouping and shift regularisation remain future work.
+See `docs/parallax-alignment.md` for fixture provenance, supported inputs and numerical conventions.
 
 ## How numbers are held
 

@@ -25,6 +25,7 @@ let package = Package(
         .library(name: "CuboCore", targets: ["CuboCore"]),
         .library(name: "CuboVirtual", targets: ["CuboVirtual"]),
         .library(name: "CuboPhase", targets: ["CuboPhase"]),
+        .library(name: "CuboParallax", targets: ["CuboParallax"]),
         .library(name: "CuboStrain", targets: ["CuboStrain"]),
         .library(name: "CuboPtycho", targets: ["CuboPtycho"]),
         // A first look at a cube: `swift run cubo-first-look <cube.npy> [output-folder]` (Examples/CuboFirstLook).
@@ -40,6 +41,7 @@ let package = Package(
         // Slice 2 (docs/registration-slice-2.md): the centre-of-mass reference and plane fit, the R-Q rotation by curl or
         // divergence, py4DSTEM's iterative DPC (Double, Accelerate's FFT with Bluestein for other lengths).
         .target(name: "CuboPhase", dependencies: ["CuboCore"], swiftSettings: settings),
+        .target(name: "CuboParallax", dependencies: ["CuboCore"], swiftSettings: settings),
         // Later: strain from Bragg vectors (py4DSTEM StrainMap). Empty until registered.
         .target(name: "CuboStrain", dependencies: ["CuboCore"], swiftSettings: settings),
         // Later: ptychography (py4DSTEM SingleslicePtychography and its family). Empty until registered.
@@ -52,6 +54,8 @@ let package = Package(
                     swiftSettings: settings),
         .testTarget(name: "CuboPhaseTests", dependencies: ["CuboCore", "CuboPhase", "CuboVirtual"],
                     swiftSettings: settings),
+        .testTarget(name: "CuboParallaxTests", dependencies: ["CuboCore", "CuboParallax"],
+                    resources: [.copy("Fixtures")], swiftSettings: settings),
         .testTarget(name: "CuboStrainTests", dependencies: ["CuboStrain"], swiftSettings: settings),
         .testTarget(name: "CuboPtychoTests", dependencies: ["CuboPtycho"], swiftSettings: settings),
     ],

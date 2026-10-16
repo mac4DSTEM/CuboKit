@@ -16,6 +16,7 @@ let package = Package(
     targets: [
         .executableTarget(name: "readme-consumer", dependencies: [
             .product(name: "CuboCore", package: kit),
+            .product(name: "CuboParallax", package: kit),
             .product(name: "CuboVirtual", package: kit),
         ]),
     ],
