@@ -128,7 +128,7 @@ import Testing
         #expect(r.inertia == 1)
         #expect(r.converged)
         #expect(throws: EmbeddingError.self) { try KMeans.fit(data, rows: 4, columns: 2, initialCentroids: [0, 0, 1]) }
-        #expect(throws: EmbeddingError.self) { try KMeans.fit(data, rows: 2, columns: 2, initialCentroids: [0, 0, 1, 1]) }
+        #expect(throws: EmbeddingError.self) { try KMeans.fit([0, 0, 1, 1], rows: 2, columns: 2, initialCentroids: [0, 0, 1, 1, 2, 2]) }
         #expect(throws: EmbeddingError.nonFinite) { try KMeans.fit([.nan, 0], rows: 1, columns: 2, initialCentroids: [0, 0]) }
     }
 
