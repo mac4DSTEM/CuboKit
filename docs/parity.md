@@ -267,7 +267,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `Parallax.subpixel_alignment` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `Parallax.aberration_fit` | `CuboParallax.ParallaxAberrationFitter` | low order (C1, C12a/b, rotation, transpose) and higher-order global/recursive fits; reference basis default, app basis (`.selectedCentroid`) as option; tolerances in `AberrationTests` |
 | `Parallax.aberration_correct` | `CuboParallax.ParallaxAberrationCorrection` | CTF sign/phase correction; reference ignores `q_highpass` (default), `.apply` is the app behaviour |
-| `Parallax.depth_section` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
+| `Parallax.depth_section` | `CuboParallax.ParallaxDepthSectioning` | complete CPU Double; `.defocusOnly` pinned to py4DSTEM (`use_CTF_fit=False`); `.fullFit` pinned to the app transcription because the reference's `use_CTF_fit=True` crashes at 0.14.19; plotting not ported |
 | `Parallax.object_cropped` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `show_shifts`, `show_probe_position_shifts`, `visualize` | — | n/a (plotting) |
 
