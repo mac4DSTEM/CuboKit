@@ -1,0 +1,1370 @@
+{
+ "py4dstem": "f050d207851f8accd3aa550365baaf1f38230428",
+ "numpy": "2.5.0",
+ "scipy": "1.18.0",
+ "python": "3.12.4",
+ "app": "c809679c8ee23a355da6af4f63665aaf64f90d0d",
+ "imagoKit": "0.1.1",
+ "appSources": {
+  "DiskDetection(sliced)": "492014bd9fc11f2f0880d823cf0d2b6c97e8a27ddf63ac73720d674b81b867f2",
+  "MatrixDFTCorrelation": "ac6232dc6f9211c06abf30f9d10d1e0913195c71a7012124ab2fec95a1e82faf",
+  "ProbeRingHint": "7cd5b60ca3f01479236c4a715d98f140a18d8ff3310f71fef0edd342eff55bf2",
+  "FFT2D": "24b9d7250cc0caac3358e123d902e981a59822447fc6d6cbc859d00255d59b0f"
+ },
+ "reorderRatio": 1.0399999999999991,
+ "nonfinite": [
+  [
+   2,
+   717,
+   "nan"
+  ],
+  [
+   2,
+   3343,
+   "inf"
+  ],
+  [
+   2,
+   2565,
+   "nan"
+  ]
+ ],
+ "arrays": {
+  "k1": {
+   "offset": 0,
+   "shape": [
+    64,
+    64
+   ]
+  },
+  "p1": {
+   "offset": 4096,
+   "shape": [
+    3,
+    64,
+    64
+   ]
+  },
+  "k2": {
+   "offset": 16384,
+   "shape": [
+    40,
+    56
+   ]
+  },
+  "p2": {
+   "offset": 18624,
+   "shape": [
+    2,
+    40,
+    56
+   ]
+  },
+  "p3": {
+   "offset": 23104,
+   "shape": [
+    3,
+    64,
+    64
+   ]
+  },
+  "p3finite": {
+   "offset": 35392,
+   "shape": [
+    3,
+    64,
+    64
+   ]
+  },
+  "e_s1p0_pixel": {
+   "offset": 47680,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_s1p0_poly": {
+   "offset": 47698,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_s1p0_multicorr": {
+   "offset": 47716,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_s1p1_pixel": {
+   "offset": 47734,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_s1p1_poly": {
+   "offset": 47752,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_s1p1_multicorr": {
+   "offset": 47770,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_s1p2_pixel": {
+   "offset": 47788,
+   "shape": [
+    3,
+    3
+   ]
+  },
+  "e_s1p2_poly": {
+   "offset": 47797,
+   "shape": [
+    3,
+    3
+   ]
+  },
+  "e_s1p2_multicorr": {
+   "offset": 47806,
+   "shape": [
+    3,
+    3
+   ]
+  },
+  "e_s1p0_power0.5": {
+   "offset": 47815,
+   "shape": [
+    12,
+    3
+   ]
+  },
+  "e_s1p0_power0": {
+   "offset": 47851,
+   "shape": [
+    21,
+    3
+   ]
+  },
+  "e_s1p1_sigmaDP1": {
+   "offset": 47914,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_s1p1_sigma0_multicorr_u8": {
+   "offset": 47932,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_s1p1_sigma0_multicorr_u3": {
+   "offset": 47950,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_s1p1_absolute": {
+   "offset": 47968,
+   "shape": [
+    4,
+    3
+   ]
+  },
+  "e_s1p1_relative_rank1": {
+   "offset": 47980,
+   "shape": [
+    4,
+    3
+   ]
+  },
+  "e_s1p0_maxPeaks3": {
+   "offset": 47992,
+   "shape": [
+    3,
+    3
+   ]
+  },
+  "e_s1p2_spacing_off": {
+   "offset": 48001,
+   "shape": [
+    17,
+    3
+   ]
+  },
+  "e_s1p2_spacing8": {
+   "offset": 48052,
+   "shape": [
+    3,
+    3
+   ]
+  },
+  "e_s1p2_edge1": {
+   "offset": 48061,
+   "shape": [
+    20,
+    3
+   ]
+  },
+  "e_s1p2_edge0": {
+   "offset": 48121,
+   "shape": [
+    20,
+    3
+   ]
+  },
+  "e_s1p0_edge30": {
+   "offset": 48181,
+   "shape": [
+    1,
+    3
+   ]
+  },
+  "e_s2p0_poly": {
+   "offset": 48184,
+   "shape": [
+    4,
+    3
+   ]
+  },
+  "e_s2p0_multicorr": {
+   "offset": 48196,
+   "shape": [
+    4,
+    3
+   ]
+  },
+  "e_s2p1_poly": {
+   "offset": 48208,
+   "shape": [
+    3,
+    3
+   ]
+  },
+  "e_s2p1_multicorr": {
+   "offset": 48217,
+   "shape": [
+    3,
+    3
+   ]
+  },
+  "e_s3p0_poly": {
+   "offset": 48226,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_s3p0_rel0.5": {
+   "offset": 48244,
+   "shape": [
+    1,
+    3
+   ]
+  },
+  "e_s3p1_multicorr": {
+   "offset": 48247,
+   "shape": [
+    4,
+    3
+   ]
+  },
+  "e_s3p2_nonfinite": {
+   "offset": 48259,
+   "shape": [
+    0,
+    3
+   ]
+  },
+  "h_bullseye": {
+   "offset": 48259,
+   "shape": [
+    64,
+    64
+   ]
+  },
+  "h_disk": {
+   "offset": 52355,
+   "shape": [
+    64,
+    64
+   ]
+  },
+  "h_wide_ring": {
+   "offset": 56451,
+   "shape": [
+    64,
+    64
+   ]
+  },
+  "h_no_peak": {
+   "offset": 60547,
+   "shape": [
+    64,
+    64
+   ]
+  },
+  "e_app_s1p0_poly": {
+   "offset": 64643,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_app_s1p0_multicorr": {
+   "offset": 64661,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_app_s1p1_multicorr": {
+   "offset": 64679,
+   "shape": [
+    6,
+    3
+   ]
+  },
+  "e_app_s1p0_power0.5_sigmaDP1": {
+   "offset": 64697,
+   "shape": [
+    10,
+    3
+   ]
+  },
+  "e_app_s2p0_multicorr": {
+   "offset": 64727,
+   "shape": [
+    4,
+    3
+   ]
+  },
+  "e_app_s3p0_refradius0": {
+   "offset": 64739,
+   "shape": [
+    1,
+    3
+   ]
+  },
+  "e_app_s3p0_refradius10": {
+   "offset": 64742,
+   "shape": [
+    3,
+    3
+   ]
+  },
+  "e_app_s3p1_multicorr": {
+   "offset": 64751,
+   "shape": [
+    4,
+    3
+   ]
+  },
+  "e_app_s3p2_nonfinite_fill": {
+   "offset": 64763,
+   "shape": [
+    5,
+    3
+   ]
+  },
+  "e_app_s3p2_nonfinite_fill_multicorr": {
+   "offset": 64778,
+   "shape": [
+    14,
+    3
+   ]
+  }
+ },
+ "scenes": {
+  "S1": {
+   "rows": 64,
+   "columns": 64,
+   "kernel": "k1",
+   "patterns": "p1"
+  },
+  "S2": {
+   "rows": 40,
+   "columns": 56,
+   "kernel": "k2",
+   "patterns": "p2"
+  },
+  "S3": {
+   "rows": 64,
+   "columns": 64,
+   "kernel": "k1",
+   "patterns": "p3"
+  }
+ },
+ "cases": [
+  {
+   "id": "s1p0_pixel",
+   "scene": "S1",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 0,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p0_pixel"
+  },
+  {
+   "id": "s1p0_poly",
+   "scene": "S1",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p0_poly"
+  },
+  {
+   "id": "s1p0_multicorr",
+   "scene": "S1",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p0_multicorr"
+  },
+  {
+   "id": "s1p1_pixel",
+   "scene": "S1",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 0,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p1_pixel"
+  },
+  {
+   "id": "s1p1_poly",
+   "scene": "S1",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p1_poly"
+  },
+  {
+   "id": "s1p1_multicorr",
+   "scene": "S1",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p1_multicorr"
+  },
+  {
+   "id": "s1p2_pixel",
+   "scene": "S1",
+   "pattern": 2,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 0,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p2_pixel"
+  },
+  {
+   "id": "s1p2_poly",
+   "scene": "S1",
+   "pattern": 2,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p2_poly"
+  },
+  {
+   "id": "s1p2_multicorr",
+   "scene": "S1",
+   "pattern": 2,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p2_multicorr"
+  },
+  {
+   "id": "s1p0_power0.5",
+   "scene": "S1",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 0.5,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p0_power0.5"
+  },
+  {
+   "id": "s1p0_power0",
+   "scene": "S1",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 0.0,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p0_power0"
+  },
+  {
+   "id": "s1p1_sigmaDP1",
+   "scene": "S1",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 1.0,
+    "sigma_cc": 1.0,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p1_sigmaDP1"
+  },
+  {
+   "id": "s1p1_sigma0_multicorr_u8",
+   "scene": "S1",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 0,
+    "subpixel": 2,
+    "upsample_factor": 8,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p1_sigma0_multicorr_u8"
+  },
+  {
+   "id": "s1p1_sigma0_multicorr_u3",
+   "scene": "S1",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 0,
+    "subpixel": 2,
+    "upsample_factor": 3,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p1_sigma0_multicorr_u3"
+  },
+  {
+   "id": "s1p1_absolute",
+   "scene": "S1",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 5.0,
+    "minRelativeIntensity": 0.0,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p1_absolute"
+  },
+  {
+   "id": "s1p1_relative_rank1",
+   "scene": "S1",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.25,
+    "relativeToPeak": 1,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p1_relative_rank1"
+  },
+  {
+   "id": "s1p0_maxPeaks3",
+   "scene": "S1",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.0,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 3,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p0_maxPeaks3"
+  },
+  {
+   "id": "s1p2_spacing_off",
+   "scene": "S1",
+   "pattern": 2,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.0,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 0,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p2_spacing_off"
+  },
+  {
+   "id": "s1p2_spacing8",
+   "scene": "S1",
+   "pattern": 2,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p2_spacing8"
+  },
+  {
+   "id": "s1p2_edge1",
+   "scene": "S1",
+   "pattern": 2,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.0,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 1,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p2_edge1"
+  },
+  {
+   "id": "s1p2_edge0",
+   "scene": "S1",
+   "pattern": 2,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.0,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 0,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p2_edge0"
+  },
+  {
+   "id": "s1p0_edge30",
+   "scene": "S1",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 30,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s1p0_edge30"
+  },
+  {
+   "id": "s2p0_poly",
+   "scene": "S2",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 6,
+    "edgeBoundary": 4,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s2p0_poly"
+  },
+  {
+   "id": "s2p0_multicorr",
+   "scene": "S2",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 6,
+    "edgeBoundary": 4,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s2p0_multicorr"
+  },
+  {
+   "id": "s2p1_poly",
+   "scene": "S2",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 6,
+    "edgeBoundary": 4,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s2p1_poly"
+  },
+  {
+   "id": "s2p1_multicorr",
+   "scene": "S2",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 6,
+    "edgeBoundary": 4,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s2p1_multicorr"
+  },
+  {
+   "id": "s3p0_poly",
+   "scene": "S3",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.05,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s3p0_poly"
+  },
+  {
+   "id": "s3p0_rel0.5",
+   "scene": "S3",
+   "pattern": 0,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.5,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s3p0_rel0.5"
+  },
+  {
+   "id": "s3p1_multicorr",
+   "scene": "S3",
+   "pattern": 1,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s3p1_multicorr"
+  },
+  {
+   "id": "s3p2_nonfinite",
+   "scene": "S3",
+   "pattern": 2,
+   "reference": "py4dstem",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70,
+    "relativeReferenceMinimumRadiusPx": 0
+   },
+   "expected": "e_s3p2_nonfinite"
+  },
+  {
+   "id": "app_s1p0_poly",
+   "scene": "S1",
+   "pattern": 0,
+   "reference": "app",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "relativeReferenceMinimumRadiusPx": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70
+   },
+   "expected": "e_app_s1p0_poly"
+  },
+  {
+   "id": "app_s1p0_multicorr",
+   "scene": "S1",
+   "pattern": 0,
+   "reference": "app",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "relativeReferenceMinimumRadiusPx": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70
+   },
+   "expected": "e_app_s1p0_multicorr"
+  },
+  {
+   "id": "app_s1p1_multicorr",
+   "scene": "S1",
+   "pattern": 1,
+   "reference": "app",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "relativeReferenceMinimumRadiusPx": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70
+   },
+   "expected": "e_app_s1p1_multicorr"
+  },
+  {
+   "id": "app_s1p0_power0.5_sigmaDP1",
+   "scene": "S1",
+   "pattern": 0,
+   "reference": "app",
+   "options": {
+    "corrPower": 0.5,
+    "sigma_dp": 1.0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "relativeReferenceMinimumRadiusPx": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70
+   },
+   "expected": "e_app_s1p0_power0.5_sigmaDP1"
+  },
+  {
+   "id": "app_s2p0_multicorr",
+   "scene": "S2",
+   "pattern": 0,
+   "reference": "app",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "relativeReferenceMinimumRadiusPx": 0,
+    "minPeakSpacing": 6,
+    "edgeBoundary": 4,
+    "maxNumPeaks": 70
+   },
+   "expected": "e_app_s2p0_multicorr"
+  },
+  {
+   "id": "app_s3p0_refradius0",
+   "scene": "S3",
+   "pattern": 0,
+   "reference": "app",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.5,
+    "relativeToPeak": 0,
+    "relativeReferenceMinimumRadiusPx": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70
+   },
+   "expected": "e_app_s3p0_refradius0"
+  },
+  {
+   "id": "app_s3p0_refradius10",
+   "scene": "S3",
+   "pattern": 0,
+   "reference": "app",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.5,
+    "relativeToPeak": 0,
+    "relativeReferenceMinimumRadiusPx": 10,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70
+   },
+   "expected": "e_app_s3p0_refradius10"
+  },
+  {
+   "id": "app_s3p1_multicorr",
+   "scene": "S3",
+   "pattern": 1,
+   "reference": "app",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "relativeReferenceMinimumRadiusPx": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70
+   },
+   "expected": "e_app_s3p1_multicorr"
+  },
+  {
+   "id": "app_s3p2_nonfinite_fill",
+   "scene": "S3",
+   "pattern": 2,
+   "reference": "app",
+   "options": {
+    "corrPower": 1,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 1,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "relativeReferenceMinimumRadiusPx": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70
+   },
+   "expected": "e_app_s3p2_nonfinite_fill"
+  },
+  {
+   "id": "app_s3p2_nonfinite_fill_multicorr",
+   "scene": "S3",
+   "pattern": 2,
+   "reference": "app",
+   "options": {
+    "corrPower": 0.5,
+    "sigma_dp": 0,
+    "sigma_cc": 2,
+    "subpixel": 2,
+    "upsample_factor": 16,
+    "minAbsoluteIntensity": 0,
+    "minRelativeIntensity": 0.005,
+    "relativeToPeak": 0,
+    "relativeReferenceMinimumRadiusPx": 0,
+    "minPeakSpacing": 8,
+    "edgeBoundary": 5,
+    "maxNumPeaks": 70
+   },
+   "expected": "e_app_s3p2_nonfinite_fill_multicorr"
+  }
+ ],
+ "hints": [
+  {
+   "name": "bullseye",
+   "pattern": "h_bullseye",
+   "expected": [
+    8,
+    0.04116804897785187
+   ],
+   "probe": [
+    5.432695979621175,
+    32.59894829640546,
+    31.401263824772492
+   ]
+  },
+  {
+   "name": "disk",
+   "pattern": "h_disk",
+   "expected": [],
+   "probe": [
+    6.033744827082677,
+    32.605444149079865,
+    31.38373060945802
+   ]
+  },
+  {
+   "name": "wide_ring",
+   "pattern": "h_wide_ring",
+   "expected": [],
+   "probe": [
+    5.934784257223574,
+    32.58609794628752,
+    31.366508688783576
+   ]
+  },
+  {
+   "name": "no_peak",
+   "pattern": "h_no_peak",
+   "expected": [],
+   "probe": null
+  }
+ ],
+ "adapted": [
+  {
+   "input": [
+    64,
+    64,
+    -1.0
+   ],
+   "expected": [
+    8,
+    2
+   ]
+  },
+  {
+   "input": [
+    64,
+    64,
+    4.0
+   ],
+   "expected": [
+    4,
+    2
+   ]
+  },
+  {
+   "input": [
+    128,
+    96,
+    10.6
+   ],
+   "expected": [
+    11,
+    4
+   ]
+  },
+  {
+   "input": [
+    256,
+    256,
+    5.03
+   ],
+   "expected": [
+    5,
+    10
+   ]
+  },
+  {
+   "input": [
+    512,
+    512,
+    60.0
+   ],
+   "expected": [
+    60,
+    21
+   ]
+  },
+  {
+   "input": [
+    100,
+    100,
+    40.0
+   ],
+   "expected": [
+    13,
+    4
+   ]
+  },
+  {
+   "input": [
+    48,
+    48,
+    0.0
+   ],
+   "expected": [
+    6,
+    2
+   ]
+  }
+ ]
+}

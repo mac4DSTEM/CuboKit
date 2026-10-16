@@ -118,16 +118,34 @@ public struct GaussianFilter: Sendable {
         kernel = w.map { $0 / sum }
     }
 
+    /// How the filter reads past an edge.
+    public enum Edge: Sendable, Hashable {
+        /// scipy's `mode="nearest"`: the edge value repeated (a b c d | d d d).
+        case nearest
+        /// scipy's default `mode="reflect"`: half-sample symmetric (d c b a | a b c d | d c b a), folded repeatedly for a
+        /// radius beyond the image.
+        case reflect
+    }
+
     /// Filters a `rows × columns` pattern (row-major) in scipy's order for a symmetric kernel (ni_filters.c
     /// NI_Correlate1D): the centre weight times the pixel, then (p[i − t] + p[i + t]) · k[t] for t = R down to 1. The
-    /// pairing makes a mirror-symmetric pattern filter to exactly symmetric values, so exact ties stay ties.
-    public func apply(_ p: [Double], rows: Int, columns: Int) -> [Double] {
+    /// pairing makes a mirror-symmetric pattern filter to exactly symmetric values, so exact ties stay ties. `edge` is
+    /// scipy's `mode`; `.nearest` (the default) is the one the origin measurement uses.
+    public func apply(_ p: [Double], rows: Int, columns: Int, edge: Edge = .nearest) -> [Double] {
         let R = radius, k0 = kernel[R]
+        func index(_ i: Int, _ n: Int) -> Int {
+            switch edge {
+            case .nearest: return Swift.min(Swift.max(i, 0), n - 1)
+            case .reflect:
+                let m = ((i % (2 * n)) + 2 * n) % (2 * n)
+                return m < n ? m : 2 * n - 1 - m
+            }
+        }
         var a = [Double](repeating: 0, count: p.count)
         for i in 0..<rows { for j in 0..<columns {
             var s = p[i * columns + j] * k0
             for t in stride(from: R, through: 1, by: -1) {
-                s += (p[max(i - t, 0) * columns + j] + p[min(i + t, rows - 1) * columns + j]) * kernel[R - t]
+                s += (p[index(i - t, rows) * columns + j] + p[index(i + t, rows) * columns + j]) * kernel[R - t]
             }
             a[i * columns + j] = s
         } }
@@ -135,7 +153,7 @@ public struct GaussianFilter: Sendable {
         for i in 0..<rows { for j in 0..<columns {
             var s = a[i * columns + j] * k0
             for t in stride(from: R, through: 1, by: -1) {
-                s += (a[i * columns + max(j - t, 0)] + a[i * columns + min(j + t, columns - 1)]) * kernel[R - t]
+                s += (a[i * columns + index(j - t, columns)] + a[i * columns + index(j + t, columns)]) * kernel[R - t]
             }
             b[i * columns + j] = s
         } }

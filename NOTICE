@@ -119,3 +119,10 @@ GPL-3.0 mac4DSTEM Core/Analysis/DiffractionEmbedding.swift at c809679c8ee23a355d
 qualifiers, progress and cancellation were removed, numeric arithmetic is retained. The primary PCA and KMeans behaviour
 follows scikit-learn 1.4.2 (BSD-3-Clause) sklearn/decomposition/_pca.py, sklearn/cluster/_kmeans.py and
 sklearn/utils/extmath.py (svd_flip); no scikit-learn code is included. tools/embedding/pins.py records source fingerprints.
+
+CuboBragg follows py4DSTEM f050d207 braggvectors/diskdetection.py and preprocess/utils.py
+(find_Bragg_disks, get_maxima_2D, filter_2D_maxima). The named mac4DSTEM options and
+ProbeRingHint derive from the GPL-3.0 mac4DSTEM Core/Analysis/DiskDetection.swift and
+ProbeRingHint.swift at c809679c8ee23a355da6af4f63665aaf64f90d0d; type names, units (rows and
+columns, Double) and structure were rewritten, Float32 arithmetic and app-specific validation,
+provenance and orchestration excluded. tools/bragg/pins.py records the source fingerprints.

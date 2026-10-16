@@ -24,6 +24,8 @@ differs.
 | `CuboParallax` | matrix-DFT cross-correlation alignment, periodic Fourier shifts and fixed/running-reference image stacks (Double, CPU; default factor 8) | first parallax slice; `docs/parallax-alignment.md` |
 | `CuboStrain` | basis selection from histogram maxima, measured-direction indexing, lattice fits, references and rotated strain tensors | CPU Double primary path; three original-source compatibility options; `docs/strain.md` |
 | `CuboEmbedding` | PCA and Lloyd k-means on row-major matrices; binned diffraction feature vectors | CPU Double, scikit-learn 1.4.2 pins; mac4DSTEM variants as named options; `docs/embedding.md` |
+
+| `CuboBragg` | py4DSTEM's `find_Bragg_disks`: hybrid cross-correlation with a probe kernel, maxima, the filter cascade, parabolic and multicorr refinement, per pattern, stack or cube; the app's `ProbeRingHint` | CPU Double; mac4DSTEM differences as named options; py4DSTEM and app-source pins; `docs/bragg.md` |
 | `CuboPtycho` | CPU probe construction and full-batch single-slice complex-object gradient descent from preprocessed amplitudes | fixed positions; selected constraints; py4DSTEM pins |
 
 `CuboCore` also provides `HotPixelFilter.filter` for eager Float32 cubes, plus
