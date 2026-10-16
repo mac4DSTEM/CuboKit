@@ -5,7 +5,9 @@ import CuboCore
 public struct ParallaxSubpixelResult: Sendable {
     /// Upsampled image, row-major, `rows * columns` values.
     public let image: [Double]
+    /// Rows of the upsampled image.
     public let rows: Int
+    /// Columns of the upsampled image.
     public let columns: Int
     /// The upsampling factor used.
     public let factor: Double
@@ -13,9 +15,11 @@ public struct ParallaxSubpixelResult: Sendable {
 
 /// Upsampling factor limits and the default choice of py4DSTEM `subpixel_alignment`.
 public struct ParallaxUpsampleLimits: Sendable, Equatable {
+    /// Scan sampling over the bright-field Nyquist sampling.
     public let brightField: Double
     /// Clamped to at least one, as in the reference.
     public let darkField: Double
+    /// The requested factor, or the reference heuristic's choice.
     public let factor: Double
 }
 
