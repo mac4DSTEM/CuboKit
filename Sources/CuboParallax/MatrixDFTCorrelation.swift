@@ -7,11 +7,11 @@
 import Foundation
 import CuboCore
 
-struct CorrelationPeak: Equatable, Sendable {
-    let row: Double
-    let column: Double
+package struct CorrelationPeak: Equatable, Sendable {
+    package let row: Double
+    package let column: Double
 
-    init(row: Double, column: Double) {
+    package init(row: Double, column: Double) {
         self.row = row
         self.column = column
     }
@@ -19,7 +19,7 @@ struct CorrelationPeak: Equatable, Sendable {
 
 /// Guizar-Sicairos matrix-multiply DFT refinement as used by py4DSTEM's
 /// `align_images_fourier` / `upsampled_correlation` path.
-enum MatrixDFTCorrelation {
+package enum MatrixDFTCorrelation {
     /// Find the circular-correlation maximum, apply py4DSTEM's three-point
     /// parabolic estimate, round it to a half pixel, and refine it on a small
     /// matrix-DFT patch.
@@ -69,7 +69,7 @@ enum MatrixDFTCorrelation {
     }
 
     /// Refine the initial parabolic peak on a local matrix-DFT patch.
-    private static func refine(
+    package static func refine(
         correlationRe: [Double],
         correlationIm: [Double],
         width: Int,

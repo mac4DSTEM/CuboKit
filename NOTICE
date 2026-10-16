@@ -113,3 +113,10 @@ c809679c8ee23a355da6af4f63665aaf64f90d0d. Access qualifiers and type names were
 adapted, and diagnostic printing removed; numeric Float32 helper arithmetic is retained.
 Primary lattice algorithms follow py4DSTEM f050d207 process/strain/latticevectors.py
 and process/strain/strain.py. tools/strain/pins.py records both source fingerprints.
+
+CuboBragg follows py4DSTEM f050d207 braggvectors/diskdetection.py and preprocess/utils.py
+(find_Bragg_disks, get_maxima_2D, filter_2D_maxima). The named mac4DSTEM options and
+ProbeRingHint derive from the GPL-3.0 mac4DSTEM Core/Analysis/DiskDetection.swift and
+ProbeRingHint.swift at c809679c8ee23a355da6af4f63665aaf64f90d0d; type names, units (rows and
+columns, Double) and structure were rewritten, Float32 arithmetic and app-specific validation,
+provenance and orchestration excluded. tools/bragg/pins.py records the source fingerprints.

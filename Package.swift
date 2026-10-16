@@ -27,6 +27,7 @@ let package = Package(
         .library(name: "CuboPhase", targets: ["CuboPhase"]),
         .library(name: "CuboParallax", targets: ["CuboParallax"]),
         .library(name: "CuboStrain", targets: ["CuboStrain"]),
+        .library(name: "CuboBragg", targets: ["CuboBragg"]),
         .library(name: "CuboPtycho", targets: ["CuboPtycho"]),
         // A first look at a cube: `swift run cubo-first-look <cube.npy> [output-folder]` (Examples/CuboFirstLook).
         .executable(name: "cubo-first-look", targets: ["CuboFirstLook"]),
@@ -44,6 +45,9 @@ let package = Package(
         .target(name: "CuboParallax", dependencies: ["CuboCore"], swiftSettings: settings),
         .target(name: "CStrainLAPACK", cSettings: [.define("ACCELERATE_NEW_LAPACK")], linkerSettings: [.linkedFramework("Accelerate")]),
         .target(name: "CuboStrain", dependencies: ["CuboCore", "CStrainLAPACK"], swiftSettings: settings),
+        // Bragg disk detection's numeric core: py4DSTEM's find_Bragg_disks (hybrid cross-correlation with a probe kernel, maxima,
+        // the filter cascade, parabolic and multicorr subpixel refinement), Double, CPU, with the mac4DSTEM variants as named options.
+        .target(name: "CuboBragg", dependencies: ["CuboCore", "CuboVirtual", "CuboParallax"], swiftSettings: settings),
         // Later: ptychography (py4DSTEM SingleslicePtychography and its family). Empty until registered.
         .target(name: "CuboPtycho", dependencies: ["CuboCore"], swiftSettings: settings),
         // The "first ten minutes" example: CuboCore and CuboVirtual only, ImageIO for the PNGs.
@@ -57,6 +61,8 @@ let package = Package(
         .testTarget(name: "CuboParallaxTests", dependencies: ["CuboCore", "CuboParallax"],
                     resources: [.copy("Fixtures")], swiftSettings: settings),
         .testTarget(name: "CuboStrainTests", dependencies: ["CuboStrain"], exclude: ["Fixtures"], swiftSettings: settings),
+        .testTarget(name: "CuboBraggTests", dependencies: ["CuboCore", "CuboVirtual", "CuboBragg"],
+                    exclude: ["Fixtures"], swiftSettings: settings),
         .testTarget(name: "CuboPtychoTests", dependencies: ["CuboPtycho"], exclude: ["Fixtures"], swiftSettings: settings),
     ],
     swiftLanguageModes: [.v6]

@@ -1,6 +1,7 @@
 // What an app reads from CuboKit, through the public API only. Each check prints one line; the
 // summary line is what run.sh reads. A cube is written to a temporary .npy, read back lazily and eagerly, and reduced on
 // both paths.
+import CuboBragg
 import CuboCore
 import CuboPhase
 import CuboPtycho
@@ -76,6 +77,31 @@ do {
     check("CuboError.invalidShape", false)
 } catch let error as CuboError {
     check("CuboError.invalidShape", error == .invalidShape([1, 2, 3]))
+}
+// Bragg disk detection: a kernel from the public probe API, two disks, py4DSTEM's defaults plus a spacing and an edge.
+let braggProbe = try SyntheticProbe.make(radius: 4, width: 2, detectorRows: 48, detectorColumns: 48)
+let braggKernel = try ProbeKernel.sigmoid(braggProbe, innerRadius: 4, outerRadius: 8, origin: (24, 24))
+var braggValues = [Double](repeating: 0, count: 48 * 48)
+for (cr, cc, a) in [(24.3, 23.6, 100.0), (10.0, 30.0, 40.0)] {
+    for i in 0..<48 { for j in 0..<48 { braggValues[i * 48 + j] += a / (1 + exp(4 * (hypot(Double(i) - cr, Double(j) - cc) - 4) / 2)) } }
+}
+var braggOptions = BraggDiskOptions()
+braggOptions.minimumPeakSpacing = 8
+braggOptions.edgeBoundary = 4
+let braggPeaks = try BraggDisks.detect(DetectorImage(detectorRows: 48, detectorColumns: 48, values: braggValues, path: .cpu),
+                                       kernel: braggKernel, options: braggOptions)
+check("BraggDisks.detect", braggPeaks.count == 2 && abs(braggPeaks[0].row - 24.3) < 0.2 && abs(braggPeaks[0].column - 23.6) < 0.2
+      && abs(braggPeaks[1].row - 10) < 0.2 && braggPeaks[0].intensity > braggPeaks[1].intensity)
+check("BraggDiskOptions variants", BraggDiskOptions.mac4DSTEM.nonFinitePixels == .neighbourMedian
+      && BraggDiskOptions.detectorAdapted(detectorRows: 64, detectorColumns: 64).edgeBoundary == 2
+      && ProbeRingHint.outerEdge(of: DetectorImage(detectorRows: 8, detectorColumns: 8, values: [Double](repeating: 0, count: 64), path: .cpu)) == nil)
+do {
+    var bad = BraggDiskOptions()
+    bad.upsampleFactor = 2
+    _ = try BraggDisks.detect(DetectorImage(detectorRows: 48, detectorColumns: 48, values: braggValues, path: .cpu), kernel: braggKernel, options: bad)
+    check("CuboBraggError.invalidOption", false)
+} catch let error as CuboBraggError {
+    check("CuboBraggError.invalidOption", { if case .invalidOption = error { return true } else { return false } }())
 }
 check("CuboStrain scope", CuboStrain.scope.contains("not registered"))
 check("CuboPtycho scope", CuboPtycho.scope.contains("not registered"))

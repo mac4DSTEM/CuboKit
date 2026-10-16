@@ -19,6 +19,7 @@ let package = Package(
             .product(name: "CuboCore", package: kit),
             .product(name: "CuboVirtual", package: kit),
             .product(name: "CuboPhase", package: kit),
+            .product(name: "CuboBragg", package: kit),
             .product(name: "CuboStrain", package: kit),
             .product(name: "CuboPtycho", package: kit),
         ]),

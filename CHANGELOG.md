@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Add the CPU `CuboBragg` product: py4DSTEM's `find_Bragg_disks` for one pattern, a stack or a cube in Double (hybrid
+  cross-correlation with a `ProbeKernel`, `get_maxima_2D` with its filter cascade, parabolic and multicorr subpixel refinement),
+  plus the app's `ProbeRingHint`. Defaults are py4DSTEM's; the mac4DSTEM differences are named options
+  (`relativeReferenceMinimumRadius`, `nonFinitePixels`, `multicorrOrder`, `BraggDiskOptions.mac4DSTEM`, `detectorAdapted`).
+  Thirty py4DSTEM 0.14.19 cases pin positions and intensities to 1e-9 px / 1e-10 (measured 1.5e-12 / 1.3e-13); ten cases pin the
+  options to the unchanged app source in Float32 (1e-3 px / 1e-5; measured 1.8e-4 / 1.2e-6). `GaussianFilter.apply` gains an
+  `edge:` parameter (`.reflect`, scipy's default); the default `.nearest` is unchanged. `CuboParallax` exposes its matrix-DFT
+  refinement to the package (`package`, no public change).
+
+Migration: additive; existing products and APIs are unchanged.
+
 - Add CuboStrain basis selection from histogram maxima, measured-direction indexing,
   intensity-squared lattice fits, median references and rotated infinitesimal strain.
   Separate intensity-once, MAD-reference and cluster-consensus compatibility APIs

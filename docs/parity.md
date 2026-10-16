@@ -235,15 +235,15 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 
 | py4DSTEM | CuboKit | State |
 |---|---|---|
-| `find_Bragg_disks(DataCube, template)` | — | absent (planned: a module decision at its registration: here or DiffractoKit's geometry) |
-| `find_Bragg_disks` on a 2D array, a 3D stack, or `(DataCube, rx, ry)` | — | absent (planned: with `find_Bragg_disks`) |
-| `find_Bragg_disks(corrPower, sigma, sigma_dp, sigma_cc, filter_function)` | — | absent (planned: with `find_Bragg_disks`) |
+| `find_Bragg_disks(DataCube, template)` | `BraggDisks.detectAll(in:kernel:options:tiling:)` | done: per-position `BraggDisks.detect`, tiled, patterns on every core; pins on the per-pattern path (`docs/bragg.md`) |
+| `find_Bragg_disks` on a 2D array, a 3D stack, or `(DataCube, rx, ry)` | `BraggDisks.detect(_:kernel:options:)`, `detect(patterns:kernel:options:)` | partial: one pattern and a stack; no `(DataCube, rx, ry)` tuple (the caller reads the patterns) |
+| `find_Bragg_disks(corrPower, sigma, sigma_dp, sigma_cc, filter_function)` | `BraggDiskOptions.correlationPower`, `correlationSigma`, `patternSigma` | partial: all but `filter_function` (the caller filters the pattern) |
 | `find_Bragg_disks(radial_bksb)` | — | absent (planned: with `get_radial_bksb_dp`) |
-| `find_Bragg_disks(subpixel="none"/"poly"/"multicorr", upsample_factor)` | — | absent (planned: with `find_Bragg_disks`) |
-| `find_Bragg_disks(minAbsoluteIntensity, minRelativeIntensity, relativeToPeak, minPeakSpacing, edgeBoundary, maxNumPeaks)` | — | absent (planned: with `find_Bragg_disks`) |
+| `find_Bragg_disks(subpixel="none"/"poly"/"multicorr", upsample_factor)` | `BraggDiskOptions.subpixel` (`.pixel`, `.parabolic`, `.multicorr`), `upsampleFactor` | done: pinned, factors 3, 8, 16; a factor of 2 or less for multicorr is refused (py4DSTEM asserts) |
+| `find_Bragg_disks(minAbsoluteIntensity, minRelativeIntensity, relativeToPeak, minPeakSpacing, edgeBoundary, maxNumPeaks)` | the same six options | done: pinned; `BraggMaxima.find` is `get_maxima_2D` |
 | `find_Bragg_disks(CUDA, CUDA_batched)` | — | absent (planned: a Metal path, later lane) |
 | `find_Bragg_disks(distributed, ML, ml_*)`, the `diskdetection_parallel`, `_aiml`, `_cuda` variants | — | n/a (Python parallel tooling, TensorFlow) |
-| `BraggVectors` (`raw`, `cal`, `setcal`, `calibrate`, `get_vectors`, `shape`, `qx`, `qy`, `I`) | — | absent (planned: with `find_Bragg_disks`) |
+| `BraggVectors` (`raw`, `cal`, `setcal`, `calibrate`, `get_vectors`, `shape`, `qx`, `qy`, `I`) | `BraggVectors` (peaks per scan position) | partial: the raw value container only; no calibration state |
 | `BraggVectors.get_virtual_image` | — | absent (planned: with `BraggVectors`) |
 | `BraggVectors.histogram` | — | absent (planned: with `BraggVectors`) |
 | `BraggVectors.measure_origin` | — | absent (planned: with `BraggVectors`) |
@@ -312,13 +312,13 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | Probe | 14 | 12 | 1 | 1 |
 | DPC and the phase base class's preprocessing | 20 | 13 | 4 | 3 |
 | Strain | 14 | 5 | 6 | 3 |
-| Bragg vectors and disk detection | 17 | 0 | 0 | 17 |
+| Bragg vectors and disk detection | 17 | 3 | 3 | 11 |
 | Parallax | 9 | 0 | 1 | 8 |
 | Ptychography | 11 | 0 | 1 | 10 |
-| **Total** | **182** | **67** | **31** | **84** |
+| **Total** | **182** | **70** | **34** | **78** |
 
-Of the 182 rows in scope: done 67 (of which the slice-4 rows are marked), partial 31, absent 84.
-Of the done rows, 25 are marked slice 4, 36 are slices 1 to 3, one is hot-pixel filtering, and five are strain numerics. The previous file lumped methods and counted 28 rows.
+Of the 182 rows in scope: done 70 (of which the slice-4 rows are marked), partial 34, absent 78.
+Of the done rows, 25 are marked slice 4, 36 are slices 1 to 3, one is hot-pixel filtering, five are strain numerics, and three are Bragg disk detection. The previous file lumped methods and counted 28 rows.
 
 ## 0.2.0 notes (2026-10-15)
 
@@ -378,3 +378,20 @@ compiles the original app helper text. Binary f64 pins cover planted strain and
 a public DM4 crop. Absolute tolerance 1e-10, maximum measured fit gap 5.33e-15
 and strain gap 8.88e-16; all three original-source options have gap/tolerance 0.
 Conventions, bounds and reproducibility: `docs/strain.md`.
+
+## Bragg disk detection details
+
+| Reference / source | CuboKit | State |
+|---|---|---|
+| `find_Bragg_disks` (`_find_Bragg_disks_single`), `get_cross_correlation_FT` | `BraggDetector.detect` / `correlate`, `BraggDisks.detect` | done: hybrid cross-correlation in Double, any detector size; 30 py4DSTEM cases, gap 1.5e-12 px |
+| `get_maxima_2D`, `filter_2D_maxima`, `linear_interpolation_2D` | `BraggMaxima.find` | done: the filter order, the half-open edge, parabolic and multicorr (via CuboParallax's `MatrixDFTCorrelation`) |
+| `gaussian_filter` (mode `reflect`) | `GaussianFilter.apply(..., edge: .reflect)` | done: pinned to scipy 1.18.0 |
+| App `relativeReferenceMinimumRadiusPx` | `relativeReferenceMinimumRadius` | named option; pinned to the app source (Float32, gap 1.8e-4 px) |
+| App non-finite pixel fill (D019) | `nonFinitePixels = .neighbourMedian` | named option; py4DSTEM returns no peaks |
+| App multicorr peak order | `multicorrOrder = .correlationIntensity` | named option; py4DSTEM sorts by refined intensity |
+| App `detectorAdapted` | `BraggDiskOptions.detectorAdapted` | named helper; pinned to the app source |
+| App `ProbeRingHint` | `ProbeRingHint.outerEdge(of:)` | app-only (no py4DSTEM counterpart); pinned to the app source |
+
+Peak lists are `row`/`column`/`intensity`, brightest first. The app's Float32 arithmetic, kernel construction from a measured
+probe, funnel diagnostics, validation and provenance are not ported (`docs/bragg.md`). Tolerances: py4DSTEM 1e-9 px and 1e-10
+relative; app 1e-3 px and 1e-5 relative (measured 1.5e-12 / 1.3e-13 and 1.8e-4 / 1.2e-6). Reproduction: `tools/bragg/pins.py`.
