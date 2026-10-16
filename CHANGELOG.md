@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add CuboCore `FrameTransform`: detector-position, scan-crop and per-position origin-map re-referencing under crop and
+  bin, with the pixel-centre bin rule `(v+0.5)/bin-0.5`. py4DSTEM moves no origin on crop or bin (it only multiplies the Q
+  pixel size by the bin factor), so these rules are the app's, pinned Float32 bit for bit to a transcription of
+  mac4DSTEM `CalibrationReReference.swift` at c809679c (`tools/rereference/pins.py`). Calibration objects, provenance
+  and invalidation messages stay in the app.
+
 - Add CuboStrain basis selection from histogram maxima, measured-direction indexing,
   intensity-squared lattice fits, median references and rotated infinitesimal strain.
   Separate intensity-once, MAD-reference and cluster-consensus compatibility APIs

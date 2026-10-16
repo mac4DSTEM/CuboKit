@@ -383,3 +383,14 @@ Normwise maximum tolerance `2e-6` with unit floor (Double port vs Float32 storag
 measured maximum gap `1.34e-7`. App unwindowed stack independently transcribed from
 `ParallaxPreprocessing.swift` at the app source pin; no app types are included.
 
+
+
+## Frame transforms (crop and bin of origins)
+
+| py4DSTEM | CuboKit | Status |
+|---|---|---|
+| `crop_data_diffraction` / `crop_data_real` (slicing) | `FrameTransform.cropMap` (scan-indexed maps), `movePosition` (offsets) | done; exact selection |
+| `bin_data_diffraction` Q pixel size × N | `FrameTransform.binnedPixelSize` | done |
+| origins and lengths under crop/bin | `movePosition`, `moveOriginMap`, `binnedLength`, `binnedCoordinate`, `sourceCoordinate` | py4DSTEM leaves them untouched; these are the mac4DSTEM app rules (pixel-centre bin, half-open bounds), pinned to the app source at c809679c, not to py4DSTEM |
+
+`binnedLength` and `binnedPixelSize` are trivial scalar rules, tested by hand-written asserts, not by the source pin; callers own the check that a scan map matches the source scan before `cropMap`.
