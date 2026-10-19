@@ -33,7 +33,9 @@ rsync -a --delete --exclude .build --exclude .git --exclude tools/consumer-check
 consumer=$copy/tools/consumer-check
 V=Sources/CuboVirtual
 
-build() { (cd $consumer && swift build --jobs 2 -c debug) >$1 2>&1 }
+# --disable-dependency-cache: SwiftPM's shared repository cache can print a 'skipping cache' warning on a CI runner,
+# which the warning count would take for the kit's own (DiffractoKit 0.4.1's CI).
+build() { (cd $consumer && swift build --disable-dependency-cache --jobs 2 -c debug) >$1 2>&1 }
 
 print "baseline: building the unedited copy"
 build $logs/baseline.log || { grep "error" $logs/baseline.log | head -10 >&2; print -u2 "controls.sh: the BASELINE does not build ($logs/baseline.log)"; exit 1 }
