@@ -1,9 +1,9 @@
-# CuboKit CI: the hook proof and the gate (tools/test.sh = `swift test -c release`).
+# CuboKit CI: a script check and the test run (tools/test.sh = `swift test -c release`).
 #
 # Actions must be enabled on the repository. The package needs macOS 15 or later and a Swift 6.2 or later toolchain
 # (Package.swift: `.macOS(.v15)`, tools 6.2); `macos-latest` with its newest Xcode carries both.
 # No real data in CI: RealDataTests skip by name when ~/Library/Caches/CuboKit/real-data is absent, so tools/test.sh is
-# green without it and writes no stamp. No libhdf5 and no References/ (CuboKit has no package dependencies).
+# green without it. No libhdf5 and no References/ (CuboKit has no package dependencies).
 # Never `swift build --build-tests -c release` (fails on this toolchain's Swift Build backend); tools/test.sh is the gate.
 name: CI
 

@@ -15,12 +15,12 @@ differs.
 
 | Module | Scope | State |
 |---|---|---|
-| `CuboCore` | the cube: `CubeShape` (scan rows and columns, detector rows and columns), `CubeSource`, the eager `MemoryCube`, the lazy memory-mapped `MappedCube` (ten element types, converted to Float32 on read), NumPy's `.npy` container | slice 1, `docs/registration-slice-1.md` |
-| `CuboVirtual` | py4DSTEM's virtual detectors (point, circle, annulus, rectangle, any mask), virtual bright- and dark-field images, the mean and maximum diffraction pattern, on `.cpu` or `.metal` | slice 1 |
-| `CuboVirtual` (slice 2) | the centre of mass per position (`.cpu` and `.metal`), py4DSTEM's probe size | slice 2, `docs/registration-slice-2.md` |
-| `CuboPhase` | the centre-of-mass reference (plane fit, constant, given origins), the R–Q rotation by curl or divergence, py4DSTEM's iterative DPC, Fourier iDPC with explicit boundary/calibration | slices 2 and Fourier iDPC |
-| `CuboVirtual` (slice 3) | per-position origins (`get_origin`), centred, calibrated and centre-shifted virtual images and patterns; `CuboCore`'s `OriginFit` (`fit_origin`) | slice 3, `docs/registration-slice-3.md` |
-| `CuboVirtual` (slice 4) | the median pattern and virtual diffraction over a real-space mask or weights (mean, max, median), `get_origin`'s scan mask and fast centre, the Friedel origin (`get_origin_friedel`, with a beamstop mask and DFT upsampling), the beamstop mask, the vacuum probe and the probe kernels (flat, Gaussian, sine² and logistic sigmoid) that Bragg disk detection uses | slice 4, `docs/registration-slice-4.md` (CPU) |
+| `CuboCore` | the cube: `CubeShape` (scan rows and columns, detector rows and columns), `CubeSource`, the eager `MemoryCube`, the lazy memory-mapped `MappedCube` (ten element types, converted to Float32 on read), NumPy's `.npy` container | first release; `docs/registration-slice-1.md` (design and validation notes) |
+| `CuboVirtual` | py4DSTEM's virtual detectors (point, circle, annulus, rectangle, any mask), virtual bright- and dark-field images, the mean and maximum diffraction pattern, on `.cpu` or `.metal` | first release |
+| `CuboVirtual` (centre of mass) | the centre of mass per position (`.cpu` and `.metal`), py4DSTEM's probe size | `docs/registration-slice-2.md` (design and validation notes) |
+| `CuboPhase` | the centre-of-mass reference (plane fit, constant, given origins), the R–Q rotation by curl or divergence, py4DSTEM's iterative DPC, Fourier iDPC with explicit boundary/calibration | centre of mass and iterative DPC; Fourier iDPC added in 0.3.0 |
+| `CuboVirtual` (origins) | per-position origins (`get_origin`), centred, calibrated and centre-shifted virtual images and patterns; `CuboCore`'s `OriginFit` (`fit_origin`) | `docs/registration-slice-3.md` (design and validation notes) |
+| `CuboVirtual` (median, Friedel origin, probes) | the median pattern and virtual diffraction over a real-space mask or weights (mean, max, median), `get_origin`'s scan mask and fast centre, the Friedel origin (`get_origin_friedel`, with a beamstop mask and DFT upsampling), the beamstop mask, the vacuum probe and the probe kernels (flat, Gaussian, sine² and logistic sigmoid) that Bragg disk detection uses | `docs/registration-slice-4.md` (design and validation notes; CPU) |
 | `CuboParallax` | matrix-DFT cross-correlation alignment, periodic Fourier shifts and fixed/running-reference image stacks (Double, CPU; default factor 8), constant-order preprocessing, aberration fit and correction, depth sectioning, subpixel upsampling with position correction | py4DSTEM pins; `docs/parallax-alignment.md` |
 | `CuboStrain` | basis selection from histogram maxima, measured-direction indexing, lattice fits, references and rotated strain tensors | CPU Double primary path; three original-source compatibility options; `docs/strain.md` |
 | `CuboEmbedding` | PCA and Lloyd k-means on row-major matrices; binned diffraction feature vectors | CPU Double, scikit-learn 1.4.2 pins; mac4DSTEM variants as named options; `docs/embedding.md` |
@@ -110,8 +110,8 @@ See `docs/parallax-alignment.md` for fixture provenance, supported inputs and nu
 - **The float64 definition.** Each result is held to the float64 evaluation of py4DSTEM's definition, not to NumPy's
   float32 accumulator. py4DSTEM's own float32 results are recorded beside the float64 ones in every pin and never
   asserted against.
-- **CPU reference, Metal within a registered tolerance.** `.cpu` is the default and the reference. `.metal` is checked
-  against it to a tolerance fixed before the code (relative 1e-5 for sums, the maximum pattern bit for bit). There is no
+- **CPU reference, Metal within a stated tolerance.** `.cpu` is the default and the reference. `.metal` is checked
+  against it to a tolerance fixed before the code was written (relative 1e-5 for sums, the maximum pattern bit for bit). There is no
   automatic choice of path: a number never depends on the hardware unless the caller asks for `.metal`, and every result
   records the path that made it.
 - **Agreement with py4DSTEM is not validation.** It shows the port follows the definition. Truth is a closed form, a hand
@@ -124,16 +124,16 @@ See `docs/parallax-alignment.md` for fixture provenance, supported inputs and nu
 | Mean pattern | integer cubes bit for bit; float cubes within 1e-10 (measured: identical) | within 1e-5 (measured at most 7.6e-14) |
 | Maximum pattern | bit for bit | bit for bit |
 | Eager against lazy, any tiling | bit for bit | the same bits for the image; the mean within 1e-5 |
-| Centre of mass, probe size | 0.0 px from the float64 definition on five real cubes; the probe size bit for bit against py4DSTEM | within 1.9e-10 px (for patterns whose weighted sum is not tiny; `docs/registration-slice-2.md`) |
+| Centre of mass, probe size | 0.0 px from the float64 definition on five real cubes; the probe size bit for bit against py4DSTEM | within 1.9e-10 px (for patterns whose weighted sum is not tiny; `docs/registration-slice-2.md`, design and validation notes) |
 | Median and selected patterns, beamstop masks, origins with a mask | bit for bit (medians, maxima, masks; the masked mean within 1e-10) | CPU only |
 | Friedel origins, vacuum probes, kernels | within 2e-14 px; within 1e-12; within 1e-14 of py4DSTEM's (float64) kernels | CPU only |
 
 The rotation and transpose of the DPC chain equal py4DSTEM's choice and the DPC phase is within 3.3e-12 of maximum of the
-float64 chain. Details, planted truths and the amendments after review are in the registration documents.
+float64 chain. Details, planted truths and the amendments after review are in the design and validation notes (`docs/registration-slice-*.md`).
 
 ## Platform
 
-**macOS 15 or later, iOS 18 or later** (`Package.swift`, from 0.2.0). The library, its tests and the consumer checks
+**macOS 15 or later, iOS 18 or later** (`Package.swift`, from 0.2.0). Linux is not supported yet: the kit uses Accelerate and Metal. The library, its tests and the consumer checks
 build with no availability diagnostic at macOS 15 and the tests pass at that deployment target; the iOS build is checked
 for the Simulator (built, not run). Apple silicon or Intel with Metal for the `.metal` path; the `.cpu` path needs only
 Accelerate. Swift 6.2 tools or later, Swift 6 language mode. Build the kit optimised (`-c release`, or set the
@@ -143,17 +143,15 @@ dependency's optimisation in your app): at `-Onone` a Debug app runs it tens of 
 
 ```sh
 swift build                         # no setup, no dependency; the Metal kernels compile at run time
-tools/test.sh                       # the gate: swift test -c release; stamps .build/last-green on a clean tree
-tools/last-green.sh                 # the last green commit and whether HEAD equals it
+tools/test.sh                       # the gate: swift test -c release
 tools/consumer-check/run.sh         # a separate package using the public API only
 tools/readme-consumer/run.sh    # the README's own code, compiled and run
 ```
 
 The tests need nothing outside the package: the synthetic pins are committed. To regenerate pins, install the reference
 py4DSTEM at the pinned commit (`pip install "py4DSTEM @ git+https://github.com/py4dstem/py4DSTEM@f050d207"` in a fresh
-Python 3.12 environment, as the gitignored `References/py4dstem-venv` the scripts call; the maintainers build theirs with
-`tools/slice-1/provision-py4dstem.sh`, which reads a pinned constraints file from their own checkout). Then
-`tools/slice-N/pins.py synthetic` rewrites the committed pins and `real` writes exports of your own cubes outside the
+Python 3.12 environment, as the gitignored `References/py4dstem-venv` the scripts call). Then the
+`pins.py` script under `tools/` for the module in question (`synthetic`) rewrites the committed pins and `real` writes exports of your own cubes outside the
 repository, in `$CUBOKIT_REAL_DATA`. The real-data tests skip by name when their exports are absent,
 so `tools/test.sh` runs everywhere; with the data present it runs more.
 
@@ -167,17 +165,23 @@ Semantic versions in the 0.x series, tagged; the current release is **0.3.0**. A
 
 and list the products you use (`CuboCore`, `CuboVirtual`, `CuboPhase`, `CuboParallax`, `CuboStrain`, `CuboBragg`,
 `CuboPtycho`, `CuboEmbedding`). `CHANGELOG.md` has an entry per release, with a Migration paragraph where a consumer must
-change something (up to 0.2.0, `docs/consumers-x.y.z.md` said it). `docs/parity.md` is the checklist against py4DSTEM's documented API, updated at every tag.
+change something (for 0.0.1 to 0.2.0 the same notes are in `docs/consumers-x.y.z.md`). `docs/parity.md` is the checklist against py4DSTEM's documented API, updated at every tag.
 
 ## Licence and where the parts come from
 
-GPL-3.0 (`LICENSE`, `NOTICE`). The whole package is GPL-3.0, so an app built on it must be GPL-compatible.
+GPL-3.0 (`LICENSE`, `NOTICE`). The whole package is GPL-3.0, so anyone who links the kit into an app or tool must license the result under GPL-3.0 or a compatible licence.
 
-- The cube model and the reducers were extracted from a GPL-3.0 macOS app and rewritten as a public API; `NOTICE` names
-  that app, the commit and the files.
+- The cube model and the reducers were extracted from the GPL-3.0 macOS app mac4DSTEM (same authors) and rewritten as a public API; `NOTICE` names
+  the commit and the files.
 - The detector definitions (`DetectorMask`) are a port of **py4DSTEM**'s `make_detector`, and the processing follows its
   `get_virtual_image`, `get_dp_mean`, `get_dp_max`, `get_probe_size`, `get_origin` and DPC code (GPL-3.0;
   `github.com/py4dstem/py4DSTEM`, commit `f050d207`, 0.14.19). py4DSTEM is also the reference the tests compare with.
   Please cite Savitzky et al., *py4DSTEM: A Software Package for Four-Dimensional Scanning Transmission Electron
   Microscopy Data Analysis*, Microscopy and Microanalysis 27, 712 (2021).
 - The `.npy` reader and writer follow NumPy's documented format (BSD-3-Clause); no NumPy code is copied.
+- `CuboEmbedding`'s PCA and k-means follow scikit-learn 1.4.2 (BSD-3-Clause), which is also the reference for their tests; no scikit-learn code is included.
+
+## Please cite
+
+If you use CuboKit in published work, please cite it (`CITATION.cff`) and the reference it follows: Savitzky et al.,
+*py4DSTEM*, Microscopy and Microanalysis 27, 712 (2021), doi:10.1017/S1431927621000477. GitHub's "Cite this repository" button reads `CITATION.cff`.

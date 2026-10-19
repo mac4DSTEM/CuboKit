@@ -2,7 +2,7 @@
 
 ## 0.3.0 (2026-10-16)
 
-0.3.0 adds seven pieces on the CPU, each pinned with the tolerance stated in its test to py4DSTEM 0.14.19 (`f050d207`),
+0.3.0 adds seven pieces on the CPU, each pinned, with the tolerance stated in its test, to py4DSTEM 0.14.19 (`f050d207`),
 scikit-learn 1.4.2 or a transcription of the mac4DSTEM source (Double, except hot pixels and origin re-referencing in Float32): `CuboParallax` (alignment, preprocessing, aberration fit and
 correction, depth sectioning, subpixel upsampling), `CuboPtycho`, `CuboStrain`, `CuboBragg`, `CuboEmbedding`, Fourier
 iDPC in `CuboPhase`, and hot-pixel filtering and origin re-referencing in `CuboCore`. Where the mac4DSTEM source differs

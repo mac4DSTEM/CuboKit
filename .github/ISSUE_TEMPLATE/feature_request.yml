@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest a feature, for example a py4DSTEM function that is missing
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like to do?
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: The py4DSTEM function or paper this follows, if any
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else (data size, expected output)

@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use CuboKit in published work, please cite it, and please also cite py4DSTEM, which it follows."
+title: "CuboKit"
+type: software
+authors:
+  - name: "mac4DSTEM contributors"
+license: GPL-3.0-or-later
+repository-code: "https://github.com/mac4DSTEM/CuboKit"
+abstract: "A Swift package for 4D-STEM data on Apple platforms: the cube of diffraction patterns, virtual imaging, centre of mass, DPC, parallax alignment, strain, Bragg disk detection, embedding and ptychography, checked against py4DSTEM."
+keywords:
+  - 4D-STEM
+  - electron microscopy
+  - Swift
+  - py4DSTEM
+references:
+  - type: article
+    title: "py4DSTEM: A Software Package for Four-Dimensional Scanning Transmission Electron Microscopy Data Analysis"
+    authors:
+      - family-names: Savitzky
+        given-names: Benjamin H.
+      - name: "et al."
+    journal: "Microscopy and Microanalysis"
+    volume: 27
+    issue: 4
+    start: 712
+    end: 743
+    year: 2021
+    doi: "10.1017/S1431927621000477"
