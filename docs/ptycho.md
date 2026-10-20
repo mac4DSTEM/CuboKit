@@ -150,3 +150,8 @@ intensity; state 0 only for mixed) and `probeSupportMask` (corner-centred, zero 
 mass, aperture, amplitude, support (then orthogonalisation for mixed). Both off by default. Pinned on the three engines
 (`extras` in `engines.json`), measured 3.9e-7 at tolerance `2e-6`. Still absent for all engines: Fourier-amplitude
 (sigmoid-fit) constraint, aberration fitting, position correction (`fix_positions=False`), object Gaussian/Butterworth/TV filters.
+
+Known differences from py4DSTEM, all documented in the API comments: the engines' `errors` are normalised by the energy of
+the amplitudes they are given (py4DSTEM uses the preprocessing mean intensity, which counts negative shifted values;
+`PtychographyAmplitudes.meanIntensity` is that value); the probe support mask is not gated on `fixProbe` (as py4DSTEM;
+the fixed-probe support case is pinned); an exactly zero mixed-state far-field pixel gives a finite error here and an infinite one in py4DSTEM.

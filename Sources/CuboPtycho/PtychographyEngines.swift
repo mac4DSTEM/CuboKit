@@ -134,8 +134,10 @@ public enum MixedstatePtychography {
     /// by the eigenvectors of their Gram matrix, sorted by decreasing intensity (also when `fixProbe` is set, as in
     /// py4DSTEM; pass `orthogonalizeProbes: false` to keep fixed states untouched). The overall phase of each orthogonalised
     /// state is an eigenvector convention (LAPACK's differs from this one's) and does not affect the object, the errors or any
-    /// intensity. An exactly zero far-field pixel contributes `measured^2` to the error and no update (py4DSTEM divides
-    /// by infinity there).
+    /// intensity. An exactly zero far-field pixel contributes `measured^2` to the error and no update (py4DSTEM
+    /// sets its amplitude to infinity, so its update is zero and its error term, and the iteration's, is infinite).
+    /// Errors are normalised by the energy of `amplitudes` (py4DSTEM divides by the mean intensity of preprocessing,
+    /// `PtychographyAmplitudes.meanIntensity`, which includes negative shifted values).
     public static func reconstruct(amplitudes: [Double], positions: [PtychographyPosition],
                                    object: PtychographyArray, probes: PtychographyStack,
                                    iterations: Int = 8, stepSize: Double = 0.5, normalizationMinimum: Double = 1,
@@ -229,12 +231,14 @@ public enum MixedstatePtychography {
                                         radius: probeAmplitudeRelativeRadius, width: probeAmplitudeRelativeWidth)
                     pr.replaceSubrange(s*n..<(s+1)*n, with: re); pi.replaceSubrange(s*n..<(s+1)*n, with: im)
                 } }
-                if let mask = probeSupportMask { for s in 0..<states {
-                    var re = Array(pr[s*n..<(s+1)*n]), im = Array(pi[s*n..<(s+1)*n])
-                    supportConstraint(&re, &im, mask: mask)
-                    pr.replaceSubrange(s*n..<(s+1)*n, with: re); pi.replaceSubrange(s*n..<(s+1)*n, with: im)
-                } }
             }
+            // py4DSTEM does not gate the support mask or the orthogonalisation on fix_probe
+            if let mask = probeSupportMask { for s in 0..<states {
+                var re = Array(pr[s*n..<(s+1)*n]), im = Array(pi[s*n..<(s+1)*n])
+                supportConstraint(&re, &im, mask: mask)
+                pr.replaceSubrange(s*n..<(s+1)*n, with: re); pi.replaceSubrange(s*n..<(s+1)*n, with: im)
+            } }
+            // (orthogonalisation follows)
             // py4DSTEM does not gate the orthogonalisation on fix_probe: a fixed probe stack is still rotated into
             // its orthogonal, intensity-ordered basis.
             if orthogonalizeProbes && states > 1 { (pr, pi) = orthogonalized(pr, pi, states: states, n: n) }
@@ -559,8 +563,8 @@ public enum MultislicePtychography {
                     amplitudeConstraint(&pr, &pi, rows: probe.rows, columns: probe.columns,
                                         radius: probeAmplitudeRelativeRadius, width: probeAmplitudeRelativeWidth)
                 }
-                if let mask = probeSupportMask { supportConstraint(&pr, &pi, mask: mask) }
             }
+            if let mask = probeSupportMask { supportConstraint(&pr, &pi, mask: mask) }     // not gated on fix_probe (py4DSTEM)
             errors.append(error/intensity)
         }
         return try Result(object: PtychographyStack(count: slices, rows: object.rows, columns: object.columns, real: or, imaginary: oi),

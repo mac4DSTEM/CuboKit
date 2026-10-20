@@ -113,6 +113,7 @@ public struct CubeViewGeometry: Sendable, Equatable {
     /// The view of one full source pattern (`source.detectorRows x source.detectorColumns`, row-major): the crop, then the
     /// bin sums, each block accumulated in Double and rounded once to Float32.
     public func viewOfPattern(_ pattern: [Float]) -> [Float] {
+        precondition(pattern.count == source.detectorCount, "a source pattern has \(source.detectorCount) values")
         let bin = specification.detectorBin
         let crop = readDetectorCrop
         let rows = crop?.rows ?? source.detectorRows, columns = crop?.columns ?? source.detectorColumns

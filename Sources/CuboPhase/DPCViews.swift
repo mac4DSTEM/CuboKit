@@ -33,7 +33,7 @@ public enum DPCViews {
         (0..<field.row.count).map { i in
             var a = convention == .py4DSTEM ? atan2(field.column[i], field.row[i]) : atan2(field.row[i], field.column[i])
             if wrapped {
-                if a < 0 { a += 2 * Double.pi }
+                if a < 0 { a += 2 * Double.pi; if a >= 2 * Double.pi { a = 0 } }   // a tiny negative rounds to 2 pi
                 if a == 0 { a = 0 }
             }
             return a

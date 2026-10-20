@@ -190,8 +190,9 @@ public enum SingleslicePtychography {
                 amplitudeConstraint(&pr,&pi,rows:probe.rows,columns:probe.columns,
                                     radius:probeAmplitudeRelativeRadius,width:probeAmplitudeRelativeWidth)
             }
-            if let mask = probeSupportMask { supportConstraint(&pr,&pi,mask:mask) }
             }
+            // py4DSTEM does not gate the support mask on fix_probe
+            if let mask = probeSupportMask { supportConstraint(&pr,&pi,mask:mask) }
             errors.append(error/intensity)
         }
         return try Result(object:PtychographyArray(rows:object.rows,columns:object.columns,real:or,imaginary:oi),

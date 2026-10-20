@@ -215,7 +215,7 @@ public enum PtychographyPreparation {
     public static func objectShape(positions: [PtychographyPosition], detectorRows: Int, detectorColumns: Int,
                                    padding: PtychographyPadding) throws -> (rows: Int, columns: Int) {
         guard let maxRow = positions.map(\.row).max(), let maxColumn = positions.map(\.column).max(),
-              maxRow.isFinite, maxColumn.isFinite, abs(maxRow) < 1e9, abs(maxColumn) < 1e9 else { throw PtychographyError.invalidInput }
+              maxRow.isFinite, maxColumn.isFinite, abs(maxRow) < 1e6, abs(maxColumn) < 1e6 else { throw PtychographyError.invalidInput }
         let p = max((maxRow.rounded(.toNearestOrEven) + padding.extentRow).rounded(.toNearestOrEven), Double(detectorRows))
         let q = max((maxColumn.rounded(.toNearestOrEven) + padding.extentColumn).rounded(.toNearestOrEven), Double(detectorColumns))
         return (Int(p), Int(q))

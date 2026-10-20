@@ -20,7 +20,7 @@ private struct Multi: Decodable {
     let sliceThicknesses: [Double], propagators: Cx, amplitudes: [Double], startSlices: Cx, startProbe: Cx, cases: [SliceCase]
 }
 private struct ExtraCase: Decodable {
-    let engine: String, name: String, fixProbeCenterOfMass: Bool, fixProbeAperture: Bool, constrainProbeAmplitude: Bool
+    let engine: String, name: String, fixProbeCenterOfMass: Bool, fixProbeAperture: Bool, fixProbe: Bool, constrainProbeAmplitude: Bool
     let radius: Double, width: Double, object: Cx, probe: Cx, errors: [Double]
 }
 private struct Extras: Decodable { let support: [Bool], cases: [ExtraCase] }
@@ -268,7 +268,7 @@ private func gramOffDiagonal(_ s: PtychographyStack) -> Double {
             case "single":
                 let r = try SingleslicePtychography.reconstruct(
                     amplitudes: m.amplitudes, positions: positions(p), object: startObject, probe: startProbe, iterations: 3,
-                    stepSize: 0.35, normalizationMinimum: 0.7, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
+                    stepSize: 0.35, normalizationMinimum: 0.7, fixProbe: c.fixProbe, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
                     constrainProbeAmplitude: c.constrainProbeAmplitude, probeAmplitudeRelativeRadius: c.radius,
                     probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support)
                 g = [gap(r.object, c.object), gap(r.probe, c.probe), gap(r.errors, c.errors)].max()!
@@ -276,7 +276,7 @@ private func gramOffDiagonal(_ s: PtychographyStack) -> Double {
                 let probes = try PtychographyStack((0..<2).map { try mixedStart.array(at: $0) })
                 let r = try MixedstatePtychography.reconstruct(
                     amplitudes: p.mixed.amplitudes, positions: positions(p), object: startObject, probes: probes, iterations: 3,
-                    stepSize: 0.35, normalizationMinimum: 0.7, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
+                    stepSize: 0.35, normalizationMinimum: 0.7, fixProbe: c.fixProbe, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
                     constrainProbeAmplitude: c.constrainProbeAmplitude, probeAmplitudeRelativeRadius: c.radius,
                     probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support)
                 g = [gap(r.object, c.object), gap(phaseAligned(r.probes, to: c.probe), c.probe), gap(r.errors, c.errors)].max()!
@@ -286,7 +286,7 @@ private func gramOffDiagonal(_ s: PtychographyStack) -> Double {
                 let r = try MultislicePtychography.reconstruct(
                     amplitudes: m.amplitudes, positions: positions(p), object: object, probe: startProbe, sliceThicknesses: [55, 80],
                     wavelength: p.wavelength, rowSampling: p.rowSampling, columnSampling: p.columnSampling, iterations: 3,
-                    stepSize: 0.35, normalizationMinimum: 0.7, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
+                    stepSize: 0.35, normalizationMinimum: 0.7, fixProbe: c.fixProbe, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
                     constrainProbeAmplitude: c.constrainProbeAmplitude, probeAmplitudeRelativeRadius: c.radius,
                     probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support)
                 g = [gap(r.object, c.object), gap(r.probe, c.probe), gap(r.errors, c.errors)].max()!

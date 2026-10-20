@@ -170,7 +170,8 @@ amps_single = amps_ms
 cases = []
 for name, kw in [('apertureAll', dict(fix_probe_com=True, fix_probe_aperture=True, constrain_probe_amplitude=True,
                                        constrain_probe_amplitude_relative_radius=0.4, constrain_probe_amplitude_relative_width=0.1)),
-                 ('supportOnly', dict(fix_probe_com=False))]:
+                 ('supportOnly', dict(fix_probe_com=False)),
+                 ('fixedSupport', dict(fix_probe_com=False, fix_probe=True))]:
     for engine in ('single', 'mixed', 'multislice'):
         if engine == 'single':
             q = SingleslicePtychography(energy=200e3, object_type='complex', verbose=False)
@@ -188,7 +189,7 @@ for name, kw in [('apertureAll', dict(fix_probe_com=True, fix_probe_aperture=Tru
             ck = dict(tv_denoise_chambolle=False, kz_regularization_filter=False)
         np.random.seed(1729)
         q.reconstruct(num_iter=3, step_size=0.35, normalization_min=0.7, probe_real_space_support_mask=support, **kw, **ck, **common)
-        cases.append(dict(engine=engine, name=name, fixProbeCenterOfMass=kw.get('fix_probe_com'), fixProbeAperture=kw.get('fix_probe_aperture', False),
+        cases.append(dict(engine=engine, name=name, fixProbeCenterOfMass=kw.get('fix_probe_com'), fixProbeAperture=kw.get('fix_probe_aperture', False), fixProbe=kw.get('fix_probe', False),
                           constrainProbeAmplitude=kw.get('constrain_probe_amplitude', False),
                           radius=kw.get('constrain_probe_amplitude_relative_radius', 0.5), width=kw.get('constrain_probe_amplitude_relative_width', 0.05),
                           object=cplx(q._object), probe=cplx(q._probe), errors=q.error_iterations))

@@ -14,7 +14,7 @@ the app source, with the tolerance written in its test (`docs/ptycho.md` has the
 
 ### Migration
 
-Additive. `CuboError` gains a case (`invalidView`), so an exhaustive `switch` over it needs a default. `SingleslicePtychography.reconstruct` gains two defaulted parameters (`fixProbeAperture`, `probeSupportMask`). A caller in the app moves: the preparer (`PtychographyPreparer`) to `PtychographyPreparation.prepare(..., options: .mac4DSTEM(...))` after relabelling its axes to py4DSTEM's (its x and y are the kit's column and row); the load view's crop and bin to `ViewedCube` (its bin factors 2, 4, 8 stay the app's policy); the DPC magnitude and angle images to `DPCViews` (Double, not Float32 interleaved) and the rotation sign to `RotationConvention`. Not moved: the colour wheel (a display), the byte-count and residency arithmetic of the load configuration, the UI selection state.
+Source-compatible except that `CuboError` gains a case (`invalidView`): an exhaustive `switch` over it needs a default. `SingleslicePtychography.reconstruct` gains two defaulted parameters (`fixProbeAperture`, `probeSupportMask`). A caller in the app moves: the preparer (`PtychographyPreparer`) to `PtychographyPreparation.prepare(..., options: .mac4DSTEM(...))` after relabelling its axes to py4DSTEM's (its x and y are the kit's column and row); the load view's crop and bin to `ViewedCube` (its bin factors 2, 4, 8 stay the app's policy); the DPC magnitude and angle images to `DPCViews` (Double, not Float32 interleaved) and the rotation sign to `RotationConvention`. Not moved: the colour wheel (a display), the byte-count and residency arithmetic of the load configuration, the UI selection state.
 
 ## Unreleased (0.4.0 candidate)
 

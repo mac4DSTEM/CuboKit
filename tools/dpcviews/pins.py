@@ -16,14 +16,16 @@ rng = np.random.default_rng(20261020)
 R, C = 4, 5
 row = rng.normal(0, 1.3, R*C); col = rng.normal(0, 0.7, R*C)
 # axis-aligned, zero and signed-zero vectors
-row[:8] = [1, -1, 0, 0, 0.0, -0.0, -1, 0]; col[:8] = [0, 0, 1, -1, 0.0, 0.0, -0.0, -0.0]
+row[:9] = [1, -1, 0, 0, 0.0, -0.0, -1, 0, 1]; col[:9] = [0, 0, 1, -1, 0.0, 0.0, -0.0, -0.0, -1e-20]
 # py4DSTEM: x (row) + 1j y (column). Built with .real/.imag so signed zeros survive: `row + 1j*col` in NumPy drops the sign
 # of a zero real part (complex multiplication adds +0), which would change atan2(+0, -0) from pi to 0 at exact zeros.
 complex_com = np.empty(R*C, dtype=complex); complex_com.real = row; complex_com.imag = col
 mag = np.hypot(row, col)
 def wrap(a):
     a = np.where(a < 0, a + 2*np.pi, a)
+    a = np.where(a >= 2*np.pi, 0.0, a)           # a tiny negative angle rounds to 2 pi
     return np.where(a == 0, 0.0, a)
+# only the unwrapped column is py4DSTEM's own value; the wrapping is this kit's definition
 py_angle = wrap(np.angle(complex_com))           # py4DSTEM: atan2(column, row)
 app_angle = wrap(np.arctan2(row, col))           # row over column
 out = dict(rows=R, columns=C, row=row.tolist(), column=col.tolist(), magnitude=mag.tolist(),
