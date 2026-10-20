@@ -113,10 +113,11 @@ control access  "PtychographyPreparation.prepare"          $P/PtychographyPrepar
 control access  "MixedstatePtychography.initialProbes"     $P/PtychographyEngines.swift "initialProbes"           'public static func initialProbes('
 control access  "MultislicePtychography.propagators"       $P/PtychographyEngines.swift "propagators"             'public static func propagators('
 control access  "AxisCrop.enclosing"                       Sources/CuboCore/CubeView.swift "enclosing"            'public static func enclosing('
-control library "ViewedCube"                              Sources/CuboCore/CubeView.swift "ViewedCube"           'public actor ViewedCube'
+control overload "ViewedCube"                              Sources/CuboCore/CubeView.swift "ViewedCube"           'public actor ViewedCube'
 control library "CubeViewSpecification"                   Sources/CuboCore/CubeView.swift "CubeViewSpecification" 'public struct CubeViewSpecification'
 control access  "DPCViews.magnitude"                       Sources/CuboPhase/DPCViews.swift "magnitude"           'public static func magnitude('
 control access  "RotationConvention.kit"                   Sources/CuboPhase/DPCViews.swift "kit"                 'public static func kit('
+# (ViewedCube: a package-level generic actor is not found by the consumer at all, an error in its own main.swift: kind overload.)
 # A slice-1 symbol, to show the earlier checks are guarded too.
 control overload "VirtualImaging.image"             $V/VirtualImaging.swift      "image"             'public static func image(of source'
 
