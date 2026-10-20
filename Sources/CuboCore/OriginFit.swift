@@ -6,6 +6,8 @@
 //  it with curve_fit within that solver's convergence. The robust option follows fit_2D's loop exactly.
 //
 
+import Foundation
+
 public enum OriginFitModel: String, Sendable, Hashable, CaseIterable {
     case constant, plane, parabola
     /// py4DSTEM's `bezier_two`: the tensor product of quadratic Bernstein polynomials in each coordinate (9 terms).
@@ -125,5 +127,108 @@ public enum OriginFit {
             x[entry.column] = s / a[entry.column * m + entry.row]
         }
         return x
+    }
+}
+
+// MARK: - Trimmed (MAD) fit, mac4DSTEM's variant
+
+/// The result of ``OriginFit/fitTrimmed(originRow:originColumn:rows:columns:model:trimSigma:madScale:rounds:)``.
+public struct TrimmedOriginFit: Sendable, Equatable {
+    /// The fitted surfaces of the two maps, evaluated at every position (the excluded ones included), row-major.
+    public let fittedRow: [Double], fittedColumn: [Double]
+    /// The positions the final fit used. `false` means the measurement was left out of the fit, not that the position has no
+    /// fitted origin.
+    public let kept: [Bool]
+    /// RMS of the joint residual `hypot(row - fittedRow, column - fittedColumn)` over the kept positions, and over every position
+    /// with finite measurements. Trimming removes the largest residuals, so the first falls by construction and must not be
+    /// compared with a full-scan threshold.
+    public let keptResidual: Double, fullScanResidual: Double
+    /// The share of positions left out, `nil` for an empty map.
+    public var excludedFraction: Double? {
+        kept.isEmpty ? nil : 1 - Double(kept.filter { $0 }.count) / Double(kept.count)
+    }
+}
+
+extension OriginFit {
+    /// An iteratively trimmed fit of two origin maps, the variant mac4DSTEM's calibration uses where py4DSTEM's `fit_origin` is
+    /// ordinary least squares over every position (or `fit_2D`'s root-mean-square rule, ``fit(_:rows:columns:model:robust:robustSteps:robustThreshold:rankTolerance:)``).
+    /// A minority of positions whose origin measurement failed outright drags a plain fit; this one drops them.
+    ///
+    /// Each round fits both maps on the kept positions, measures the joint residual `hypot(dRow, dColumn)` at every position, takes
+    /// its median `m` and `madScale` times the median absolute deviation `s` (1.4826, the normal-distribution consistency factor), and
+    /// keeps the positions with residual `<= m + trimSigma * s`. The loop ends after `rounds` rounds (at least one), or earlier when `s`
+    /// is zero or not finite (degenerate residuals; cutting at the median would drop half the scan for no reason), when no position would
+    /// remain, or when the mask stops changing. The reported surfaces are a final fit on the reported mask. It works for a contamination
+    /// below about half the positions that is scattered over the scan; a spatially clustered failure or one at or above the breakdown
+    /// point of a median leaves it at the plain fit.
+    ///
+    /// A fit that cannot be made on the kept positions (fewer than the model has terms, or a scan one position wide) is the mean of
+    /// the kept positions, not the projection onto the design that ``fit(_:rows:columns:model:robust:robustSteps:robustThreshold:rankTolerance:)``
+    /// returns, so the positions just excluded cannot come back through an average. Non-finite measurements are never kept and do not
+    /// enter the median or the deviation. Unlike the app, empty or mismatched maps, a non-positive `trimSigma` or `madScale` throw
+    /// `OriginFitError.invalidMap`, and a map without a finite position throws `underdetermined`.
+    public static func fitTrimmed(originRow: [Double], originColumn: [Double], rows: Int, columns: Int, model: OriginFitModel,
+                                  trimSigma: Double = 3, madScale: Double = 1.4826, rounds: Int = 3) throws -> TrimmedOriginFit {
+        guard rows > 0, columns > 0, rows <= Int.max / columns, originRow.count == rows * columns, originColumn.count == originRow.count else {
+            throw OriginFitError.invalidMap("\(originRow.count) and \(originColumn.count) values for \(rows) × \(columns)")
+        }
+        guard trimSigma.isFinite, trimSigma > 0, madScale.isFinite, madScale > 0 else {
+            throw OriginFitError.invalidMap("the trim width \(trimSigma) and the deviation scale \(madScale) must be finite and positive")
+        }
+        let count = originRow.count
+        let usable = (0..<count).map { originRow[$0].isFinite && originColumn[$0].isFinite }
+        guard usable.contains(true) else { throw OriginFitError.underdetermined(model) }
+        var kept = usable
+        var fittedRow = originRow, fittedColumn = originColumn
+
+        func masked(_ z: [Double], _ included: [Bool]) throws -> [Double] {
+            let used = z.indices.filter { included[$0] && z[$0].isFinite }
+            let source = used.isEmpty ? Array(z.indices) : used
+            func meanSurface() throws -> [Double] {
+                [Double](repeating: try OriginFit.fit(source.map { z[$0] }, rows: source.count, columns: 1, model: .constant)[0], count: z.count)
+            }
+            let terms: Int
+            switch model {
+            case .constant: return try meanSurface()
+            case .plane: terms = 3
+            case .parabola: terms = 6
+            case .bezierTwo: terms = 9
+            }
+            guard rows > 1, columns > 1, used.count >= terms else { return try meanSurface() }
+            var values = [Double](repeating: .nan, count: z.count)
+            for k in used { values[k] = z[k] }
+            if let surface = try? OriginFit.fit(values, rows: rows, columns: columns, model: model) { return surface }
+            return try meanSurface()
+        }
+        func residuals(_ a: [Double], _ b: [Double]) -> [Double] {
+            (0..<count).map { usable[$0] ? hypot(originRow[$0] - a[$0], originColumn[$0] - b[$0]) : .nan }
+        }
+        func median(_ v: [Double]) -> Double {
+            let s = v.sorted(), middle = s.count / 2
+            return s.count.isMultiple(of: 2) ? (s[middle - 1] + s[middle]) / 2 : s[middle]
+        }
+        for _ in 0..<max(rounds, 1) {
+            fittedRow = try masked(originRow, kept); fittedColumn = try masked(originColumn, kept)
+            let residual = residuals(fittedRow, fittedColumn)
+            let finite = residual.filter(\.isFinite)
+            let centre = median(finite)
+            let deviation = madScale * median(finite.map { abs($0 - centre) })
+            guard deviation.isFinite, deviation > 0 else { break }
+            let cutoff = centre + trimSigma * deviation
+            let next = residual.map { $0 <= cutoff }       // a non-finite residual compares false
+            if !next.contains(true) { break }
+            if next == kept { kept = next; break }
+            kept = next
+        }
+        if kept.contains(true) {
+            fittedRow = try masked(originRow, kept); fittedColumn = try masked(originColumn, kept)
+        }
+        let residual = residuals(fittedRow, fittedColumn)
+        func rms(_ included: [Int]) -> Double {
+            included.isEmpty ? .nan : (included.reduce(0) { $0 + residual[$1] * residual[$1] } / Double(included.count)).squareRoot()
+        }
+        return TrimmedOriginFit(fittedRow: fittedRow, fittedColumn: fittedColumn, kept: kept,
+                                keptResidual: rms((0..<count).filter { kept[$0] }),
+                                fullScanResidual: rms((0..<count).filter { usable[$0] }))
     }
 }
