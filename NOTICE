@@ -12,11 +12,11 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 No virtual image or diffraction pattern computed by this library is validated
 on a microscope: agreement with py4DSTEM and recovery of planted cubes are what
-is claimed (docs/registration-slice-1.md section 8).
+is claimed (docs/registration-slice-1.md, section 8, design and validation notes).
 
 
 ================================================================================
-mac4DSTEM (the seed of slice 1)
+mac4DSTEM (the origin of the cube model)
 ================================================================================
 
 The cube model (shape, sources, scan tiles, the eager and the tiled paths) and
@@ -73,8 +73,8 @@ Where the parts come from
 - The .npy reader and writer follow NumPy's documented format (BSD-3-Clause); no
   NumPy code is copied.
 
-Parallax alignment slice
-------------------------
+Parallax alignment
+------------------
 CuboParallax's matrix-DFT refinement and Fourier alignment are adapted from
 mac4DSTEM c809679c8ee23a355da6af4f63665aaf64f90d0d,
 mac4DSTEM/Core/Compute/MatrixDFTCorrelation.swift and
@@ -85,12 +85,12 @@ Matrix-DFT method: Guizar-Sicairos, Thurman and Fienup, Optics Letters 33,
 156-158 (2008). Public test-data crop: py4DSTEM small_datacube.dm4; source
 SHA-256 and selection are recorded in the fixture.
 
-Fourier iDPC additions:
+Fourier iDPC:
 IDPC's numerical integration follows mac4DSTEM c809679c, file
 Core/Analysis/DPC.swift (GPL-3.0). Its regression oracle is an explicitly named
 NumPy float64 transcription, distinct from py4DSTEM iterative DPC.
 
-Hot-pixel filtering additions:
+Hot-pixel filtering:
 HotPixelFilter ports py4DSTEM 0.14.19 f050d207, preprocess/preprocess.py
 filter_hot_pixels (GPL-3.0). The frame classification/replacement extraction
 was informed by mac4DSTEM c809679c, Core/Data/HotPixelFilter.swift. The new
@@ -99,7 +99,7 @@ The contiguous Float32 summation order follows NumPy 2.5.0 pairwise_sum's
 published algorithm (BSD-3-Clause); its Swift implementation is independently
 written. NumPy copyright (c) 2005-2026 NumPy Developers.
 
-CPU ptychography additions:
+CPU ptychography:
 PtychographyProbe and SingleslicePtychography follow py4DSTEM 0.14.19
 (f050d207851f8accd3aa550365baaf1f38230428), process/phase/utils.py
 (ComplexProbe), ptychographic_methods.py and ptychographic_constraints.py.
@@ -126,3 +126,6 @@ ProbeRingHint derive from the GPL-3.0 mac4DSTEM Core/Analysis/DiskDetection.swif
 ProbeRingHint.swift at c809679c8ee23a355da6af4f63665aaf64f90d0d; type names, units (rows and
 columns, Double) and structure were rewritten, Float32 arithmetic and app-specific validation,
 provenance and orchestration excluded. tools/bragg/pins.py records the source fingerprints.
+
+Licence note: CuboKit is GPL-3.0. Anyone who links it into an app or tool must license the combined work under GPL-3.0 or a
+compatible licence.

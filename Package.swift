@@ -1,9 +1,9 @@
 // swift-tools-version: 6.2
-// CuboKit — a 4D-STEM library for the Mac: the cube model with an eager and a lazy, memory-mapped path (CuboCore,
-// slice 1); the mean and maximum diffraction pattern and virtual images from py4DSTEM's detector geometries, on the CPU
-// with Accelerate and on the GPU with Metal behind one API (CuboVirtual, slice 1); centre of mass and DPC (slice 2);
-// strain (CuboStrain) and ptychography (CuboPtycho), placeholders with their scope. docs/registration-slice-1.md is
-// the first registration. The cube model and reducers were extracted from a GPL-3.0 app (see NOTICE), and the results are
+// CuboKit — a 4D-STEM library for the Mac: the cube model with an eager and a lazy, memory-mapped path (CuboCore);
+// the mean and maximum diffraction pattern and virtual images from py4DSTEM's detector geometries, on the CPU
+// with Accelerate and on the GPU with Metal behind one API (CuboVirtual); centre of mass and DPC (CuboPhase);
+// parallax alignment, strain, Bragg disk detection, embedding and single-slice ptychography (CuboParallax,
+// CuboStrain, CuboBragg, CuboEmbedding, CuboPtycho). The cube model and reducers were extracted from a GPL-3.0 app (see NOTICE), and the results are
 // checked against py4DSTEM f050d207 (GPL-3.0) as the oracle.
 //
 // Swift 6 language mode, nonisolated by default (no `.defaultIsolation`), the three upcoming features
@@ -34,13 +34,13 @@ let package = Package(
         .executable(name: "cubo-first-look", targets: ["CuboFirstLook"]),
     ],
     targets: [
-        // Slice 1 (docs/registration-slice-1.md 1.1): the cube's shape, sources, the eager MemoryCube, the lazy
+        // the cube's shape, sources, the eager MemoryCube, the lazy
         // memory-mapped MappedCube, the .npy container. Foundation and Accelerate.
         .target(name: "CuboCore", swiftSettings: settings),
-        // Slice 1 (1.2): detector geometries and masks, the mean and max pattern, virtual images; CPU (Accelerate) and
+        // detector geometries and masks, the mean and max pattern, virtual images; CPU (Accelerate) and
         // Metal (kernels compiled at run time from the source this module carries) behind one API.
         .target(name: "CuboVirtual", dependencies: ["CuboCore"], swiftSettings: settings),
-        // Slice 2 (docs/registration-slice-2.md): the centre-of-mass reference and plane fit, the R-Q rotation by curl or
+        // the centre-of-mass reference and plane fit, the R-Q rotation by curl or
         // divergence, py4DSTEM's iterative DPC (Double, Accelerate's FFT with Bluestein for other lengths).
         .target(name: "CuboPhase", dependencies: ["CuboCore"], swiftSettings: settings),
         .target(name: "CuboParallax", dependencies: ["CuboCore"], swiftSettings: settings),
@@ -54,7 +54,7 @@ let package = Package(
         // Bragg disk detection's numeric core: py4DSTEM's find_Bragg_disks (hybrid cross-correlation with a probe kernel, maxima,
         // the filter cascade, parabolic and multicorr subpixel refinement), Double, CPU, with the mac4DSTEM variants as named options.
         .target(name: "CuboBragg", dependencies: ["CuboCore", "CuboVirtual", "CuboParallax"], swiftSettings: settings),
-        // Later: ptychography (py4DSTEM SingleslicePtychography and its family). Empty until registered.
+        // CPU single-slice ptychography after py4DSTEM's SingleslicePtychography (probe construction, gradient descent).
         .target(name: "CuboPtycho", dependencies: ["CuboCore"], swiftSettings: settings),
         // The "first ten minutes" example: CuboCore and CuboVirtual only, ImageIO for the PNGs.
         .executableTarget(name: "CuboFirstLook", dependencies: ["CuboCore", "CuboVirtual"],

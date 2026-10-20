@@ -1,0 +1,29 @@
+name: Bug report
+description: Something is wrong or a number differs from py4DSTEM
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Code or steps to reproduce
+      description: A small cube, or the code that makes one, and the call you made.
+      render: swift
+  - type: input
+    id: version
+    attributes:
+      label: CuboKit version or commit
+  - type: input
+    id: env
+    attributes:
+      label: Mac, macOS and Swift version
+  - type: dropdown
+    id: path
+    attributes:
+      label: Compute path
+      options: [".cpu", ".metal", "Not applicable"]

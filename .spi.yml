@@ -1,10 +1,8 @@
-# Swift Package Index: which modules get hosted DocC documentation. Written 2026-10-15; listing on the Index needs the repository
-# to be public. CuboKit declares macOS 15 and iOS 18 (Package.swift, swift-tools 6.2); the docs build
-# on the Index's macOS SwiftPM builder. The five library
-# products are the documentation targets; CuboStrain and CuboPtycho are empty placeholders until registered, so their
-# pages carry scope only.
+# Swift Package Index: which modules get hosted DocC documentation. Listing on the Index needs the repository to be
+# public. CuboKit declares macOS 15 and iOS 18 (Package.swift, swift-tools 6.2); the docs build on the Index's macOS
+# SwiftPM builder. Every library product is a documentation target.
 version: 1
 builder:
   configs:
     - platform: macos-spm
-      documentation_targets: [CuboCore, CuboVirtual, CuboPhase, CuboStrain, CuboPtycho]
+      documentation_targets: [CuboCore, CuboVirtual, CuboPhase, CuboParallax, CuboStrain, CuboBragg, CuboPtycho, CuboEmbedding]
