@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import CuboCore
 import CuboPtycho
 
 private struct ComplexPin: Decodable { let real: [Double]; let imaginary: [Double] }
@@ -10,8 +11,10 @@ private struct ConstraintCase: Decodable {
     let name: String, fixProbeCenterOfMass: Bool, constrainProbeAmplitude: Bool, radius: Double, width: Double
     let object: ComplexPin, probe: ComplexPin, errors: [Double]
 }
+/// The raw cube py4DSTEM's `_normalize_diffraction_intensities` turned into `amplitudes` and `meanIntensity`.
+private struct Pre: Decodable { let raw: [Double], origin: [Double], meanIntensity: Double, energyPerPosition: Double }
 private struct Pin: Decodable {
-    let offcentreProbe: ComplexPin, constraintCases: [ConstraintCase]
+    let preprocessing: Pre, offcentreProbe: ComplexPin, constraintCases: [ConstraintCase]
     let variants: [Variant], rectangularProbe: ComplexPin
     let rows: Int, columns: Int, objectRows: Int, objectColumns: Int
     let wavelength: Double, positions: [[Double]], amplitudes: [Double]
@@ -49,7 +52,7 @@ private func gap(_ a: [Double], _ b: [Double]) -> Double {
         let start = ContinuousClock.now
         let result = try SingleslicePtychography.reconstruct(amplitudes:p.amplitudes,
             positions:p.positions.map { .init(row:$0[0],column:$0[1]) }, object:initialObject, probe:initialProbe,
-            iterations:3, stepSize:0.35, normalizationMinimum:0.7)
+            iterations:3, stepSize:0.35, normalizationMinimum:0.7, errorNormalization:.meanIntensity(p.preprocessing.meanIntensity))
         let g = [gap(result.object.real,p.object.real),gap(result.object.imaginary,p.object.imaginary),
                  gap(result.probe.real,p.probe.real),gap(result.probe.imaginary,p.probe.imaginary),gap(result.errors,p.errors)].max()!
         print("PTYCHO engine max normwise gap: \(g)")
@@ -58,7 +61,8 @@ private func gap(_ a: [Double], _ b: [Double]) -> Double {
         for v in p.variants {
             let r = try SingleslicePtychography.reconstruct(amplitudes:p.amplitudes,
                 positions:p.positions.map { .init(row:$0[0],column:$0[1]) },object:initialObject,probe:initialProbe,
-                iterations:3,stepSize:v.step,normalizationMinimum:v.minimum,fixProbe:v.fixProbe,purePhaseObject:v.purePhase)
+                iterations:3,stepSize:v.step,normalizationMinimum:v.minimum,fixProbe:v.fixProbe,purePhaseObject:v.purePhase,
+                errorNormalization:.meanIntensity(p.preprocessing.meanIntensity))
             let vg = [gap(r.object.real,v.object.real),gap(r.object.imaginary,v.object.imaginary),
                       gap(r.probe.real,v.probe.real),gap(r.probe.imaginary,v.probe.imaginary),gap(r.errors,v.errors)].max()!
             print("PTYCHO variant \(v.minimum) gap: \(vg)")
@@ -104,7 +108,7 @@ private func gap(_ a: [Double], _ b: [Double]) -> Double {
             let r = try SingleslicePtychography.reconstruct(amplitudes:p.amplitudes, positions:positions, object:object, probe:off,
                 iterations:3, stepSize:0.35, normalizationMinimum:0.7, fixProbeCenterOfMass:k.fixProbeCenterOfMass,
                 constrainProbeAmplitude:k.constrainProbeAmplitude, probeAmplitudeRelativeRadius:k.radius,
-                probeAmplitudeRelativeWidth:k.width)
+                probeAmplitudeRelativeWidth:k.width, errorNormalization:.meanIntensity(p.preprocessing.meanIntensity))
             let g = [gap(r.object.real,k.object.real),gap(r.object.imaginary,k.object.imaginary),
                      gap(r.probe.real,k.probe.real),gap(r.probe.imaginary,k.probe.imaginary),gap(r.errors,k.errors)].max()!
             print("PTYCHO constraint \(k.name) gap: \(g)")
@@ -173,5 +177,33 @@ private func gap(_ a: [Double], _ b: [Double]) -> Double {
                     iterations:1, constrainProbeAmplitude:true, probeAmplitudeRelativeRadius:radius, probeAmplitudeRelativeWidth:width)
             }
         }
+    }
+}
+
+@Suite struct SingleSliceErrorNormalizationTests {
+    // `errors` are py4DSTEM's: divided by mean_intensity * positions, with the mean from preprocessing (negatives counted).
+    @Test func errorsFromRawCubeThroughPreprocessing() async throws {
+        let p = try pin()
+        let cube = try MemoryCube(shape: CubeShape(scanRows: 8, scanColumns: 8, detectorRows: p.rows, detectorColumns: p.columns),
+                                  values: p.preprocessing.raw.map { Float($0) })
+        let a = try await PtychographyPreparation.amplitudes(
+            from: cube, origins: .uniform(row: p.preprocessing.origin[0], column: p.preprocessing.origin[1]), shift: .bilinear)
+        #expect(gap(a.values, p.amplitudes) < 2e-6)
+        #expect(abs(a.meanIntensity - p.preprocessing.meanIntensity) / p.preprocessing.meanIntensity < 2e-6)
+        let probe = try PtychographyArray(rows:p.rows, columns:p.columns, real:p.initialProbe.real, imaginary:p.initialProbe.imaginary)
+        let object = try PtychographyArray(rows:p.objectRows, columns:p.objectColumns, real:p.initialObject.real, imaginary:p.initialObject.imaginary)
+        let positions = p.positions.map { PtychographyPosition(row:$0[0], column:$0[1]) }
+        func run(_ n: PtychographyErrorNormalization) throws -> SingleslicePtychography.Result {
+            try SingleslicePtychography.reconstruct(amplitudes:a.values, positions:positions, object:object, probe:probe,
+                iterations:3, stepSize:0.35, normalizationMinimum:0.7, errorNormalization:n)
+        }
+        let r = try run(a.errorNormalization)
+        let g = [gap(r.errors, p.errors), gap(r.object.real, p.object.real), gap(r.probe.real, p.probe.real)].max()!
+        print("ERRORNORM single through preprocessing: \(g)")
+        #expect(g < 2e-6)
+        let old = try run(.suppliedAmplitudeEnergy)
+        let relative = zip(old.errors, p.errors).map { abs($0 - $1) }.max()! / p.errors.map(abs).max()!
+        #expect(relative > 5e-3)                     // the pin tells the two normalisations apart
+        #expect(old.object.real == r.object.real)    // and the normalisation touches nothing else
     }
 }

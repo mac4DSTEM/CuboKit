@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import CuboCore
 import CuboPtycho
 
 private struct Cx: Decodable { let real: [Double]; let imaginary: [Double] }
@@ -10,14 +11,17 @@ private struct MixedCase: Decodable {
 }
 private struct Orth: Decodable { let input: Cx, output: Cx, count: Int }
 private struct Init: Decodable { let seed: UInt32, count: Int, first: Cx, meanIntensity: Double, states: Cx, draws: [Double] }
-private struct Mixed: Decodable { let amplitudes: [Double], startStates: Cx, cases: [MixedCase], orthogonalization: Orth, inits: [Init] }
+/// The raw Float32 cube that py4DSTEM's own `_normalize_diffraction_intensities` turned into `amplitudes` and `meanIntensity`
+/// (an origin shift, negative pixels clipped before the square root; the mean counts them, so it differs from the energy).
+private struct Pre: Decodable { let raw: [Double], origin: [Double], meanIntensity: Double, energyPerPosition: Double }
+private struct Mixed: Decodable { let preprocessing: Pre, amplitudes: [Double], startStates: Cx, cases: [MixedCase], orthogonalization: Orth, inits: [Init] }
 private struct SliceCase: Decodable {
     let name: String, slices: Int, thicknesses: [Double], fixProbeCenterOfMass: Bool, constrainProbeAmplitude: Bool
     let radius: Double, width: Double, fixProbe: Bool, purePhase: Bool, identicalSlices: Bool
     let object: Cx, probe: Cx, errors: [Double]
 }
 private struct Multi: Decodable {
-    let sliceThicknesses: [Double], propagators: Cx, amplitudes: [Double], startSlices: Cx, startProbe: Cx, cases: [SliceCase]
+    let preprocessing: Pre, sliceThicknesses: [Double], propagators: Cx, amplitudes: [Double], startSlices: Cx, startProbe: Cx, cases: [SliceCase]
 }
 private struct ExtraCase: Decodable {
     let engine: String, name: String, fixProbeCenterOfMass: Bool, fixProbeAperture: Bool, fixProbe: Bool, constrainProbeAmplitude: Bool
@@ -92,7 +96,8 @@ private func gramOffDiagonal(_ s: PtychographyStack) -> Double {
                 amplitudes: m.amplitudes, positions: positions(p), object: object, probes: probes, iterations: 3,
                 stepSize: 0.35, normalizationMinimum: 0.7, fixProbe: c.fixProbe, purePhaseObject: c.purePhase,
                 fixProbeCenterOfMass: c.fixProbeCenterOfMass, constrainProbeAmplitude: c.constrainProbeAmplitude,
-                probeAmplitudeRelativeRadius: c.radius, probeAmplitudeRelativeWidth: c.width, orthogonalizeProbes: c.orthogonalize)
+                probeAmplitudeRelativeRadius: c.radius, probeAmplitudeRelativeWidth: c.width, orthogonalizeProbes: c.orthogonalize,
+                errorNormalization: .meanIntensity(m.preprocessing.meanIntensity))
             let aligned = phaseAligned(r.probes, to: c.probes)
             let g = [gap(r.object, c.object), gap(r.errors, c.errors), gap(aligned, c.probes)]
             print("MIXED \(c.name) object \(g[0]) errors \(g[1]) probes \(g[2])")
@@ -211,7 +216,7 @@ private func gramOffDiagonal(_ s: PtychographyStack) -> Double {
                 stepSize: 0.35, normalizationMinimum: 0.7, fixProbe: c.fixProbe, purePhaseObject: c.purePhase,
                 identicalSlices: c.identicalSlices, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
                 constrainProbeAmplitude: c.constrainProbeAmplitude, probeAmplitudeRelativeRadius: c.radius,
-                probeAmplitudeRelativeWidth: c.width)
+                probeAmplitudeRelativeWidth: c.width, errorNormalization: .meanIntensity(m.preprocessing.meanIntensity))
             let g = [gap(r.object, c.object), gap(r.probe, c.probe), gap(r.errors, c.errors)]
             print("MULTISLICE \(c.name) object \(g[0]) probe \(g[1]) errors \(g[2])")
             #expect(g.max()! < 2e-6)
@@ -270,7 +275,8 @@ private func gramOffDiagonal(_ s: PtychographyStack) -> Double {
                     amplitudes: m.amplitudes, positions: positions(p), object: startObject, probe: startProbe, iterations: 3,
                     stepSize: 0.35, normalizationMinimum: 0.7, fixProbe: c.fixProbe, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
                     constrainProbeAmplitude: c.constrainProbeAmplitude, probeAmplitudeRelativeRadius: c.radius,
-                    probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support)
+                    probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support,
+                    errorNormalization: .meanIntensity(m.preprocessing.meanIntensity))
                 g = [gap(r.object, c.object), gap(r.probe, c.probe), gap(r.errors, c.errors)].max()!
             case "mixed":
                 let probes = try PtychographyStack((0..<2).map { try mixedStart.array(at: $0) })
@@ -278,7 +284,8 @@ private func gramOffDiagonal(_ s: PtychographyStack) -> Double {
                     amplitudes: p.mixed.amplitudes, positions: positions(p), object: startObject, probes: probes, iterations: 3,
                     stepSize: 0.35, normalizationMinimum: 0.7, fixProbe: c.fixProbe, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
                     constrainProbeAmplitude: c.constrainProbeAmplitude, probeAmplitudeRelativeRadius: c.radius,
-                    probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support)
+                    probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support,
+                    errorNormalization: .meanIntensity(p.mixed.preprocessing.meanIntensity))
                 g = [gap(r.object, c.object), gap(phaseAligned(r.probes, to: c.probe), c.probe), gap(r.errors, c.errors)].max()!
             default:
                 let object = try PtychographyStack(count: 3, rows: p.objectRows, columns: p.objectColumns,
@@ -288,7 +295,8 @@ private func gramOffDiagonal(_ s: PtychographyStack) -> Double {
                     wavelength: p.wavelength, rowSampling: p.rowSampling, columnSampling: p.columnSampling, iterations: 3,
                     stepSize: 0.35, normalizationMinimum: 0.7, fixProbe: c.fixProbe, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
                     constrainProbeAmplitude: c.constrainProbeAmplitude, probeAmplitudeRelativeRadius: c.radius,
-                    probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support)
+                    probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support,
+                    errorNormalization: .meanIntensity(m.preprocessing.meanIntensity))
                 g = [gap(r.object, c.object), gap(r.probe, c.probe), gap(r.errors, c.errors)].max()!
             }
             print("EXTRAS \(c.engine) \(c.name) gap \(g)")
@@ -303,6 +311,116 @@ private func gramOffDiagonal(_ s: PtychographyStack) -> Double {
         #expect(throws: PtychographyError.self) {
             try SingleslicePtychography.reconstruct(amplitudes: m.amplitudes, positions: positions(p), object: object, probe: probe,
                                                     probeSupportMask: [true])
+        }
+    }
+}
+
+private func relativeGap(_ a: [Double], _ b: [Double]) -> Double {
+    zip(a, b).map { abs($0 - $1) }.max()! / b.map(abs).max()!
+}
+private func cube(_ pre: Pre, positions: Int, side: Int) throws -> MemoryCube {
+    try MemoryCube(shape: CubeShape(scanRows: 8, scanColumns: positions / 8, detectorRows: side, detectorColumns: side),
+                   values: pre.raw.map { Float($0) })
+}
+
+@Suite struct ErrorNormalizationTests {
+    // py4DSTEM divides the summed squared residual by `mean_intensity * positions`, the mean counting the negative
+    // values that preprocessing clips; the energy of the clipped amplitudes is a different number (the pins' cubes make
+    // it differ by several percent, asserted by the generator). Errors: tolerance 2e-6 as the other engine pins.
+    @Test func mixedstateFromRawCubeThroughPreprocessing() async throws {
+        let p = try pin(), m = p.mixed
+        let a = try await PtychographyPreparation.amplitudes(
+            from: cube(m.preprocessing, positions: p.positions.count, side: p.rows),
+            origins: .uniform(row: m.preprocessing.origin[0], column: m.preprocessing.origin[1]), shift: .bilinear)
+        #expect(gap(a.values, m.amplitudes) < 2e-6)
+        #expect(abs(a.meanIntensity - m.preprocessing.meanIntensity) / m.preprocessing.meanIntensity < 2e-6)
+        let start = try stack(m.startStates, count: 3, rows: p.rows, columns: p.columns)
+        let object = try PtychographyArray(rows: p.objectRows, columns: p.objectColumns, real: p.initialObject.real, imaginary: p.initialObject.imaginary)
+        let c = m.cases[0]
+        let probes = try PtychographyStack((0..<c.numProbes).map { try start.array(at: $0) })
+        func run(_ n: PtychographyErrorNormalization) throws -> MixedstatePtychography.Result {
+            try MixedstatePtychography.reconstruct(amplitudes: a.values, positions: positions(p), object: object, probes: probes,
+                                                   iterations: 3, stepSize: 0.35, normalizationMinimum: 0.7, errorNormalization: n)
+        }
+        let r = try run(a.errorNormalization)
+        let g = gap(r.errors, c.errors)
+        print("ERRORNORM mixed through preprocessing: errors \(g)")
+        #expect(g < 2e-6)
+        // the old normalisation is measurably different, and changes nothing else
+        let old = try run(.suppliedAmplitudeEnergy)
+        #expect(relativeGap(old.errors, c.errors) > 5e-3)
+        #expect(old.object.real == r.object.real && old.probes.real == r.probes.real)
+        // the app's clipped mean is a named choice, equal to the energy per position
+        let clipped = try run(.meanIntensity(a.clippedMeanIntensity))
+        #expect(relativeGap(clipped.errors, old.errors) < 1e-12)
+    }
+
+    @Test func multisliceFromRawCubeThroughPreprocessing() async throws {
+        let p = try pin(), m = p.multislice
+        let a = try await PtychographyPreparation.amplitudes(
+            from: cube(m.preprocessing, positions: p.positions.count, side: p.rows),
+            origins: .uniform(row: m.preprocessing.origin[0], column: m.preprocessing.origin[1]), shift: .bilinear)
+        #expect(gap(a.values, m.amplitudes) < 2e-6)
+        #expect(abs(a.meanIntensity - m.preprocessing.meanIntensity) / m.preprocessing.meanIntensity < 2e-6)
+        let probe = try PtychographyArray(rows: p.rows, columns: p.columns, real: m.startProbe.real, imaginary: m.startProbe.imaginary)
+        let plane = p.objectRows * p.objectColumns
+        let object = try PtychographyStack(count: 3, rows: p.objectRows, columns: p.objectColumns,
+                                           real: Array(m.startSlices.real[0..<3*plane]), imaginary: Array(m.startSlices.imaginary[0..<3*plane]))
+        let c = m.cases[0]
+        func run(_ n: PtychographyErrorNormalization) throws -> MultislicePtychography.Result {
+            try MultislicePtychography.reconstruct(
+                amplitudes: a.values, positions: positions(p), object: object, probe: probe, sliceThicknesses: c.thicknesses,
+                wavelength: p.wavelength, rowSampling: p.rowSampling, columnSampling: p.columnSampling, iterations: 3,
+                stepSize: 0.35, normalizationMinimum: 0.7, errorNormalization: n)
+        }
+        let r = try run(a.errorNormalization)
+        let g = gap(r.errors, c.errors)
+        print("ERRORNORM multislice through preprocessing: errors \(g)")
+        #expect(g < 2e-6)
+        #expect(relativeGap(try run(.suppliedAmplitudeEnergy).errors, c.errors) > 5e-3)
+    }
+
+    // An exactly zero far-field pixel: py4DSTEM sets the amplitude there to infinity (the error is infinite, the update zero).
+    // Truth for the finite option: sum over pixels of (measured - amplitude)^2, hand-evaluated for a probe of ones on ones.
+    @Test func zeroFarFieldPixelInTheMixedStateError() throws {
+        let n = 4, count = 16
+        let ones = try PtychographyArray(rows: n, columns: n, real: [Double](repeating: 1, count: count), imaginary: [Double](repeating: 0, count: count))
+        let probes = try PtychographyStack([ones])
+        var measured = (0..<count).map { Double($0 % 5) + 1 }
+        measured[0] = 20
+        let positions = [PtychographyPosition(row: 0, column: 0)]
+        func run(_ z: MixedstateZeroPixelError) throws -> [Double] {
+            try MixedstatePtychography.reconstruct(amplitudes: measured, positions: positions, object: ones, probes: probes,
+                                                   iterations: 1, zeroFarFieldPixelError: z).errors
+        }
+        // far field of a constant 4x4 field of ones: 16 at the origin pixel, exactly 0 elsewhere (power-of-two transform)
+        let energy = measured.reduce(0) { $0 + $1*$1 }
+        let expected = ((20.0 - 16)*(20.0 - 16) + measured.dropFirst().reduce(0) { $0 + $1*$1 }) / energy
+        let finite = try run(.finite)
+        #expect(abs(finite[0] - expected) < 1e-12 * expected)
+        let reference = try run(.reference)
+        #expect(reference[0] == .infinity)
+        #expect(try run(.reference) == reference)          // and it is the default
+        let byDefault = try MixedstatePtychography.reconstruct(amplitudes: measured, positions: positions, object: ones, probes: probes, iterations: 1)
+        #expect(byDefault.errors == reference)
+        // the single-slice and multislice engines have no such term: a zero overlap keeps the measured amplitude
+        let single = try SingleslicePtychography.reconstruct(amplitudes: measured, positions: positions, object: ones, probe: ones, iterations: 1)
+        #expect(single.errors[0].isFinite && abs(single.errors[0] - expected) < 1e-12 * expected)
+    }
+
+    @Test func invalidNormalizationIsRefused() throws {
+        let n = 4, count = 16
+        let ones = try PtychographyArray(rows: n, columns: n, real: [Double](repeating: 1, count: count), imaginary: [Double](repeating: 0, count: count))
+        let amplitudes = [Double](repeating: 1, count: count)
+        let positions = [PtychographyPosition(row: 0, column: 0)]
+        for bad in [0.0, -1, .nan, .infinity] {
+            #expect(throws: PtychographyError.self) {
+                try SingleslicePtychography.reconstruct(amplitudes: amplitudes, positions: positions, object: ones, probe: ones,
+                                                        errorNormalization: .meanIntensity(bad))
+            }
+        }
+        #expect(throws: PtychographyError.self) {      // all-zero amplitudes: no energy to divide by
+            try SingleslicePtychography.reconstruct(amplitudes: [Double](repeating: 0, count: count), positions: positions, object: ones, probe: ones)
         }
     }
 }

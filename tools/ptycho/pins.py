@@ -9,7 +9,7 @@ import py4DSTEM
 from py4DSTEM.process.phase import SingleslicePtychography
 from py4DSTEM.process.phase.utils import ComplexProbe, electron_wavelength_angstrom
 KIT = Path(__file__).resolve().parents[2]
-REF = KIT.parents[1] / 'References/CuboKit/py4DSTEM-f050d207'
+REF = KIT.parents[0] / 'References/CuboKit/py4DSTEM-f050d207'
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'], text=True).strip().startswith('f050d207')
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.0'
 assert platform.python_version() == '3.12.4'
@@ -37,6 +37,21 @@ p._resample_exit_waves = False
 rows,cols = p._extract_vectorized_patch_indices(positions)
 shifted = p._return_shifted_probes(probe, positions-np.round(positions))
 amplitudes = np.abs(np.fft.fft2(shifted*obj[rows,cols])).astype(np.float32)
+# The engine data go through py4DSTEM's own preprocessing (_normalize_diffraction_intensities): a raw Float32 cube whose offset
+# and noise make many pixels negative, shifted by a fractional origin, square-rooted after clipping. The mean intensity it
+# returns counts the negative values, so it differs from the energy of the amplitudes and a wrong error normalisation fails.
+noise_rng = np.random.default_rng(777)
+ORIGIN = (0.3, -0.45)
+intensity = amplitudes.astype(np.float64)**2
+raw = (intensity - 0.8*intensity.mean() + noise_rng.normal(0, 0.5*intensity.mean(), intensity.shape)).astype(np.float32)
+a, mean_intensity, _, _ = p._normalize_diffraction_intensities(raw.reshape(8,8,n,n).copy(), np.full((8,8), ORIGIN[0]), np.full((8,8), ORIGIN[1]),
+                                                              None, False, False, shifting_interpolation_order=1)
+amplitudes = np.asarray(a, np.float32).reshape(len(positions), n, n)
+mean_intensity = float(mean_intensity)
+energy = float(np.sum(amplitudes.astype(np.float64)**2)/len(positions))
+assert abs(mean_intensity/energy - 1) > 0.02, (mean_intensity, energy)
+preprocessing = dict(raw=[float('%.9g' % v) for v in raw.astype(np.float64).ravel()], origin=list(ORIGIN),
+                     meanIntensity=mean_intensity, energyPerPosition=energy)
 # A fixed weak random phase avoids undefined Fourier phases of exact zeros
 # in the uniform-object start; Python complex64 and Double can choose
 # different phases for FFT roundoff at those zeros.
@@ -46,7 +61,7 @@ p._positions_px = positions.copy()
 p._positions_px_initial = positions.copy()
 p._amplitudes = amplitudes
 p._num_diffraction_patterns = len(positions)
-p._mean_diffraction_intensity = float(np.sum(amplitudes**2)/len(positions))
+p._mean_diffraction_intensity = mean_intensity
 p._object_fov_mask_inverse = np.zeros((side,side),bool)
 p._probe_initial_aperture = np.abs(np.fft.fft2(p._probe))
 p._preprocessed = True
@@ -59,12 +74,14 @@ p.reconstruct(num_iter=3, step_size=0.35, normalization_min=0.7, fix_probe_com=F
               tv_denoise=False, fix_potential_baseline=False, progress_bar=False, reset=False)
 out = dict(reference='py4DSTEM f050d207 / 0.14.19', numpy=np.__version__, seed=20261016,
            rows=n, columns=n, objectRows=side, objectColumns=side, positions=positions.tolist(),
-           amplitudes=flat(amplitudes), initialProbe=complex_array(initial_probe), initialObject=complex_array(initial_object),
+           amplitudes=flat(amplitudes), preprocessing=preprocessing, initialProbe=complex_array(initial_probe), initialObject=complex_array(initial_object),
            builtProbe=complex_array(probe), wavelength=float(electron_wavelength_angstrom(200e3)),
            object=complex_array(p._object), probe=complex_array(p._probe), errors=p.error_iterations)
 # Pin the two public constraint options and normalization endpoints with the same input.
 variants = []
-for fix, pure, minimum in [(True,False,0.0),(False,True,1.0)]:
+# 0.02, not 0: at exactly 0 the object update at weakly illuminated edge pixels is 1/|probe|^2 and its phase follows Float32
+# roundoff (5.2e-6 against the Double engine on the preprocessed data, 1.7e-6 on the earlier data); the port did not change.
+for fix, pure, minimum in [(True,False,0.02),(False,True,1.0)]:
     p._object = initial_object.copy(); p._probe = initial_probe.copy()
     p._positions_px = positions.copy()
     p.error_iterations = []

@@ -70,6 +70,8 @@ public struct PtychographyAmplitudes: Sendable {
     public let meanIntensity: Double
     /// The same sum with negative shifted values set to zero first (the app's `meanIntensity`).
     public let clippedMeanIntensity: Double
+    /// py4DSTEM's error normalisation for the engines: `.meanIntensity(meanIntensity)`.
+    public var errorNormalization: PtychographyErrorNormalization { .meanIntensity(meanIntensity) }
 }
 
 /// Options of ``PtychographyPreparation/prepare(source:origins:geometry:objectSamplingRow:objectSamplingColumn:wavelength:semiangle:options:)``.

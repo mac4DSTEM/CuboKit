@@ -1,6 +1,14 @@
 import Foundation
 import CuboCore
 
+/// What a mixed-state engine adds to its error for a far-field pixel whose summed state intensity is exactly zero.
+public enum MixedstateZeroPixelError: Sendable, Equatable {
+    /// py4DSTEM: an infinite term (it divides by an amplitude it has set to infinity), so the iteration's error is infinite.
+    case reference
+    /// A finite term, the measured intensity there (`measured^2`): the kit's behaviour before 0.5.0.
+    case finite
+}
+
 /// A finite stack of equally sized complex grids: probe states or object slices, `[index][row][column]`, Double.
 public struct PtychographyStack: Sendable {
     /// Number of grids, and the rows and columns of each.
@@ -134,10 +142,9 @@ public enum MixedstatePtychography {
     /// by the eigenvectors of their Gram matrix, sorted by decreasing intensity (also when `fixProbe` is set, as in
     /// py4DSTEM; pass `orthogonalizeProbes: false` to keep fixed states untouched). The overall phase of each orthogonalised
     /// state is an eigenvector convention (LAPACK's differs from this one's) and does not affect the object, the errors or any
-    /// intensity. An exactly zero far-field pixel contributes `measured^2` to the error and no update (py4DSTEM
-    /// sets its amplitude to infinity, so its update is zero and its error term, and the iteration's, is infinite).
-    /// Errors are normalised by the energy of `amplitudes` (py4DSTEM divides by the mean intensity of preprocessing,
-    /// `PtychographyAmplitudes.meanIntensity`, which includes negative shifted values).
+    /// intensity. An exactly zero far-field pixel gives no update; its error term is infinite as in py4DSTEM (which sets the
+    /// amplitude there to infinity, so the iteration's error is infinite) unless `zeroFarFieldPixelError` is `.finite`,
+    /// where it contributes `measured^2`. `errorNormalization` is as for ``SingleslicePtychography``.
     public static func reconstruct(amplitudes: [Double], positions: [PtychographyPosition],
                                    object: PtychographyArray, probes: PtychographyStack,
                                    iterations: Int = 8, stepSize: Double = 0.5, normalizationMinimum: Double = 1,
@@ -145,15 +152,18 @@ public enum MixedstatePtychography {
                                    fixProbeCenterOfMass: Bool = false, constrainProbeAmplitude: Bool = false,
                                    probeAmplitudeRelativeRadius: Double = 0.5, probeAmplitudeRelativeWidth: Double = 0.05,
                                    orthogonalizeProbes: Bool = true, fixProbeAperture: Bool = false,
-                                   probeSupportMask: [Bool]? = nil) throws -> Result {
+                                   probeSupportMask: [Bool]? = nil,
+                                   errorNormalization: PtychographyErrorNormalization = .suppliedAmplitudeEnergy,
+                                   zeroFarFieldPixelError: MixedstateZeroPixelError = .reference) throws -> Result {
         let n = probes.rows * probes.columns, count = positions.count, states = probes.count
         guard commonInputsAreValid(amplitudes: amplitudes, positions: positions, probeCount: n, iterations: iterations,
                                    stepSize: stepSize, normalizationMinimum: normalizationMinimum,
                                    radius: probeAmplitudeRelativeRadius, width: probeAmplitudeRelativeWidth),
               object.rows >= probes.rows, object.columns >= probes.columns,
               probeSupportMask == nil || probeSupportMask!.count == n else { throw PtychographyError.invalidInput }
-        let intensity = amplitudes.reduce(0) { $0+$1*$1 }
-        guard intensity > 0, intensity.isFinite else { throw PtychographyError.invalidInput }
+        guard let intensity = errorNormalization.divisor(amplitudes: amplitudes, positionCount: count) else {
+            throw PtychographyError.invalidInput
+        }
         let frame = Frame(rows: probes.rows, columns: probes.columns, objectRows: object.rows, objectColumns: object.columns)
         let initialAperture = fixProbeAperture ? fourierAmplitude(Array(probes.real[0..<n]), Array(probes.imaginary[0..<n]), frame.fft) : []
         var or = object.real, oi = object.imaginary, pr = probes.real, pi = probes.imaginary
@@ -188,7 +198,10 @@ public enum MixedstatePtychography {
                 var factor = [Double](repeating: 0, count: n)
                 for k in 0..<n {
                     let amplitude = farField[k].squareRoot(), measured = amplitudes[pattern*n+k]
-                    if amplitude == 0 { error += measured*measured; factor[k] = 0 }
+                    if amplitude == 0 {
+                        // py4DSTEM sets the amplitude to infinity: no update, an infinite term
+                        error += zeroFarFieldPixelError == .reference ? .infinity : measured*measured; factor[k] = 0
+                    }
                     else { error += (measured-amplitude)*(measured-amplitude); factor[k] = measured/amplitude - 1 }
                 }
                 for s in 0..<states {
@@ -436,7 +449,7 @@ public enum MultislicePtychography {
     /// the detector, then back through them. Each slice is updated with its own probe-intensity normalisation, the probe
     /// with slice 0's object intensity. After each iteration: `identicalSlices` replaces every slice by their mean
     /// (`identical_slices`), then the amplitude cap or unit amplitude (`purePhaseObject`) applies to all slices; then the
-    /// probe constraints as in ``SingleslicePtychography``. Tilted propagators, the z-regularisation filter and TV denoising
+    /// probe constraints as in ``SingleslicePtychography`` (which also describes `errorNormalization`). Tilted propagators, the z-regularisation filter and TV denoising
     /// are absent.
     public static func reconstruct(amplitudes: [Double], positions: [PtychographyPosition],
                                    object: PtychographyStack, probe: PtychographyArray, sliceThicknesses: [Double],
@@ -446,7 +459,8 @@ public enum MultislicePtychography {
                                    fixProbeCenterOfMass: Bool = false, constrainProbeAmplitude: Bool = false,
                                    probeAmplitudeRelativeRadius: Double = 0.5,
                                    probeAmplitudeRelativeWidth: Double = 0.05, fixProbeAperture: Bool = false,
-                                   probeSupportMask: [Bool]? = nil) throws -> Result {
+                                   probeSupportMask: [Bool]? = nil,
+                                   errorNormalization: PtychographyErrorNormalization = .suppliedAmplitudeEnergy) throws -> Result {
         let n = probe.real.count, count = positions.count, slices = object.count, plane = object.rows * object.columns
         guard commonInputsAreValid(amplitudes: amplitudes, positions: positions, probeCount: n, iterations: iterations,
                                    stepSize: stepSize, normalizationMinimum: normalizationMinimum,
@@ -454,8 +468,9 @@ public enum MultislicePtychography {
               object.rows >= probe.rows, object.columns >= probe.columns,
               sliceThicknesses.count == slices - 1,
               probeSupportMask == nil || probeSupportMask!.count == n else { throw PtychographyError.invalidInput }
-        let intensity = amplitudes.reduce(0) { $0+$1*$1 }
-        guard intensity > 0, intensity.isFinite else { throw PtychographyError.invalidInput }
+        guard let intensity = errorNormalization.divisor(amplitudes: amplitudes, positionCount: count) else {
+            throw PtychographyError.invalidInput
+        }
         let props = try propagators(rows: probe.rows, columns: probe.columns, rowSampling: rowSampling,
                                     columnSampling: columnSampling, wavelength: wavelength,
                                     sliceThicknesses: sliceThicknesses.isEmpty ? [0] : sliceThicknesses)

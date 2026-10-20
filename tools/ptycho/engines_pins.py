@@ -9,7 +9,7 @@ from pathlib import Path
 import json, subprocess, platform
 import numpy as np
 import py4DSTEM
-from py4DSTEM.process.phase import MixedstatePtychography, MultislicePtychography
+from py4DSTEM.process.phase import MixedstatePtychography, MultislicePtychography, SingleslicePtychography
 from py4DSTEM.process.phase.utils import ComplexProbe, electron_wavelength_angstrom, fft_shift
 KIT = Path(__file__).resolve().parents[2]
 REF = KIT.parents[0] / 'References/CuboKit/py4DSTEM-f050d207'
@@ -42,7 +42,24 @@ def noise_state(scale):
     z = np.fft.ifft2(zf)
     return (scale * z / np.sqrt(np.sum(np.abs(z)**2)) * np.sqrt(np.sum(np.abs(base)**2))).astype(np.complex64)
 
-def inject(p, amplitudes, probe, obj, shape3=None):
+# The engine data go through py4DSTEM's own preprocessing (_normalize_diffraction_intensities): a raw Float32 cube whose
+# offset and noise make many pixels negative, shifted by a fractional origin, square-rooted after clipping. The mean intensity py4DSTEM
+# returns (it counts the negative values) differs from the energy of the amplitudes, so a wrong error normalisation fails.
+pre = SingleslicePtychography(energy=200e3, verbose=False, object_type='complex')
+noise_rng = np.random.default_rng(777)
+ORIGIN = (0.3, -0.45)
+def through_preprocessing(model_amps):
+    intensity = model_amps.astype(np.float64)**2
+    raw = (intensity - 0.8*intensity.mean() + noise_rng.normal(0, 0.5*intensity.mean(), intensity.shape)).astype(np.float32)
+    comx = np.full((8,8), ORIGIN[0]); comy = np.full((8,8), ORIGIN[1])
+    a, mean, _, _ = pre._normalize_diffraction_intensities(raw.reshape(8,8,n,n).copy(), comx, comy, None, False, False,
+                                                           shifting_interpolation_order=1)
+    a = np.asarray(a, np.float32).reshape(len(positions), n, n)
+    energy = float(np.sum(a.astype(np.float64)**2)/len(positions))
+    assert abs(float(mean)/energy - 1) > 0.02, (float(mean), energy)       # the pin must tell the two normalisations apart
+    return dict(raw=flat(raw), origin=list(ORIGIN), meanIntensity=float(mean), energyPerPosition=energy), a, float(mean)
+
+def inject(p, amplitudes, probe, obj, mean):
     p._region_of_interest_shape = np.array((n,n))
     p._object_shape = np.array((side,side))
     p._resample_exit_waves = False
@@ -52,7 +69,7 @@ def inject(p, amplitudes, probe, obj, shape3=None):
     p._positions_px_initial = positions.copy()
     p._amplitudes = amplitudes
     p._num_diffraction_patterns = len(positions)
-    p._mean_diffraction_intensity = float(np.sum(amplitudes.astype(np.float64)**2)/len(positions))
+    p._mean_diffraction_intensity = mean
     p._object_fov_mask_inverse = np.zeros((side,side),bool)
     p._preprocessed = True
     p._sampling = sampling
@@ -66,12 +83,13 @@ common = dict(fix_positions=True, gaussian_filter=False, butterworth_filter=Fals
 true_states = np.stack([base, 0.55*fft_shift(base, np.array([1.5,-2.0]), np).astype(np.complex64), 0.3*noise_state(1.0)])
 start_states = np.stack([0.9*fft_shift(base, np.array([0.6,0.4]), np).astype(np.complex64), noise_state(0.5), noise_state(0.2)]).astype(np.complex64)
 dummy = MixedstatePtychography(energy=200e3, num_probes=3, object_type='complex', verbose=False)
-inject(dummy, np.zeros((len(positions),n,n),np.float32), start_states, start_obj)
+inject(dummy, np.zeros((len(positions),n,n),np.float32), start_states, start_obj, 1.0)
 dummy._num_probes = 3
 rows_idx, cols_idx = dummy._extract_vectorized_patch_indices(positions)
 shifted = dummy._return_shifted_probes(true_states, positions-np.round(positions))
 amps_mixed = np.sqrt(np.sum(np.abs(np.fft.fft2(shifted*true_obj[rows_idx,cols_idx][:,None]))**2, axis=1)).astype(np.float32)
-out['mixed'] = dict(amplitudes=flat(amps_mixed), startStates=cplx(start_states))
+mixed_pre, amps_mixed, mean_mixed = through_preprocessing(amps_mixed)
+out['mixed'] = dict(amplitudes=flat(amps_mixed), startStates=cplx(start_states), preprocessing=mixed_pre)
 
 mixed_cases = []
 for name, k, kw in [
@@ -83,7 +101,7 @@ for name, k, kw in [
     ('purePhaseThree', 3, dict(fix_probe_com=False, orthogonalize_probe=True, pure_phase_object=True)),
 ]:
     p = MixedstatePtychography(energy=200e3, num_probes=k, object_type='complex', verbose=False)
-    inject(p, amps_mixed, start_states[:k], start_obj)
+    inject(p, amps_mixed, start_states[:k], start_obj, mean_mixed)
     p._num_probes = k
     np.random.seed(1729)
     p.reconstruct(num_iter=3, step_size=0.35, normalization_min=0.7, **kw, **common)
@@ -123,7 +141,7 @@ props = dummy._precompute_propagator_arrays((n,n), sampling, 200e3, np.array(thi
 out['multislice'] = dict(sliceThicknesses=thick.tolist(), propagators=cplx(props))
 true_slices = np.stack([true_obj] + [((0.95+0.02*np.cos(r*0.17+k))*np.exp(1j*(0.12*np.sin(c*0.31+k)+0.1*np.cos(r*0.23)))).astype(np.complex64) for k in (1,2)])
 start_slices = np.stack([start_obj] + [(0.98*np.exp(1j*rng.normal(0,0.02,(side,side)))).astype(np.complex64) for _ in (1,2)])
-inject(dummy, np.zeros((len(positions),n,n),np.float32), base.copy(), start_slices)
+inject(dummy, np.zeros((len(positions),n,n),np.float32), base.copy(), start_slices, 1.0)
 dummy._object_shape = np.array((side,side))
 dummy._num_slices = 3
 dummy._propagator_arrays = props
@@ -132,8 +150,9 @@ obj_for_forward = true_slices
 shifted_probes_in = dummy._return_shifted_probes(base.copy(), positions-np.round(positions))
 _, _, overlap = dummy._overlap_projection(true_slices, rows_idx, cols_idx, shifted_probes_in)
 amps_ms = np.abs(np.fft.fft2(overlap)).astype(np.float32)
+ms_pre, amps_ms, mean_ms = through_preprocessing(amps_ms)
 start_probe = (0.93*fft_shift(base, np.array([0.5,-0.4]), np)).astype(np.complex64)
-out['multislice'].update(amplitudes=flat(amps_ms), startSlices=cplx(start_slices), startProbe=cplx(start_probe))
+out['multislice'].update(amplitudes=flat(amps_ms), preprocessing=ms_pre, startSlices=cplx(start_slices), startProbe=cplx(start_probe))
 ms_cases = []
 for name, ns, th, kw in [
     ('three', 3, [55.0, 80.0], dict(fix_probe_com=False)),
@@ -145,7 +164,7 @@ for name, ns, th, kw in [
     ('two', 2, [90.0], dict(fix_probe_com=False)),
 ]:
     p = MultislicePtychography(energy=200e3, num_slices=ns, slice_thicknesses=np.array(th), object_type='complex', verbose=False)
-    inject(p, amps_ms, start_probe, start_slices[:ns])
+    inject(p, amps_ms, start_probe, start_slices[:ns], mean_ms)
     p._object_shape = np.array((side,side))
     p._propagator_arrays = p._precompute_propagator_arrays((n,n), sampling, 200e3, np.array(th))
     np.random.seed(1729)
@@ -159,13 +178,12 @@ for name, ns, th, kw in [
 out['multislice']['cases'] = ms_cases
 
 # ---------------- extra probe constraints (aperture, real-space support) on all three engines ----------------
-from py4DSTEM.process.phase import SingleslicePtychography
 fx = np.fft.fftfreq(n)*n
 support = (np.hypot(fx[:,None], fx[None,:]) < 5.5)
 extras = dict(support=[bool(v) for v in support.ravel()])
 single_start = (0.93*fft_shift(base, np.array([0.5,-0.4]), np)).astype(np.complex64)
 p = SingleslicePtychography(energy=200e3, object_type='complex', verbose=False)
-inject(p, amps_ms[:,:,:], single_start, start_obj)    # amplitudes of the multislice forward model, used as data
+inject(p, amps_ms, single_start, start_obj, mean_ms)
 amps_single = amps_ms
 cases = []
 for name, kw in [('apertureAll', dict(fix_probe_com=True, fix_probe_aperture=True, constrain_probe_amplitude=True,
@@ -175,16 +193,16 @@ for name, kw in [('apertureAll', dict(fix_probe_com=True, fix_probe_aperture=Tru
     for engine in ('single', 'mixed', 'multislice'):
         if engine == 'single':
             q = SingleslicePtychography(energy=200e3, object_type='complex', verbose=False)
-            inject(q, amps_single, single_start, start_obj)
+            inject(q, amps_single, single_start, start_obj, mean_ms)
             ck = {}
         elif engine == 'mixed':
             q = MixedstatePtychography(energy=200e3, num_probes=2, object_type='complex', verbose=False)
-            inject(q, amps_mixed, start_states[:2], start_obj); q._num_probes = 2
+            inject(q, amps_mixed, start_states[:2], start_obj, mean_mixed); q._num_probes = 2
             ck = dict(orthogonalize_probe=True)
         else:
             th = [55.0, 80.0]
             q = MultislicePtychography(energy=200e3, num_slices=3, slice_thicknesses=np.array(th), object_type='complex', verbose=False)
-            inject(q, amps_ms, single_start, start_slices); q._object_shape = np.array((side,side))
+            inject(q, amps_ms, single_start, start_slices, mean_ms); q._object_shape = np.array((side,side))
             q._propagator_arrays = q._precompute_propagator_arrays((n,n), sampling, 200e3, np.array(th))
             ck = dict(tv_denoise_chambolle=False, kz_regularization_filter=False)
         np.random.seed(1729)

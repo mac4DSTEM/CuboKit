@@ -26,6 +26,27 @@ public enum PtychographyError: Error, Sendable {
     case invalidInput
 }
 
+/// How an engine divides the summed squared amplitude residual of an iteration to make its `errors`.
+public enum PtychographyErrorNormalization: Sendable, Equatable {
+    /// py4DSTEM: the residual divided by `meanIntensity * positionCount`, where `meanIntensity` is the preprocessing
+    /// mean (``PtychographyAmplitudes/meanIntensity``, which counts negative shifted values before they are clipped).
+    case meanIntensity(Double)
+    /// The residual divided by the energy `sum(amplitudes^2)` of the amplitudes the engine was given. This was the kit's
+    /// behaviour before 0.5.0 and is the only choice for amplitudes that did not come from ``PtychographyPreparation``;
+    /// it equals `.meanIntensity(m)` when `m * positionCount` is that energy (no negative value was clipped).
+    case suppliedAmplitudeEnergy
+
+    /// The divisor, or `nil` when it is not a positive finite number.
+    func divisor(amplitudes: [Double], positionCount: Int) -> Double? {
+        let d: Double
+        switch self {
+        case .meanIntensity(let mean): d = mean * Double(positionCount)
+        case .suppliedAmplitudeEnergy: d = amplitudes.reduce(0) { $0 + $1 * $1 }
+        }
+        return d.isFinite && d > 0 ? d : nil
+    }
+}
+
 /// A probe center in object pixels; fractional offsets use periodic Fourier translation.
 public struct PtychographyPosition: Sendable {
     /// Row and column coordinates.
@@ -96,6 +117,10 @@ public enum SingleslicePtychography {
     /// `probeSupportMask` (corner-centred, row-major, `true` = kept) zeroes the probe outside it
     /// (`probe_real_space_support_mask`); both follow the centre of mass and the aperture precedes the amplitude
     /// constraint, as in py4DSTEM. The object amplitude cap has no switch in py4DSTEM and stays unconditional.
+    ///
+    /// `errorNormalization` divides each iteration's squared residual: pass `.meanIntensity(m)` with the
+    /// ``PtychographyAmplitudes/meanIntensity`` of the preprocessing (``PtychographyAmplitudes/errorNormalization``) to get
+    /// py4DSTEM's `errors`; the default divides by the energy of `amplitudes` (they agree when no negative value was clipped).
     public static func reconstruct(amplitudes: [Double], positions: [PtychographyPosition],
                                    object: PtychographyArray, probe: PtychographyArray,
                                    iterations: Int = 8, stepSize: Double = 0.5,
@@ -106,7 +131,8 @@ public enum SingleslicePtychography {
                                    probeAmplitudeRelativeRadius: Double = 0.5,
                                    probeAmplitudeRelativeWidth: Double = 0.05,
                                    fixProbeAperture: Bool = false,
-                                   probeSupportMask: [Bool]? = nil) throws -> Result {
+                                   probeSupportMask: [Bool]? = nil,
+                                   errorNormalization: PtychographyErrorNormalization = .suppliedAmplitudeEnergy) throws -> Result {
         let n = probe.real.count, count = positions.count
         guard count > 0, count <= Int.max / n, amplitudes.count == count*n,
               amplitudes.allSatisfy({ $0.isFinite && $0 >= 0 }),
@@ -117,8 +143,9 @@ public enum SingleslicePtychography {
               probeAmplitudeRelativeWidth.isFinite, probeAmplitudeRelativeWidth > 0, probeAmplitudeRelativeWidth <= 0.5,
               object.rows >= probe.rows, object.columns >= probe.columns,
               probeSupportMask == nil || probeSupportMask!.count == n else { throw PtychographyError.invalidInput }
-        let intensity = amplitudes.reduce(0) { $0+$1*$1 }
-        guard intensity > 0, intensity.isFinite else { throw PtychographyError.invalidInput }
+        guard let intensity = errorNormalization.divisor(amplitudes: amplitudes, positionCount: count) else {
+            throw PtychographyError.invalidInput
+        }
         let fft = FFT2D(rows:probe.rows,columns:probe.columns)
         let initialAperture = fixProbeAperture ? fourierAmplitude(probe.real, probe.imaginary, fft) : []
         var or = object.real, oi = object.imaginary, pr = probe.real, pi = probe.imaginary
