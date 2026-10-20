@@ -157,6 +157,43 @@ for name, ns, th, kw in [
                          fixProbe=kw.get('fix_probe', False), purePhase=kw.get('pure_phase_object', False), identicalSlices=kw.get('identical_slices', False),
                          object=cplx(p._object), probe=cplx(p._probe), errors=p.error_iterations))
 out['multislice']['cases'] = ms_cases
+
+# ---------------- extra probe constraints (aperture, real-space support) on all three engines ----------------
+from py4DSTEM.process.phase import SingleslicePtychography
+fx = np.fft.fftfreq(n)*n
+support = (np.hypot(fx[:,None], fx[None,:]) < 5.5)
+extras = dict(support=[bool(v) for v in support.ravel()])
+single_start = (0.93*fft_shift(base, np.array([0.5,-0.4]), np)).astype(np.complex64)
+p = SingleslicePtychography(energy=200e3, object_type='complex', verbose=False)
+inject(p, amps_ms[:,:,:], single_start, start_obj)    # amplitudes of the multislice forward model, used as data
+amps_single = amps_ms
+cases = []
+for name, kw in [('apertureAll', dict(fix_probe_com=True, fix_probe_aperture=True, constrain_probe_amplitude=True,
+                                       constrain_probe_amplitude_relative_radius=0.4, constrain_probe_amplitude_relative_width=0.1)),
+                 ('supportOnly', dict(fix_probe_com=False))]:
+    for engine in ('single', 'mixed', 'multislice'):
+        if engine == 'single':
+            q = SingleslicePtychography(energy=200e3, object_type='complex', verbose=False)
+            inject(q, amps_single, single_start, start_obj)
+            ck = {}
+        elif engine == 'mixed':
+            q = MixedstatePtychography(energy=200e3, num_probes=2, object_type='complex', verbose=False)
+            inject(q, amps_mixed, start_states[:2], start_obj); q._num_probes = 2
+            ck = dict(orthogonalize_probe=True)
+        else:
+            th = [55.0, 80.0]
+            q = MultislicePtychography(energy=200e3, num_slices=3, slice_thicknesses=np.array(th), object_type='complex', verbose=False)
+            inject(q, amps_ms, single_start, start_slices); q._object_shape = np.array((side,side))
+            q._propagator_arrays = q._precompute_propagator_arrays((n,n), sampling, 200e3, np.array(th))
+            ck = dict(tv_denoise_chambolle=False, kz_regularization_filter=False)
+        np.random.seed(1729)
+        q.reconstruct(num_iter=3, step_size=0.35, normalization_min=0.7, probe_real_space_support_mask=support, **kw, **ck, **common)
+        cases.append(dict(engine=engine, name=name, fixProbeCenterOfMass=kw.get('fix_probe_com'), fixProbeAperture=kw.get('fix_probe_aperture', False),
+                          constrainProbeAmplitude=kw.get('constrain_probe_amplitude', False),
+                          radius=kw.get('constrain_probe_amplitude_relative_radius', 0.5), width=kw.get('constrain_probe_amplitude_relative_width', 0.05),
+                          object=cplx(q._object), probe=cplx(q._probe), errors=q.error_iterations))
+extras['cases'] = cases
+out['extras'] = extras
 dest = KIT/'Tests/CuboPtychoTests/Fixtures/engines.json'
 dest.write_text(json.dumps(out,separators=(',',':'))+'\n')
 print('fixture bytes', dest.stat().st_size)

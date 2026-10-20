@@ -92,7 +92,10 @@ public enum SingleslicePtychography {
     /// a smooth top-hat of the given relative radius and width in cycles per pixel and restores
     /// the probe's total intensity (`constrain_probe_amplitude`, `_relative_radius`,
     /// `_relative_width`; the radius lies in 0...0.5 and the width in (0, 0.5]).
-    /// The object amplitude cap has no switch in py4DSTEM and stays unconditional.
+    /// `fixProbeAperture` restores the Fourier amplitude of the probe given at the start (`fix_probe_aperture`) and
+    /// `probeSupportMask` (corner-centred, row-major, `true` = kept) zeroes the probe outside it
+    /// (`probe_real_space_support_mask`); both follow the centre of mass and the aperture precedes the amplitude
+    /// constraint, as in py4DSTEM. The object amplitude cap has no switch in py4DSTEM and stays unconditional.
     public static func reconstruct(amplitudes: [Double], positions: [PtychographyPosition],
                                    object: PtychographyArray, probe: PtychographyArray,
                                    iterations: Int = 8, stepSize: Double = 0.5,
@@ -101,7 +104,9 @@ public enum SingleslicePtychography {
                                    fixProbeCenterOfMass: Bool = false,
                                    constrainProbeAmplitude: Bool = false,
                                    probeAmplitudeRelativeRadius: Double = 0.5,
-                                   probeAmplitudeRelativeWidth: Double = 0.05) throws -> Result {
+                                   probeAmplitudeRelativeWidth: Double = 0.05,
+                                   fixProbeAperture: Bool = false,
+                                   probeSupportMask: [Bool]? = nil) throws -> Result {
         let n = probe.real.count, count = positions.count
         guard count > 0, count <= Int.max / n, amplitudes.count == count*n,
               amplitudes.allSatisfy({ $0.isFinite && $0 >= 0 }),
@@ -110,10 +115,12 @@ public enum SingleslicePtychography {
               positions.allSatisfy({ $0.row.isFinite && $0.column.isFinite && abs($0.row) < Double(Int.max/4) && abs($0.column) < Double(Int.max/4) }),
               probeAmplitudeRelativeRadius.isFinite, (0...0.5).contains(probeAmplitudeRelativeRadius),
               probeAmplitudeRelativeWidth.isFinite, probeAmplitudeRelativeWidth > 0, probeAmplitudeRelativeWidth <= 0.5,
-              object.rows >= probe.rows, object.columns >= probe.columns else { throw PtychographyError.invalidInput }
+              object.rows >= probe.rows, object.columns >= probe.columns,
+              probeSupportMask == nil || probeSupportMask!.count == n else { throw PtychographyError.invalidInput }
         let intensity = amplitudes.reduce(0) { $0+$1*$1 }
         guard intensity > 0, intensity.isFinite else { throw PtychographyError.invalidInput }
         let fft = FFT2D(rows:probe.rows,columns:probe.columns)
+        let initialAperture = fixProbeAperture ? fourierAmplitude(probe.real, probe.imaginary, fft) : []
         var or = object.real, oi = object.imaginary, pr = probe.real, pi = probe.imaginary
         var errors = [Double]()
         func wrapped(_ v: Int, _ n: Int) -> Int { let m = v % n; return m < 0 ? m+n : m }
@@ -178,10 +185,12 @@ public enum SingleslicePtychography {
                 pr[k] += s*pnr[k]; pi[k] += s*pni[k]
             }
             if fixProbeCenterOfMass { centerOfMassConstraint(&pr,&pi,fft) }
+            if fixProbeAperture { apertureConstraint(&pr,&pi,fft,aperture:initialAperture) }
             if constrainProbeAmplitude {
                 amplitudeConstraint(&pr,&pi,rows:probe.rows,columns:probe.columns,
                                     radius:probeAmplitudeRelativeRadius,width:probeAmplitudeRelativeWidth)
             }
+            if let mask = probeSupportMask { supportConstraint(&pr,&pi,mask:mask) }
             }
             errors.append(error/intensity)
         }

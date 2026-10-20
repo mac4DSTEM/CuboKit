@@ -19,7 +19,13 @@ private struct SliceCase: Decodable {
 private struct Multi: Decodable {
     let sliceThicknesses: [Double], propagators: Cx, amplitudes: [Double], startSlices: Cx, startProbe: Cx, cases: [SliceCase]
 }
+private struct ExtraCase: Decodable {
+    let engine: String, name: String, fixProbeCenterOfMass: Bool, fixProbeAperture: Bool, constrainProbeAmplitude: Bool
+    let radius: Double, width: Double, object: Cx, probe: Cx, errors: [Double]
+}
+private struct Extras: Decodable { let support: [Bool], cases: [ExtraCase] }
 private struct Pin: Decodable {
+    let extras: Extras
     let rows: Int, columns: Int, objectRows: Int, objectColumns: Int, rowSampling: Double, columnSampling: Double
     let wavelength: Double, positions: [[Double]], initialObject: Cx, mixed: Mixed, multislice: Multi
 }
@@ -244,6 +250,59 @@ private func gramOffDiagonal(_ s: PtychographyStack) -> Double {
         }
         #expect(throws: PtychographyError.self) {
             try MultislicePtychography.propagators(rows: 8, columns: 8, rowSampling: 0, columnSampling: 1, wavelength: 0.02, sliceThicknesses: [1])
+        }
+    }
+}
+
+@Suite struct ProbeSupportAndApertureTests {
+    // Fixed-aperture and real-space-support constraints on all three engines (2e-6, as the other engine pins).
+    @Test func apertureAndSupportAgainstPy4DSTEM() throws {
+        let p = try pin(), m = p.multislice, x = p.extras
+        let plane = p.objectRows * p.objectColumns
+        let startProbe = try PtychographyArray(rows: p.rows, columns: p.columns, real: m.startProbe.real, imaginary: m.startProbe.imaginary)
+        let startObject = try PtychographyArray(rows: p.objectRows, columns: p.objectColumns, real: p.initialObject.real, imaginary: p.initialObject.imaginary)
+        let mixedStart = try stack(p.mixed.startStates, count: 3, rows: p.rows, columns: p.columns)
+        for c in x.cases {
+            let g: Double
+            switch c.engine {
+            case "single":
+                let r = try SingleslicePtychography.reconstruct(
+                    amplitudes: m.amplitudes, positions: positions(p), object: startObject, probe: startProbe, iterations: 3,
+                    stepSize: 0.35, normalizationMinimum: 0.7, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
+                    constrainProbeAmplitude: c.constrainProbeAmplitude, probeAmplitudeRelativeRadius: c.radius,
+                    probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support)
+                g = [gap(r.object, c.object), gap(r.probe, c.probe), gap(r.errors, c.errors)].max()!
+            case "mixed":
+                let probes = try PtychographyStack((0..<2).map { try mixedStart.array(at: $0) })
+                let r = try MixedstatePtychography.reconstruct(
+                    amplitudes: p.mixed.amplitudes, positions: positions(p), object: startObject, probes: probes, iterations: 3,
+                    stepSize: 0.35, normalizationMinimum: 0.7, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
+                    constrainProbeAmplitude: c.constrainProbeAmplitude, probeAmplitudeRelativeRadius: c.radius,
+                    probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support)
+                g = [gap(r.object, c.object), gap(phaseAligned(r.probes, to: c.probe), c.probe), gap(r.errors, c.errors)].max()!
+            default:
+                let object = try PtychographyStack(count: 3, rows: p.objectRows, columns: p.objectColumns,
+                                                   real: Array(m.startSlices.real[0..<3*plane]), imaginary: Array(m.startSlices.imaginary[0..<3*plane]))
+                let r = try MultislicePtychography.reconstruct(
+                    amplitudes: m.amplitudes, positions: positions(p), object: object, probe: startProbe, sliceThicknesses: [55, 80],
+                    wavelength: p.wavelength, rowSampling: p.rowSampling, columnSampling: p.columnSampling, iterations: 3,
+                    stepSize: 0.35, normalizationMinimum: 0.7, fixProbeCenterOfMass: c.fixProbeCenterOfMass,
+                    constrainProbeAmplitude: c.constrainProbeAmplitude, probeAmplitudeRelativeRadius: c.radius,
+                    probeAmplitudeRelativeWidth: c.width, fixProbeAperture: c.fixProbeAperture, probeSupportMask: x.support)
+                g = [gap(r.object, c.object), gap(r.probe, c.probe), gap(r.errors, c.errors)].max()!
+            }
+            print("EXTRAS \(c.engine) \(c.name) gap \(g)")
+            #expect(g < 2e-6)
+        }
+    }
+
+    @Test func supportMustMatchTheProbe() throws {
+        let p = try pin(), m = p.multislice
+        let probe = try PtychographyArray(rows: p.rows, columns: p.columns, real: m.startProbe.real, imaginary: m.startProbe.imaginary)
+        let object = try PtychographyArray(rows: p.objectRows, columns: p.objectColumns, real: p.initialObject.real, imaginary: p.initialObject.imaginary)
+        #expect(throws: PtychographyError.self) {
+            try SingleslicePtychography.reconstruct(amplitudes: m.amplitudes, positions: positions(p), object: object, probe: probe,
+                                                    probeSupportMask: [true])
         }
     }
 }

@@ -142,15 +142,18 @@ public enum MixedstatePtychography {
                                    fixProbe: Bool = false, purePhaseObject: Bool = false,
                                    fixProbeCenterOfMass: Bool = false, constrainProbeAmplitude: Bool = false,
                                    probeAmplitudeRelativeRadius: Double = 0.5, probeAmplitudeRelativeWidth: Double = 0.05,
-                                   orthogonalizeProbes: Bool = true) throws -> Result {
+                                   orthogonalizeProbes: Bool = true, fixProbeAperture: Bool = false,
+                                   probeSupportMask: [Bool]? = nil) throws -> Result {
         let n = probes.rows * probes.columns, count = positions.count, states = probes.count
         guard commonInputsAreValid(amplitudes: amplitudes, positions: positions, probeCount: n, iterations: iterations,
                                    stepSize: stepSize, normalizationMinimum: normalizationMinimum,
                                    radius: probeAmplitudeRelativeRadius, width: probeAmplitudeRelativeWidth),
-              object.rows >= probes.rows, object.columns >= probes.columns else { throw PtychographyError.invalidInput }
+              object.rows >= probes.rows, object.columns >= probes.columns,
+              probeSupportMask == nil || probeSupportMask!.count == n else { throw PtychographyError.invalidInput }
         let intensity = amplitudes.reduce(0) { $0+$1*$1 }
         guard intensity > 0, intensity.isFinite else { throw PtychographyError.invalidInput }
         let frame = Frame(rows: probes.rows, columns: probes.columns, objectRows: object.rows, objectColumns: object.columns)
+        let initialAperture = fixProbeAperture ? fourierAmplitude(Array(probes.real[0..<n]), Array(probes.imaginary[0..<n]), frame.fft) : []
         var or = object.real, oi = object.imaginary, pr = probes.real, pi = probes.imaginary
         var errors = [Double]()
         let m = normalizationMinimum
@@ -215,10 +218,20 @@ public enum MixedstatePtychography {
                         pr.replaceSubrange(s*n..<(s+1)*n, with: re); pi.replaceSubrange(s*n..<(s+1)*n, with: im)
                     }
                 }
+                if fixProbeAperture {
+                    var re = Array(pr[0..<n]), im = Array(pi[0..<n])
+                    apertureConstraint(&re, &im, frame.fft, aperture: initialAperture)
+                    pr.replaceSubrange(0..<n, with: re); pi.replaceSubrange(0..<n, with: im)
+                }
                 if constrainProbeAmplitude { for s in 0..<states {
                     var re = Array(pr[s*n..<(s+1)*n]), im = Array(pi[s*n..<(s+1)*n])
                     amplitudeConstraint(&re, &im, rows: probes.rows, columns: probes.columns,
                                         radius: probeAmplitudeRelativeRadius, width: probeAmplitudeRelativeWidth)
+                    pr.replaceSubrange(s*n..<(s+1)*n, with: re); pi.replaceSubrange(s*n..<(s+1)*n, with: im)
+                } }
+                if let mask = probeSupportMask { for s in 0..<states {
+                    var re = Array(pr[s*n..<(s+1)*n]), im = Array(pi[s*n..<(s+1)*n])
+                    supportConstraint(&re, &im, mask: mask)
                     pr.replaceSubrange(s*n..<(s+1)*n, with: re); pi.replaceSubrange(s*n..<(s+1)*n, with: im)
                 } }
             }
@@ -428,13 +441,15 @@ public enum MultislicePtychography {
                                    fixProbe: Bool = false, purePhaseObject: Bool = false, identicalSlices: Bool = false,
                                    fixProbeCenterOfMass: Bool = false, constrainProbeAmplitude: Bool = false,
                                    probeAmplitudeRelativeRadius: Double = 0.5,
-                                   probeAmplitudeRelativeWidth: Double = 0.05) throws -> Result {
+                                   probeAmplitudeRelativeWidth: Double = 0.05, fixProbeAperture: Bool = false,
+                                   probeSupportMask: [Bool]? = nil) throws -> Result {
         let n = probe.real.count, count = positions.count, slices = object.count, plane = object.rows * object.columns
         guard commonInputsAreValid(amplitudes: amplitudes, positions: positions, probeCount: n, iterations: iterations,
                                    stepSize: stepSize, normalizationMinimum: normalizationMinimum,
                                    radius: probeAmplitudeRelativeRadius, width: probeAmplitudeRelativeWidth),
               object.rows >= probe.rows, object.columns >= probe.columns,
-              sliceThicknesses.count == slices - 1 else { throw PtychographyError.invalidInput }
+              sliceThicknesses.count == slices - 1,
+              probeSupportMask == nil || probeSupportMask!.count == n else { throw PtychographyError.invalidInput }
         let intensity = amplitudes.reduce(0) { $0+$1*$1 }
         guard intensity > 0, intensity.isFinite else { throw PtychographyError.invalidInput }
         let props = try propagators(rows: probe.rows, columns: probe.columns, rowSampling: rowSampling,
@@ -444,6 +459,7 @@ public enum MultislicePtychography {
         var or = object.real, oi = object.imaginary, pr = probe.real, pi = probe.imaginary
         var errors = [Double]()
         let m = normalizationMinimum
+        let initialAperture = fixProbeAperture ? fourierAmplitude(probe.real, probe.imaginary, frame.fft) : []
 
         func propagate(_ re: inout [Double], _ im: inout [Double], slice s: Int, conjugate: Bool) {
             frame.fft.transform(&re, &im, inverse: false)
@@ -538,10 +554,12 @@ public enum MultislicePtychography {
             for j in or.indices { threshold(&or[j], &oi[j], pure: purePhaseObject) }
             if !fixProbe {
                 if fixProbeCenterOfMass { centerOfMassConstraint(&pr, &pi, frame.fft) }
+                if fixProbeAperture { apertureConstraint(&pr, &pi, frame.fft, aperture: initialAperture) }
                 if constrainProbeAmplitude {
                     amplitudeConstraint(&pr, &pi, rows: probe.rows, columns: probe.columns,
                                         radius: probeAmplitudeRelativeRadius, width: probeAmplitudeRelativeWidth)
                 }
+                if let mask = probeSupportMask { supportConstraint(&pr, &pi, mask: mask) }
             }
             errors.append(error/intensity)
         }

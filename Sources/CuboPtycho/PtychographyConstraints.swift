@@ -54,6 +54,34 @@ func amplitudeConstraint(_ re: inout [Double], _ im: inout [Double], rows: Int, 
     for k in re.indices { re[k] *= scale; im[k] *= scale }
 }
 
+/// py4DSTEM `_probe_aperture_constraint`: keep the probe's Fourier phase, restore the initial Fourier amplitude
+/// (`aperture`, row-major, `|fft2(initial probe)|`), then the original total intensity.
+func apertureConstraint(_ re: inout [Double], _ im: inout [Double], _ fft: FFT2D, aperture: [Double]) {
+    let before = zip(re,im).reduce(0) { $0 + $1.0*$1.0 + $1.1*$1.1 }
+    fft.transform(&re, &im, inverse: false)
+    for k in re.indices {
+        let phase = atan2(im[k], re[k])
+        re[k] = aperture[k]*cos(phase); im[k] = aperture[k]*sin(phase)
+    }
+    fft.transform(&re, &im, inverse: true)
+    let after = zip(re,im).reduce(0) { $0 + $1.0*$1.0 + $1.1*$1.1 }
+    guard before > 0, after > 0 else { return }
+    let scale = (before/after).squareRoot()
+    for k in re.indices { re[k] *= scale; im[k] *= scale }
+}
+
+/// py4DSTEM `_probe_real_space_support_constraint`: zero outside the corner-centred boolean `mask`.
+func supportConstraint(_ re: inout [Double], _ im: inout [Double], mask: [Bool]) {
+    for k in re.indices where !mask[k] { re[k] = 0; im[k] = 0 }
+}
+
+/// The Fourier amplitude of a probe, row-major (py4DSTEM `_probe_initial_aperture`).
+func fourierAmplitude(_ re: [Double], _ im: [Double], _ fft: FFT2D) -> [Double] {
+    var r = re, i = im
+    fft.transform(&r, &i, inverse: false)
+    return zip(r, i).map { hypot($0, $1) }
+}
+
 /// Positions finite and small enough to round to an integer pixel.
 func positionsAreUsable(_ positions: [PtychographyPosition]) -> Bool {
     positions.allSatisfy { $0.row.isFinite && $0.column.isFinite && abs($0.row) < Double(Int.max/4) && abs($0.column) < Double(Int.max/4) }
