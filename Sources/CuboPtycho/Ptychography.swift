@@ -190,43 +190,4 @@ public enum SingleslicePtychography {
     }
 }
 
-/// py4DSTEM `_probe_center_of_mass_constraint`: corner-centered intensity CoM, then a Fourier shift by its negative.
-private func centerOfMassConstraint(_ re: inout [Double], _ im: inout [Double], _ fft: FFT2D) {
-    let rows = fft.rows, columns = fft.columns
-    var total = 0.0, comRow = 0.0, comColumn = 0.0
-    for r in 0..<rows { for c in 0..<columns {
-        let k = r*columns+c, w = re[k]*re[k]+im[k]*im[k]
-        total += w
-        comRow += frequency(r,rows)*Double(rows)*w; comColumn += frequency(c,columns)*Double(columns)*w
-    } }
-    guard total > 0, total.isFinite else { return }
-    comRow /= total; comColumn /= total
-    fft.transform(&re,&im,inverse:false)
-    for r in 0..<rows { for c in 0..<columns {
-        let k = r*columns+c
-        let phase = -2 * Double.pi * (frequency(r,rows)*(-comRow)+frequency(c,columns)*(-comColumn))
-        let cosine = cos(phase), sine = sin(phase), a = re[k], b = im[k]
-        re[k] = a*cosine-b*sine; im[k] = a*sine+b*cosine
-    } }
-    fft.transform(&re,&im,inverse:true)
-}
-
-/// py4DSTEM `_probe_amplitude_constraint`: smooth top-hat in cycles per pixel, total intensity restored.
-private func amplitudeConstraint(_ re: inout [Double], _ im: inout [Double], rows: Int, columns: Int,
-                                 radius: Double, width: Double) {
-    let before = zip(re,im).reduce(0) { $0 + $1.0*$1.0 + $1.1*$1.1 }
-    let sigma = Double.pi.squareRoot()/width
-    var after = 0.0
-    for r in 0..<rows { for c in 0..<columns {
-        let k = r*columns+c
-        let d = hypot(frequency(r,rows),frequency(c,columns)) - radius
-        let mask = 0.5*(1-erf(sigma*d/(1-d*d)))
-        re[k] *= mask; im[k] *= mask
-        after += re[k]*re[k]+im[k]*im[k]
-    } }
-    guard before > 0, after > 0 else { return }
-    let scale = (before/after).squareRoot()
-    for k in re.indices { re[k] *= scale; im[k] *= scale }
-}
-
-private func frequency(_ k: Int, _ n: Int) -> Double { Double(k < (n+1)/2 ? k : k-n)/Double(n) }
+func frequency(_ k: Int, _ n: Int) -> Double { Double(k < (n+1)/2 ? k : k-n)/Double(n) }
