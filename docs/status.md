@@ -1,5 +1,7 @@
 # Status
 
+**Hand-off 2026-10-20:** done: D12 wording in CLAUDE.md, docs and test comments (d43b531); next: convert the tests that assert numerics exactly against a Python reference to written per-function tolerances (a code change, one per release).
+
 What is live, one table; then the hand-off. Rules are in `CLAUDE.md`; the registration in `docs/registration-slice-1.md`;
 parity with py4DSTEM in `docs/parity.md`; what mac4DSTEM changes to import the kit in `docs/consumers-0.0.1.md` to
 `docs/consumers-0.1.0.md`, `docs/consumers-0.2.0.md`; from 0.3.0 the `CHANGELOG.md` Migration paragraph.
