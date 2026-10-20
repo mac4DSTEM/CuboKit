@@ -76,4 +76,38 @@ private func crop(_ a: [Int]?) -> AxisCrop? { a.map { AxisCrop(rowOffset: $0[0],
         #expect(AxisCrop.enclosing(firstRow: -3, firstColumn: -3, lastRow: 50, lastColumn: 50, planeRows: 10, planeColumns: 12) == nil)
         #expect(AxisCrop.enclosing(firstRow: .nan, firstColumn: 0, lastRow: 1, lastColumn: 1, planeRows: 10, planeColumns: 12) == nil)
     }
+
+    // The initialiser and `enclosing` take any integers: nothing here may trap (overflow) on a hostile crop or stride.
+    @Test func hostileIntegersNeverTrap() throws {
+        let wide = AxisCrop(rowOffset: Int.max - 1, columnOffset: Int.max, rows: Int.max, columns: Int.max)
+        #expect(wide.rowRange == (Int.max - 1)..<Int.max && wide.columnRange == Int.max..<Int.max)      // saturates, still a valid range
+        let negative = AxisCrop(rowOffset: Int.min, columnOffset: -5, rows: -3, columns: Int.max)
+        #expect(negative.rowRange == Int.min..<Int.min && negative.columnRange == (-5)..<(Int.max - 5))
+        #expect(AxisCrop(rowOffset: 2, columnOffset: 3, rows: 4, columns: 5).rowRange == 2..<6)
+        for crop in [wide, negative, AxisCrop(rowOffset: 0, columnOffset: 0, rows: Int.max, columns: Int.max)] {
+            #expect(!crop.fits(rows: 10, columns: 10))
+        }
+        #expect(!AxisCrop(rowOffset: 1, columnOffset: 1, rows: 1, columns: 1).fits(rows: Int.min, columns: Int.min))
+        #expect(AxisCrop(rowOffset: 0, columnOffset: 0, rows: 10, columns: 10).fits(rows: 10, columns: 10))
+        let shape = try CubeShape(scanRows: 3, scanColumns: 4, detectorRows: 5, detectorColumns: 6)
+        #expect(throws: CuboError.self) {
+            _ = try CubeViewGeometry(source: shape, specification: CubeViewSpecification(scanCrop: wide))
+        }
+        #expect(throws: CuboError.self) {
+            _ = try CubeViewGeometry(source: shape, specification: CubeViewSpecification(detectorCrop: negative))
+        }
+        // a stride product beyond Int: refused (nil), as is a coordinate times a stride that overflows
+        #expect(AxisCrop.enclosing(firstRow: 2, firstColumn: 2, lastRow: 3, lastColumn: 3, strideRows: Int.max,
+                                   planeRows: 10, planeColumns: 10) == nil)
+        #expect(AxisCrop.enclosing(firstRow: 2, firstColumn: 2, lastRow: 3, lastColumn: 3, strideColumns: Int.max / 2 + 1,
+                                   planeRows: 10, planeColumns: 10) == nil)
+        #expect(AxisCrop.enclosing(firstRow: 2_000_000_000, firstColumn: 0, lastRow: 2_000_000_000, lastColumn: 0,
+                                   strideRows: 1 << 40, planeRows: 10, planeColumns: 10) == nil)
+        // the largest strides that fit still work: coordinates 0 and 0 -> rows 0..<stride clamped to the plane
+        #expect(AxisCrop.enclosing(firstRow: 0, firstColumn: 1, lastRow: 0, lastColumn: 1, strideRows: Int.max,
+                                   planeRows: 10, planeColumns: 10) == AxisCrop(rowOffset: 0, columnOffset: 1, rows: 10, columns: 1))
+        // an extreme plane size is not a trap either
+        #expect(AxisCrop.enclosing(firstRow: 1, firstColumn: 1, lastRow: 2, lastColumn: 2, planeRows: Int.max, planeColumns: Int.max)
+                == AxisCrop(rowOffset: 1, columnOffset: 1, rows: 2, columns: 2))
+    }
 }

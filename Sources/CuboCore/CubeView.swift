@@ -20,20 +20,32 @@ public struct AxisCrop: Sendable, Equatable {
     public init(rowOffset: Int, columnOffset: Int, rows: Int, columns: Int) {
         self.rowOffset = rowOffset; self.columnOffset = columnOffset; self.rows = rows; self.columns = columns
     }
-    /// The rows covered.
-    public var rowRange: Range<Int> { rowOffset..<(rowOffset + max(0, rows)) }
-    /// The columns covered.
-    public var columnRange: Range<Int> { columnOffset..<(columnOffset + max(0, columns)) }
+    /// The rows covered. The end saturates at `Int.max` instead of overflowing (the initialiser is public and takes any
+    /// integers; such a crop does not fit any plane and `fits` and ``CubeViewGeometry`` refuse it).
+    public var rowRange: Range<Int> { Self.range(from: rowOffset, count: rows) }
+    /// The columns covered (saturating like ``rowRange``).
+    public var columnRange: Range<Int> { Self.range(from: columnOffset, count: columns) }
+    private static func range(from offset: Int, count: Int) -> Range<Int> {
+        let (end, overflow) = offset.addingReportingOverflow(max(0, count))
+        return offset..<(overflow ? Int.max : end)
+    }
     /// Whether the rectangle is non-empty and lies inside a `rows x columns` plane.
     public func fits(rows planeRows: Int, columns planeColumns: Int) -> Bool {
-        rowOffset >= 0 && columnOffset >= 0 && rows > 0 && columns > 0
-            && rowOffset <= planeRows - rows && columnOffset <= planeColumns - columns
+        guard rowOffset >= 0, columnOffset >= 0, rows > 0, columns > 0 else { return false }
+        let (lastRowStart, rowOverflow) = planeRows.subtractingReportingOverflow(rows)
+        let (lastColumnStart, columnOverflow) = planeColumns.subtractingReportingOverflow(columns)
+        return !rowOverflow && !columnOverflow && rowOffset <= lastRowStart && columnOffset <= lastColumnStart
+    }
+
+    private static func scaled(_ value: Int, by stride: Int) -> Int? {
+        let (product, overflow) = value.multipliedReportingOverflow(by: stride)
+        return overflow ? nil : product
     }
 
     /// The smallest whole-pixel crop enclosing a pointer rectangle, in pixels of a plane scaled by `strideRows` and
     /// `strideColumns` (a decimated overview), clamped to the plane. The rectangle's corners are floored; the far corner
     /// is included (`floor(max) + 1`); at least one pixel survives. `nil` when the rectangle is not finite, the plane is
-    /// empty, or the crop is the whole plane (no crop).
+    /// empty, a stride product overflows, or the crop is the whole plane (no crop).
     public static func enclosing(firstRow: Double, firstColumn: Double, lastRow: Double, lastColumn: Double,
                                  strideRows: Int = 1, strideColumns: Int = 1,
                                  planeRows: Int, planeColumns: Int) -> AxisCrop? {
@@ -41,8 +53,11 @@ public struct AxisCrop: Sendable, Equatable {
               [firstRow, firstColumn, lastRow, lastColumn].allSatisfy({ $0.isFinite && abs($0) < Double(Int32.max) })
         else { return nil }
         let sr = max(1, strideRows), sc = max(1, strideColumns)
-        let r0 = Int(min(firstRow, lastRow).rounded(.down)) * sr, c0 = Int(min(firstColumn, lastColumn).rounded(.down)) * sc
-        let r1 = (Int(max(firstRow, lastRow).rounded(.down)) + 1) * sr, c1 = (Int(max(firstColumn, lastColumn).rounded(.down)) + 1) * sc
+        // the strides are caller integers: a product that does not fit an Int is refused (nil), never a trap
+        guard let r0 = scaled(Int(min(firstRow, lastRow).rounded(.down)), by: sr),
+              let c0 = scaled(Int(min(firstColumn, lastColumn).rounded(.down)), by: sc),
+              let r1 = scaled(Int(max(firstRow, lastRow).rounded(.down)) + 1, by: sr),
+              let c1 = scaled(Int(max(firstColumn, lastColumn).rounded(.down)) + 1, by: sc) else { return nil }
         let cr0 = min(max(0, r0), planeRows - 1), cc0 = min(max(0, c0), planeColumns - 1)
         let cr1 = min(max(cr0 + 1, r1), planeRows), cc1 = min(max(cc0 + 1, c1), planeColumns)
         let h = cr1 - cr0, w = cc1 - cc0
