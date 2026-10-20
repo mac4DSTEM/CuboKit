@@ -64,17 +64,44 @@ public enum LatticeStrain {
     /// nearest is g1, and g2 minimizes distance * (cos(angle-angle_g1)^2 + 0.1).
     /// This is the numeric selection step of `StrainMap.choose_basis_vectors`.
     public static func chooseBasis(maxima: [LatticeVector], origin: LatticeVector) throws -> LatticeBasis {
+        try chooseBasis(maxima: maxima, origin: origin, indexOrigin: nil, indexG1: nil, indexG2: nil).basis
+    }
+    /// The three maxima chosen as origin, g1 and g2, with the basis they span.
+    public struct BasisChoice: Sendable, Equatable {
+        /// Index into the maxima of the lattice origin (py4DSTEM `index_origin`).
+        public let originIndex: Int
+        /// Index of the maximum that defines g1.
+        public let g1Index: Int
+        /// Index of the maximum that defines g2.
+        public let g2Index: Int
+        /// The position of the origin maximum (py4DSTEM `g0`).
+        public let g0: LatticeVector
+        /// g1 and g2 relative to `g0`.
+        public let basis: LatticeBasis
+    }
+    /// `StrainMap.choose_basis_vectors`' selection with optional explicit indices: an index left nil is guessed exactly
+    /// as py4DSTEM guesses it (origin nearest `origin`; g1 next nearest; g2 minimizing distance * (cos² + 0.1)), and an
+    /// index given is used as is, so a given origin index leaves its distance unchanged, as in py4DSTEM.
+    /// Throws `invalidInput` for fewer than three maxima or an index out of range.
+    public static func chooseBasis(maxima: [LatticeVector], origin: LatticeVector,
+                                   indexOrigin: Int?, indexG1: Int?, indexG2: Int?) throws -> BasisChoice {
         guard maxima.count >= 3, maxima.allSatisfy(finite), finite(origin) else { throw LatticeStrainError.invalidInput }
+        for i in [indexOrigin, indexG1, indexG2] { if let i, !maxima.indices.contains(i) { throw LatticeStrainError.invalidInput } }
         var d = maxima.map { hypot($0.row-origin.row, $0.column-origin.column) }
         let angles = maxima.map { atan2($0.column-origin.column, $0.row-origin.row) }
-        let i0 = d.indices.min(by: { d[$0] < d[$1] })!
-        d[i0] = 2 * d.max()!
-        let i1 = d.indices.min(by: { d[$0] < d[$1] })!
-        d[i1] = 2 * d.max()!
-        let score = d.indices.map { d[$0] * (pow(cos(angles[$0]-angles[i1]), 2) + 0.1) }
-        let i2 = score.indices.min(by: { score[$0] < score[$1] })!
-        return .init(g1: .init(row: maxima[i1].row-maxima[i0].row, column: maxima[i1].column-maxima[i0].column),
-                     g2: .init(row: maxima[i2].row-maxima[i0].row, column: maxima[i2].column-maxima[i0].column))
+        var i0 = indexOrigin, i1 = indexG1, i2 = indexG2
+        if i0 == nil || i1 == nil || i2 == nil {
+            if i0 == nil { i0 = d.indices.min(by: { d[$0] < d[$1] })!; d[i0!] = 2 * d.max()! }
+            if i1 == nil { i1 = d.indices.min(by: { d[$0] < d[$1] })!; d[i1!] = 2 * d.max()! }
+            if i2 == nil {
+                let score = d.indices.map { d[$0] * (pow(cos(angles[$0]-angles[i1!]), 2) + 0.1) }
+                i2 = score.indices.min(by: { score[$0] < score[$1] })!
+            }
+        }
+        let (a, b, c) = (i0!, i1!, i2!)
+        return .init(originIndex: a, g1Index: b, g2Index: c, g0: maxima[a],
+                     basis: .init(g1: .init(row: maxima[b].row-maxima[a].row, column: maxima[b].column-maxima[a].column),
+                                  g2: .init(row: maxima[c].row-maxima[a].row, column: maxima[c].column-maxima[a].column)))
     }
     /// Indexes histogram directions by NumPy's ties-to-even rounding.
     public static func index(directions: [LatticeVector], basis: LatticeBasis) throws -> [LatticePeak] {

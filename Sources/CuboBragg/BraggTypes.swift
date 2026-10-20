@@ -41,6 +41,16 @@ public enum BraggPeakOrder: Sendable, Hashable {
     case correlationIntensity
 }
 
+/// How maxima of equal intensity are ordered.
+public enum BraggTieOrder: Sendable, Hashable {
+    /// Equal intensities keep their raster order (the first pixel found comes first). The Bragg disk pins have no ties.
+    case rasterOrder
+    /// NumPy's: py4DSTEM sorts the structured array by intensity, which breaks ties by the remaining fields (row, then
+    /// column) ascending, then reverses it, so of two equal intensities the larger row comes first, then the larger column.
+    /// Used by the strain map's Bragg-vector histogram, where mirrored peaks tie.
+    case numpy
+}
+
 /// What happens to a pattern pixel that is NaN or infinite.
 public enum BraggNonFinitePixels: Sendable, Hashable {
     /// py4DSTEM: the value enters the FFT, spreads to every correlation bin, and the pattern yields no peak.
@@ -87,6 +97,8 @@ public struct BraggDiskOptions: Sendable, Equatable {
     public var nonFinitePixels: BraggNonFinitePixels = .propagate
     /// mac4DSTEM leaves `.multicorr` peaks in `.correlationIntensity` order; py4DSTEM sorts by `.refinedIntensity`.
     public var multicorrOrder: BraggPeakOrder = .refinedIntensity
+    /// The order of equal intensities among the maxima; `.rasterOrder` here, `.numpy` for py4DSTEM's exact order.
+    public var tieOrder: BraggTieOrder = .rasterOrder
 
     public init() {}
 

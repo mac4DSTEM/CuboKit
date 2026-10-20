@@ -5,5 +5,5 @@ import CuboCore
 /// The numerical algorithms currently available in this module.
 public enum CuboPtycho {
     /// Probe construction and CPU single-slice complex-object gradient descent.
-    public static let scope = "Probe construction and CPU single-slice ptychography; fixed positions, full batches."
+    public static let scope = "Probe construction and CPU single-slice ptychography; fixed positions, full batches; probe-centre and probe-amplitude constraints."
 }

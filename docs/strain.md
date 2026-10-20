@@ -9,7 +9,9 @@ Primary path, pinned to py4DSTEM 0.14.19 (`f050d207`):
 1. `chooseBasis(maxima:origin:)` receives intensity-ordered histogram maxima,
    including the direct beam. The nearest maximum supplies the origin, the next
    nearest g1, and g2 minimizes distance times (cos²(angle difference) + 0.1).
-   Histogram construction and peak extraction are separate from this module.
+   The overload with `indexOrigin`, `indexG1` and `indexG2` takes explicit indices as
+   `choose_basis_vectors` does (a given index is used as is; the others are guessed).
+   Histogram construction and peak extraction are in `StrainMapping` (below).
 2. `index(directions:basis:)` gives histogram directions integer indices, rounding
    ties to even. `index(peaks:directions:maximumSpacing:)` assigns measured peaks
    to the nearest measured direction, retaining the first on ties, and rejecting
@@ -67,3 +69,89 @@ implementations); measured maximum fit gap 5.33e-15, strain gap 8.88e-16 on the
 pins. Compatibility helpers match their original-source pins exactly (tolerance
 0). These pins establish reference agreement and recover planted strain; they
 are not microscope validation or performance measurements.
+
+## Scan-level API: `StrainMapping`
+
+`StrainMapping` (Sources/CuboStrain/StrainMapping.swift) composes the functions above into py4DSTEM's `StrainMap`
+workflow. Everything is Double, CPU, public, Sendable; no calibration object, plotting or state. Peaks are plain
+`StrainPeak(row, column, intensity)` values, **centred** (diffraction origin subtracted, in detector pixels), one list
+per scan position, row-major (`position = row * scanColumns + column`; every output array uses the same order). This is
+what `BraggVectors.get_vectors(center=True, pixel=False)` returns. `StrainMapping.centredPeaks(_:origin:)` converts a
+`CuboBragg.BraggVectors` detection result. Calibrations beyond the origin (elliptical distortion, the R-Q rotation, a
+pixel size) are applied by the caller before the peaks arrive.
+
+1. `histogram(...)` is `BraggVectors.histogram(mode="cal")`: each peak goes to `(coordinate + origin) * sampling` and
+   shares its intensity bilinearly between the four neighbouring cells, in py4DSTEM's order of operations and
+   accumulation (four separate sums, added in that order); peaks whose floor or ceiling cells fall outside the grid are
+   dropped; the grid is `round(detector * sampling)` with ties to even. Options: `sampling`, a boolean `scanMask`, or
+   numeric `scanWeights` (positions with weight above `weightsThreshold` 0.005 are used, intensities scaled).
+2. `chooseBasisVectors(histogram:options:)` is `choose_basis_vectors` without the figure: `get_maxima_2D` (through
+   `CuboBragg.BraggMaxima`) at py4DSTEM's defaults (`StrainBasisOptions`: multicorr, upsample 16, sigma 0, no intensity
+   cuts, `minSpacing` 0, `edgeBoundary` 1, `maxNumPeaks` 10), then `LatticeStrain.chooseBasis` with optional explicit
+   indices, then `index(directions:basis:)` for the indexed directions. Equal intensities are ordered as NumPy orders
+   them (`np.sort(order="intensity")[::-1]`: larger row first, then larger column), through the new
+   `BraggDiskOptions.tieOrder = .numpy`; the Bragg disk detector keeps its raster order (`.rasterOrder`, the default).
+   Mirrored peaks of a centrosymmetric pattern tie, so this decides which of +g and -g becomes g1.
+   `StrainDirections.lattice(basis:order:)` builds the directions from a basis the caller already has.
+3. `compute(...)` runs the histogram and basis choice (unless `directions:` is given), then for every position in the
+   scan mask: nearest-direction indexing within `maximumPeakSpacing` (inclusive, first direction on ties), the
+   weighted `LatticeStrain.fit` (`minimumPeaks` 5), then the reference and `LatticeStrain.strain` with the coordinate
+   rotation (degrees, counterclockwise). `StrainReference`: `.fittedMedian` (`gvects=None`), `.region(mask)` (a boolean
+   scan array, intersected with the fitted positions), `.supplied(basis)` (the tuple form). The result
+   (`StrainMapResult`) has the maxima and directions used, the validity flags (scan mask and enough indexed peaks),
+   per-position origin, g1, g2 and residual, the reference, and exx, eyy, exy, theta, all flat Double arrays with NaN at
+   unfitted positions (py4DSTEM stores 0 in the fit maps and meaningless strain values there, flagged only by `mask`).
+4. The mac4DSTEM variants stay the existing named options, now selectable per run: `fitMethod = .intensityOnce`,
+   `referenceMethod = .madRejection`; the consensus basis (`chooseBasisConsensus`) is used by passing
+   `StrainDirections.lattice(basis:)` as the directions. py4DSTEM is the default of every option.
+
+Validation (`StrainMappingError.invalidInput`, `LatticeStrainError`): peak lists that do not match the scan, a mask,
+weights or region of the wrong length or non-finite, non-positive sampling, a negative or non-finite
+`maximumPeakSpacing`, `minimumPeaks` below 1, a non-finite rotation or peak, fewer than three maxima, an index out of
+range, a degenerate basis (`singularBasis`), no fitted position for a median reference (`emptyReference`). Where py4DSTEM
+would index out of range or return NaN, the kit refuses with the reason.
+
+### Pins
+
+`tools/strain/mapping_pins.py` (a sibling of `pins.py`, which is unchanged, as are its fixtures) runs py4DSTEM's real
+`BraggVectors.histogram`, `StrainMap.choose_basis_vectors`, `fit_basis_vectors` and `get_strain` (Agg backend, the
+plots discarded) and `get_maxima_2D`, and writes `Tests/CuboStrainTests/Fixtures/map_*.f64` and `strain_mapping.json`
+(61 little-endian f64 arrays, 277 KB; the oracle peaked at 199 MB under the 8 GB memcap). Datasets:
+
+- d1: noise-free planted lattice (7 x 8 scan, 48 x 48 detector, fractional origin, non-orthogonal reference lattice,
+  planted exx, eyy, exy, theta ramps, columns 0 to 2 exactly unstrained).
+- d2: the same with 0.04 px position noise, intensity noise, 12 % of the peaks dropped, four positions with three
+  peaks only, a boolean scan mask, a reference region, coordinate rotations 20 and -35 degrees.
+- d3: peaks measured by `get_maxima_2D` on an 8 x 8 block of `simulation_4DSTEM` in the public `Au_sim.h5` (py4DSTEM
+  test data; SHA256 in the JSON). That cube is a polycrystalline simulation, so these are real peaks with irregular
+  lattices: it pins the algorithm on measured data, it is not a strain measurement.
+- Runs r1 to r6 cover the default multicorr, parabolic and pixel maxima, sigma, minimum spacing and relative-intensity
+  cuts, an explicit `index_g1`, median, region and supplied references, and rotation. Histogram cases: default,
+  sampling 1.5, boolean mask, numeric weights. A tie array pins NumPy's order of equal maxima.
+
+### Tolerances and measured gaps (tests print them)
+
+| Quantity | Tolerance | Measured maximum gap |
+|---|---|---|
+| Bragg vector map (5 cases) | 1e-12 times the map maximum | 0 (identical) |
+| Maxima (position, intensity), including multicorr | 1e-9 absolute | 2.3e-13 |
+| Origin, g1, g2; directions' positions | 1e-9 | 1.4e-14 |
+| Direction indices h, k; validity mask | exact | exact |
+| Fits (origin, g1, g2, residual), reference | 1e-9 | 1.4e-14 |
+| exx, eyy, exy, theta (rotated or not) | 1e-9 | 1.8e-15 |
+| Planted truth recovered (d1, reference region = unstrained columns) | 1e-9 | 1.2e-15 |
+
+The tolerance is not tuned to the gaps; the fit quantities are of order 1 to 100.
+
+### Not provided
+
+- Plotting and display (`show_strain`, `show_reference_directions`, `show_lattice_vectors`, `show_bragg_indexing`,
+  `set_max_peak_spacing`'s figure), `set_hkl` and the hkl bookkeeping, the `StrainMap` object with its `calstate` check
+  and `reset_calstate`, `histogram(mode="raw")` as a mode (pass the raw vectors with origin (0, 0) instead), and the
+  `BraggVectors` calibrations (ellipse, pixel size, R-Q rotation; the caller centres and calibrates).
+- With a pixel-calibrated `BraggVectors`, py4DSTEM's histogram is in detector pixels but its fit works in calibrated
+  units; the kit takes everything in detector pixels, so that mixed-unit case is not reproduced.
+- mac4DSTEM's other pipeline pieces beyond the named options: its inverse-matrix indexing gate with the +-8 index
+  limit, the robust local refit, the cluster-consensus orchestration, the Float32 diagnostics.
+- A position whose indexed intensities sum to zero is "not fitted" here; py4DSTEM stores NaN and fails later.
+- The Bragg disk detector (`CuboBragg`) is a separate step; the strain input is its centred output.

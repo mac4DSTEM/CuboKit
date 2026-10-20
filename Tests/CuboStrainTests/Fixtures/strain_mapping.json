@@ -1,0 +1,408 @@
+{
+  "py4dstem": "f050d207851f8accd3aa550365baaf1f38230428",
+  "numpy": "2.5.0",
+  "python": "3.12.4",
+  "datasets": {
+    "d1": {
+      "scan": [
+        7,
+        8
+      ],
+      "detector": [
+        48,
+        48
+      ],
+      "origin": [
+        24.4,
+        23.6
+      ],
+      "refG1": [
+        9.0,
+        1.5
+      ],
+      "refG2": [
+        -1.2,
+        10.5
+      ]
+    },
+    "d2": {
+      "scan": [
+        7,
+        8
+      ],
+      "detector": [
+        48,
+        48
+      ],
+      "origin": [
+        24.35,
+        23.8
+      ]
+    },
+    "d3": {
+      "scan": [
+        8,
+        8
+      ],
+      "detector": [
+        125,
+        125
+      ],
+      "origin": [
+        63.3914376157696,
+        63.36825347245193
+      ],
+      "file": "Au_sim.h5",
+      "sha256": "7d837caa504da9b9160738fd330577567b11c7516cd9cb2d411b69e38b5d67cd",
+      "selection": "simulation_4DSTEM[48:56,38:46], get_maxima_2D(poly, sigma 1, minSpacing 4, edgeBoundary 3, maxNumPeaks 40, minRelativeIntensity 0.02)"
+    }
+  },
+  "runs": {
+    "r1": {
+      "dataset": "d1",
+      "choose": {},
+      "maxPeakSpacing": 3.0,
+      "rotation": 0,
+      "reference": "median",
+      "scanMask": null
+    },
+    "r4": {
+      "dataset": "d1",
+      "choose": {
+        "subpixel": "poly",
+        "sigma": 1,
+        "minSpacing": 4,
+        "maxNumPeaks": 12
+      },
+      "maxPeakSpacing": 3.0,
+      "rotation": 0,
+      "reference": "supplied",
+      "scanMask": null
+    },
+    "r2": {
+      "dataset": "d2",
+      "choose": {
+        "subpixel": "poly",
+        "sigma": 1,
+        "minSpacing": 4,
+        "maxNumPeaks": 12
+      },
+      "maxPeakSpacing": 2.5,
+      "rotation": 20.0,
+      "reference": "roi",
+      "scanMask": null
+    },
+    "r3": {
+      "dataset": "d2",
+      "choose": {
+        "subpixel": "pixel",
+        "sigma": 0,
+        "minSpacing": 3,
+        "minRelativeIntensity": 0.02,
+        "maxNumPeaks": 14
+      },
+      "maxPeakSpacing": 2.5,
+      "rotation": -35.0,
+      "reference": "median",
+      "scanMask": "map_r3_scanmask"
+    },
+    "r5": {
+      "dataset": "d2",
+      "choose": {
+        "index_g1": 1,
+        "sigma": 1,
+        "minSpacing": 2,
+        "maxNumPeaks": 10
+      },
+      "maxPeakSpacing": 2.5,
+      "rotation": 0,
+      "reference": "median",
+      "scanMask": null
+    },
+    "r6": {
+      "dataset": "d3",
+      "choose": {
+        "subpixel": "poly",
+        "sigma": 1,
+        "minSpacing": 6,
+        "maxNumPeaks": 8
+      },
+      "maxPeakSpacing": 4.0,
+      "rotation": 0,
+      "reference": "median",
+      "scanMask": null
+    }
+  },
+  "histograms": {
+    "d1": {
+      "dataset": "d1",
+      "sampling": 1
+    },
+    "d2_default": {
+      "dataset": "d2",
+      "sampling": 1,
+      "weights": null
+    },
+    "d2_s15": {
+      "dataset": "d2",
+      "sampling": 1.5,
+      "weights": null
+    },
+    "d2_bool": {
+      "dataset": "d2",
+      "sampling": 1,
+      "weights": "bool"
+    },
+    "d2_num": {
+      "dataset": "d2",
+      "sampling": 1,
+      "weights": "num"
+    }
+  },
+  "weightsThreshold": 0.005,
+  "arrays": {
+    "map_d1_counts": [
+      56
+    ],
+    "map_d1_peaks": [
+      1202,
+      3
+    ],
+    "map_d1_truth": [
+      4,
+      7,
+      8
+    ],
+    "map_d1_hist": [
+      48,
+      48
+    ],
+    "map_r1_maxima": [
+      10,
+      3
+    ],
+    "map_r1_basis": [
+      6
+    ],
+    "map_r1_directions": [
+      10,
+      4
+    ],
+    "map_r1_fits": [
+      8,
+      7,
+      8
+    ],
+    "map_r1_mask": [
+      7,
+      8
+    ],
+    "map_r1_strain": [
+      5,
+      7,
+      8
+    ],
+    "map_r1_reference": [
+      4
+    ],
+    "map_r4_maxima": [
+      12,
+      3
+    ],
+    "map_r4_basis": [
+      6
+    ],
+    "map_r4_directions": [
+      12,
+      4
+    ],
+    "map_r4_fits": [
+      8,
+      7,
+      8
+    ],
+    "map_r4_mask": [
+      7,
+      8
+    ],
+    "map_r4_strain": [
+      5,
+      7,
+      8
+    ],
+    "map_r4_reference": [
+      4
+    ],
+    "map_d2_counts": [
+      56
+    ],
+    "map_d2_peaks": [
+      983,
+      3
+    ],
+    "map_d2_truth": [
+      4,
+      7,
+      8
+    ],
+    "map_d2_scanmask": [
+      7,
+      8
+    ],
+    "map_d2_weights": [
+      7,
+      8
+    ],
+    "map_d2_hist_default": [
+      48,
+      48
+    ],
+    "map_d2_hist_s15": [
+      72,
+      72
+    ],
+    "map_d2_hist_bool": [
+      48,
+      48
+    ],
+    "map_d2_hist_num": [
+      48,
+      48
+    ],
+    "map_r2_maxima": [
+      12,
+      3
+    ],
+    "map_r2_basis": [
+      6
+    ],
+    "map_r2_directions": [
+      12,
+      4
+    ],
+    "map_r2_fits": [
+      8,
+      7,
+      8
+    ],
+    "map_r2_mask": [
+      7,
+      8
+    ],
+    "map_r2_strain": [
+      5,
+      7,
+      8
+    ],
+    "map_r2_reference": [
+      4
+    ],
+    "map_r2_roi": [
+      7,
+      8
+    ],
+    "map_r3_maxima": [
+      14,
+      3
+    ],
+    "map_r3_basis": [
+      6
+    ],
+    "map_r3_directions": [
+      14,
+      4
+    ],
+    "map_r3_fits": [
+      8,
+      7,
+      8
+    ],
+    "map_r3_mask": [
+      7,
+      8
+    ],
+    "map_r3_strain": [
+      5,
+      7,
+      8
+    ],
+    "map_r3_reference": [
+      4
+    ],
+    "map_r3_scanmask": [
+      7,
+      8
+    ],
+    "map_r5_maxima": [
+      10,
+      3
+    ],
+    "map_r5_basis": [
+      6
+    ],
+    "map_r5_directions": [
+      10,
+      4
+    ],
+    "map_r5_fits": [
+      8,
+      7,
+      8
+    ],
+    "map_r5_mask": [
+      7,
+      8
+    ],
+    "map_r5_strain": [
+      5,
+      7,
+      8
+    ],
+    "map_r5_reference": [
+      4
+    ],
+    "map_d3_counts": [
+      64
+    ],
+    "map_d3_peaks": [
+      2448,
+      3
+    ],
+    "map_r6_maxima": [
+      8,
+      3
+    ],
+    "map_r6_basis": [
+      6
+    ],
+    "map_r6_directions": [
+      8,
+      4
+    ],
+    "map_r6_fits": [
+      8,
+      8,
+      8
+    ],
+    "map_r6_mask": [
+      8,
+      8
+    ],
+    "map_r6_strain": [
+      5,
+      8,
+      8
+    ],
+    "map_r6_reference": [
+      4
+    ],
+    "map_ties_ar": [
+      14,
+      14
+    ],
+    "map_ties_maxima": [
+      7,
+      3
+    ]
+  }
+}

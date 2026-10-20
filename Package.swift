@@ -45,7 +45,7 @@ let package = Package(
         .target(name: "CuboPhase", dependencies: ["CuboCore"], swiftSettings: settings),
         .target(name: "CuboParallax", dependencies: ["CuboCore"], swiftSettings: settings),
         .target(name: "CStrainLAPACK", cSettings: [.define("ACCELERATE_NEW_LAPACK")], linkerSettings: [.linkedFramework("Accelerate")]),
-        .target(name: "CuboStrain", dependencies: ["CuboCore", "CStrainLAPACK"], swiftSettings: settings),
+        .target(name: "CuboStrain", dependencies: ["CuboCore", "CuboBragg", "CStrainLAPACK"], swiftSettings: settings),
         .target(name: "CEmbeddingLAPACK", cSettings: [.define("ACCELERATE_NEW_LAPACK")], linkerSettings: [.linkedFramework("Accelerate")]),
         // PCA and k-means: scikit-learn's behaviour as the primary API, mac4DSTEM's diffraction-embedding numerics as
         // named options (docs/embedding.md).
@@ -66,7 +66,7 @@ let package = Package(
                     exclude: ["Fixtures"], swiftSettings: settings),
         .testTarget(name: "CuboParallaxTests", dependencies: ["CuboCore", "CuboParallax"],
                     resources: [.copy("Fixtures")], swiftSettings: settings),
-        .testTarget(name: "CuboStrainTests", dependencies: ["CuboStrain"], exclude: ["Fixtures"], swiftSettings: settings),
+        .testTarget(name: "CuboStrainTests", dependencies: ["CuboStrain", "CuboBragg"], exclude: ["Fixtures"], swiftSettings: settings),
         .testTarget(name: "CuboEmbeddingTests", dependencies: ["CuboEmbedding"], exclude: ["Fixtures"], swiftSettings: settings),
 
         .testTarget(name: "CuboBraggTests", dependencies: ["CuboCore", "CuboVirtual", "CuboBragg"],

@@ -4,8 +4,8 @@
 //  maxima (>= towards increasing indices, > towards decreasing, so a plateau yields its first pixel), the edge boundary, the
 //  filter cascade (absolute, relative, spacing, count) and the subpixel refinement, in Double.
 //
-//  Ties between equal intensities are ordered by raster position (py4DSTEM's order there is NumPy's unstable quicksort,
-//  reversed; the pins have no ties).
+//  Ties between equal intensities are ordered by raster position by default
+//  (BraggDiskOptions.tieOrder = .rasterOrder); .numpy reproduces py4DSTEM's order (larger row, then larger column).
 //
 
 import CuboCore
@@ -43,7 +43,7 @@ public enum BraggMaxima {
                 }
             }
         }
-        found = brightestFirst(found)
+        found = brightestFirst(found, o.tieOrder)
         guard !found.isEmpty else { return [] }
         found = filter(found, o)
         guard o.subpixel != .pixel else { return found }
@@ -84,7 +84,7 @@ public enum BraggMaxima {
         } catch {
             throw CuboBraggError.nonFiniteRefinement
         }
-        return o.multicorrOrder == .refinedIntensity ? brightestFirst(found) : found
+        return o.multicorrOrder == .refinedIntensity ? brightestFirst(found, o.tieOrder) : found
     }
 
     /// py4DSTEM's `filter_2D_maxima` on maxima already ordered brightest first (with mac4DSTEM's optional reference radius).
@@ -119,10 +119,15 @@ public enum BraggMaxima {
         return found
     }
 
-    /// Brightest first; equal intensities keep their current order.
-    static func brightestFirst(_ peaks: [BraggPeak]) -> [BraggPeak] {
+    /// Brightest first; equal intensities keep their current order, or follow NumPy's (larger row, then larger column first).
+    static func brightestFirst(_ peaks: [BraggPeak], _ ties: BraggTieOrder = .rasterOrder) -> [BraggPeak] {
         peaks.enumerated().sorted { a, b in
-            a.element.intensity != b.element.intensity ? a.element.intensity > b.element.intensity : a.offset < b.offset
+            if a.element.intensity != b.element.intensity { return a.element.intensity > b.element.intensity }
+            if ties == .numpy {
+                if a.element.row != b.element.row { return a.element.row > b.element.row }
+                if a.element.column != b.element.column { return a.element.column > b.element.column }
+            }
+            return a.offset < b.offset
         }.map(\.element)
     }
 

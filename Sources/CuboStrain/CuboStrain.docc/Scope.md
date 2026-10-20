@@ -1,8 +1,11 @@
 # Scope
 
 ``LatticeStrain`` provides per-pattern lattice fitting and strain tensors, using
-caller-supplied Bragg vectors and histogram maxima. The caller supplies scan shape,
-valid-position masks, reference ROI selection, histogram construction and peak detection.
+caller-supplied Bragg vectors and histogram maxima. ``StrainMapping`` composes them
+into py4DSTEM's scan-level `StrainMap` workflow: the Bragg vector map, the maxima and
+basis choice, and the per-position indexing, fitting, reference and rotated strain. The
+caller supplies centred Bragg peaks per scan position; plotting, calibration state and
+the `BraggVectors` calibrations are not provided.
 
 Primary algorithms follow py4DSTEM f050d207: intensity-squared fitting, plain
 component medians and the reference strain/rotation conventions. SVD provides

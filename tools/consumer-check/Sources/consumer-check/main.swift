@@ -103,8 +103,28 @@ do {
 } catch let error as CuboBraggError {
     check("CuboBraggError.invalidOption", { if case .invalidOption = error { return true } else { return false } }())
 }
-check("CuboStrain scope", CuboStrain.scope.contains("not registered"))
-check("CuboPtycho scope", CuboPtycho.scope.contains("not registered"))
+check("CuboStrain scope", CuboStrain.scope.contains("scan-level"))
+do {
+    // Scan-level strain: a 2 x 2 scan of a square lattice, known directions, supplied reference.
+    var lists: [[StrainPeak]] = []
+    for _ in 0..<4 { lists.append((-1...1).flatMap { h in (-1...1).map { k in StrainPeak(row: Double(8 * h), column: Double(8 * k), intensity: 1) } }) }
+    let lattice = try StrainDirections.lattice(basis: LatticeBasis(g1: LatticeVector(row: 8, column: 0), g2: LatticeVector(row: 0, column: 8)))
+    var options = StrainMapOptions(maximumPeakSpacing: 2)
+    options.reference = .supplied(lattice.basis)
+    let map = try StrainMapping.compute(peaks: lists, scanRows: 2, scanColumns: 2, detectorRows: 32, detectorColumns: 32,
+                                        origin: LatticeVector(row: 16, column: 16), directions: lattice, options: options)
+    let histogram = try StrainMapping.histogram(peaks: lists, scanRows: 2, scanColumns: 2, detectorRows: 32, detectorColumns: 32,
+                                                origin: LatticeVector(row: 16, column: 16))
+    var basisOptions = StrainBasisOptions()
+    basisOptions.subpixel = .parabolic
+    let chosen = try StrainMapping.chooseBasisVectors(histogram: histogram, options: basisOptions)
+    check("StrainMapping scan-level", map.valid.allSatisfy { $0 } && map.exx.allSatisfy { abs($0) < 1e-12 } && histogram.rows == 32
+          && chosen.directions.count == chosen.maxima.count && BraggDiskOptions().tieOrder == .rasterOrder
+          && (StrainMapping.centredPeaks(BraggVectors(scanRows: 1, scanColumns: 1, peaks: [[]]), origin: LatticeVector(row: 0, column: 0)).count == 1))
+} catch {
+    check("StrainMapping scan-level", false)
+}
+check("CuboPtycho scope", CuboPtycho.scope.contains("probe-centre"))
 check("ElementType list", ElementType.allCases.count == 10 && ElementType.uint16.npyDescriptor == "<u2")
 // Slice 2: centre of mass, probe size, the reference, the rotation, DPC.
 for path in paths {

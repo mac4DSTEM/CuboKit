@@ -22,7 +22,7 @@ For a pattern `P` and a corner-centred kernel `K` (py4DSTEM's `template`):
    complex `cc` by matrix-DFT upsampling around the half-pixel-rounded position (`CuboParallax`'s `MatrixDFTCorrelation`, the same
    code that pins `upsampled_correlation`), and sorts by the refined intensity.
 
-Equal intensities are ordered by raster position (py4DSTEM's order there is NumPy's unstable sort); the pins contain no ties.
+Equal intensities are ordered by raster position (py4DSTEM's order there is NumPy's unstable sort); the pins contain no ties. `BraggDiskOptions.tieOrder = .numpy` selects NumPy's order instead (larger row, then larger column first), which the strain map's Bragg vector map uses (docs/strain.md).
 
 ## What differs in mac4DSTEM, as named options
 
