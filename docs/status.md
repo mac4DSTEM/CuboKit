@@ -1,6 +1,8 @@
 # Status
 
-**Hand-off 2026-10-20:** done: D12 wording in CLAUDE.md, docs and test comments (d43b531); next: convert the tests that assert numerics exactly against a Python reference to written per-function tolerances (a code change, one per release).
+**Hand-off 2026-10-20 (kit gaps):** done: probe-centre and probe-amplitude constraints, `Parallax.reconstruct` plus end-to-end `process`, scan-level `StrainMapping`, all pinned to py4DSTEM (CHANGELOG "Unreleased", parity 76/35/71); next: owner pushes and tags 0.4.0, then multislice/mixed-state ptychography, the remaining ptycho probe constraints, parallax initial-aberration shifts.
+
+Earlier: D12 wording in CLAUDE.md, docs and test comments (d43b531); convert exact-asserting numeric tests to written tolerances (one per release).
 
 What is live, one table; then the hand-off. Rules are in `CLAUDE.md`; the registration in `docs/registration-slice-1.md`;
 parity with py4DSTEM in `docs/parity.md`; what mac4DSTEM changes to import the kit in `docs/consumers-0.0.1.md` to

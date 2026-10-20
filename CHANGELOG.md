@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased (0.4.0 candidate)
+
+Three additions, each pinned to py4DSTEM 0.14.19 (`f050d207`) with the tolerance written in its test.
+
+- **CuboPtycho:** `SingleslicePtychography.reconstruct` gains `fixProbeCenterOfMass`, `constrainProbeAmplitude`, `probeAmplitudeRelativeRadius` (0.5) and `probeAmplitudeRelativeWidth` (0.05), all off by default so every earlier result is unchanged (py4DSTEM turns the centre-of-mass constraint on by default; here it is the caller's choice). Four new py4DSTEM cases, measured gap 3.6e-7, tolerance 2e-6. Radius outside 0...0.5 or width outside (0, 0.5] is `invalidInput`. Other probe constraints (aperture, Fourier amplitude, aberration fitting, support) remain absent.
+- **CuboParallax:** `ParallaxReconstruction.reconstruct` ports `Parallax.reconstruct` (alignment-bin schedule, running reference, Bernstein regularisation, median centring, per-bin error), and `ParallaxReconstruction.process` runs prepare, reconstruct and the optional KDE upsampling and position correction in one call. Seven py4DSTEM cases, gaps 1e-7 to 9e-7 (tolerance 5e-6 on shifts, 2e-6 on images). Named option `emptySchedule = .singlePassAtMinimumBin` is the app's behaviour where py4DSTEM raises. Aberration fit and correction and depth sectioning stay separate calls. Not provided: initial aberration shifts, real-space mask, continue/reset, batching.
+- **CuboStrain:** `StrainMapping` (`histogram`, `chooseBasisVectors`, `compute`, `centredPeaks`) is the scan-level pipeline of py4DSTEM's `StrainMap`: Bragg-vector histogram, basis choice, per-position fits, reference, strain maps with coordinate rotation. Pinned to six `StrainMap` runs and five histograms (strain gap 1.8e-15, tolerance 1e-9). `LatticeStrain.chooseBasis` gains an overload with explicit `indexOrigin/G1/G2`. `BraggDiskOptions.tieOrder` (`.rasterOrder` default, `.numpy` for py4DSTEM's order of equal maxima) is new in CuboBragg. `tools/consumer-check` scope checks, which tested a string that no longer existed, now test real scope text.
+- `ParallaxPreprocessingResult` gains `scanRows`, `scanColumns`, `paddedWindow` (`correctPositions(window:)` takes `paddedWindow`, as its comment now says).
+- `docs/parity.md`: 76 done, 35 partial, 71 absent of 182.
+
+### Migration
+
+Additive for the source. `CuboStrain` now depends on `CuboBragg` (and through it `CuboVirtual` and `CuboParallax`), so a package that imports only `CuboStrain` builds those too; `StrainDirections.maxima` uses `BraggPeak`, so callers of the maxima path also `import CuboBragg`. `ParallaxPreprocessingResult` has new public fields (its initialiser is internal). Everything else keeps its default.
+
 ## 0.3.0 (2026-10-16)
 
 0.3.0 adds seven pieces on the CPU, each pinned, with the tolerance stated in its test, to py4DSTEM 0.14.19 (`f050d207`),

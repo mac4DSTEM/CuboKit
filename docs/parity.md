@@ -215,12 +215,12 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 
 | py4DSTEM | CuboKit | State |
 |---|---|---|
-| `StrainMap(braggvectors)`, state properties, `reset_calstate` | — | absent: state/orchestration not ported |
-| `choose_basis_vectors` | `LatticeStrain.chooseBasis` | partial: numeric selection from supplied histogram maxima; peak extraction external |
+| `StrainMap(braggvectors)`, state properties, `reset_calstate` | `StrainMapping` | partial: the scan-level steps are stateless calls on centred peaks; no calibration-state object |
+| `choose_basis_vectors` | `StrainMapping.chooseBasisVectors`, `LatticeStrain.chooseBasis` | done: histogram, maxima (multicorr, parabolic, pixel), `index_origin/g1/g2`; pinned (`docs/strain.md`) |
 | `set_hkl` | — | absent |
 | `set_max_peak_spacing` | `index(...maximumSpacing:)` | partial: stateless argument, no visualization/state |
-| `fit_basis_vectors` (`mask`, `max_peak_spacing`) | `index` then `fit` | partial: caller maps positions and mask |
-| `get_strain` (`gvects`, `coordinate_rotation`) | `reference` then `strain` | partial: caller maps positions and ROI |
+| `fit_basis_vectors` (`mask`, `max_peak_spacing`) | `StrainMapping.compute` | done: scan mask, maximum spacing, per-position fits |
+| `get_strain` (`gvects`, `coordinate_rotation`) | `StrainMapping.compute` | done: reference region or median, rotation |
 | `get_reference_g1g2` | `LatticeStrain.reference` | done for caller-selected bases |
 | `latticevectors.index_bragg_directions` | `LatticeStrain.index(directions:basis:)` | done: minimum-norm SVD and ties-to-even |
 | `latticevectors.add_indices_to_braggvectors` | `LatticeStrain.index(peaks:directions:maximumSpacing:)` | partial: caller handles scan mask/coordinate shifts |
@@ -228,7 +228,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `latticevectors.fit_lattice_vectors_all_DPs` | per-pattern `fit` | partial: caller maps scan positions |
 | `latticevectors.get_reference_g1g2`, `get_strain_from_reference_g1g2` | `reference`, `strain` | done |
 | `latticevectors.get_rotated_strain_map` | `strain(...coordinateRotation:)` | done |
-| `BraggVectors.to_strainmap` | — | absent: state/orchestration not ported |
+| `BraggVectors.to_strainmap` | `StrainMapping.centredPeaks(_:origin:)` | partial: converts a `CuboBragg` result; calibrations (ellipse, pixel size, R–Q rotation) are the caller's |
 | `show_strain`, `show_reference_directions`, `show_lattice_vectors`, `show_bragg_indexing` | — | n/a (plotting) |
 
 ## Bragg vectors and disk detection (braggvectors/)
@@ -262,7 +262,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 |---|---|---|
 | `Parallax(datacube, energy, ...)` | `CuboPtycho` | absent (planned: `CuboPtycho`, placeholder) |
 | `Parallax.preprocess` (`edge_blend`, `dp_mask`, `threshold_intensity`, descan correction, `realspace_mask`) | `ParallaxPreprocessing.prepare` | partial: constant normalization, selection/mask, edge window and padding; no descan/polynomial normalization/real-space mask. Default windowed retention follows reference; `.unwindowed` follows app (independent source transcription pin). |
-| `Parallax.reconstruct` (alignment bins, upsampling, regularisation) | `CuboParallax.ParallaxAlignment` | partial: CPU Double cross-correlation, matrix-DFT refinement (default factor 8), periodic shifts and fixed/running-reference stacks; no grouping, schedules, regularisation or full reconstruction (`docs/parallax-alignment.md`) |
+| `Parallax.reconstruct` (alignment bins, upsampling, regularisation) | `CuboParallax.ParallaxReconstruction.reconstruct`, `.process` (end to end with KDE) | partial: bin schedule, running reference, Bernstein regularisation, centring, per-bin error, pinned (1e-7 to 9e-7); no initial aberration shifts, real-space mask, continue/reset, batching (`docs/parallax-alignment.md`) |
 | `Parallax.guess_common_aberrations` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `Parallax.subpixel_alignment` | `CuboParallax.ParallaxSubpixel` | partial: factor heuristic, bilinear/Lanczos KDE, Gaussian, low-pass; position correction (`correctPositions`, reference semantics incl. regularisation); no `virtual_detector_mask` or integer-pixel rolling |
 | `Parallax.aberration_fit` | `CuboParallax.ParallaxAberrationFitter` | done: low order (C1, C12a/b, rotation, transpose) and higher-order global/recursive fits; reference basis default, app basis (`.selectedCentroid`) as option; tolerances in `AberrationTests` |
@@ -311,14 +311,14 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | Calibration processes | 23 | 11 | 3 | 9 |
 | Probe | 14 | 12 | 1 | 1 |
 | DPC and the phase base class's preprocessing | 20 | 13 | 4 | 3 |
-| Strain | 14 | 5 | 6 | 3 |
+| Strain | 14 | 8 | 5 | 1 |
 | Bragg vectors and disk detection | 17 | 3 | 3 | 11 |
 | Parallax | 9 | 3 | 3 | 3 |
 | Ptychography | 11 | 0 | 1 | 10 |
-| **Total** | **182** | **73** | **36** | **73** |
+| **Total** | **182** | **76** | **35** | **71** |
 
-Of the 182 rows in scope: done 73, partial 36, absent 73 (the 0.1.0 count was 61, 23, 98). Of the done rows, 25 are
-slice 4, 36 slices 1 to 3, one is hot-pixel filtering, five strain numerics, three Bragg disk detection, and three
+Of the 182 rows in scope: done 76, partial 35, absent 71 (0.3.0: 73, 36, 73; 0.1.0: 61, 23, 98). Of the done rows, 25 are
+slice 4, 36 slices 1 to 3, one is hot-pixel filtering, eight strain rows, three Bragg disk detection, and three
 parallax (aberration fit, aberration correction, depth sectioning). The parallax alignment, preprocessing and subpixel
 rows and the CPU ptychography row stay partial; the details tables below refine them and are not counted twice.
 
@@ -356,7 +356,7 @@ Supported input and numerical details: `docs/hot-pixels.md`.
 | py4DSTEM f050d207 | CuboKit | State |
 |---|---|---|
 | `ComplexProbe.build` | `PtychographyProbe.build` | partial: defocus, C12, C30, hard/cosine aperture; no coherence envelopes |
-| `SingleslicePtychography.reconstruct` gradient descent | `SingleslicePtychography.reconstruct` | partial: preprocessed amplitudes, complex object, fixed positions, full batches, probe updates and threshold/pure-phase constraints; other constraints disabled |
+| `SingleslicePtychography.reconstruct` gradient descent | `SingleslicePtychography.reconstruct` | partial: preprocessed amplitudes, complex object, fixed positions, full batches, probe updates, threshold/pure-phase object constraints, probe centre-of-mass (`fixProbeCenterOfMass`, default off) and probe amplitude top-hat constraints; aperture, Fourier-amplitude, aberration-fitting and support constraints absent |
 
 Pins: `tools/ptycho/pins.py`, `Tests/CuboPtychoTests/Fixtures/ptycho.json`.
 Tolerance `2e-6` normwise maximum error with unit floor; see DocC Scope for numerical limits.
@@ -365,7 +365,8 @@ Tolerance `2e-6` normwise maximum error with unit floor; see DocC Scope for nume
 
 | Reference / source | CuboKit | State |
 |---|---|---|
-| `StrainMap.choose_basis_vectors` | `LatticeStrain.chooseBasis` | numeric selection done; caller supplies intensity-ordered histogram maxima; histogram construction/peak extraction external |
+| `BraggVectors.histogram`, `StrainMap.choose_basis_vectors`, `fit_basis_vectors`, `get_strain` | `StrainMapping.histogram`, `chooseBasisVectors`, `compute` | done: pinned to py4DSTEM (tolerance 1e-9, measured 1.4e-14; histogram identical); `BraggDiskOptions.tieOrder = .numpy` reproduces py4DSTEM's order of equal maxima; pins `tools/strain/mapping_pins.py` |
+| `LatticeStrain.chooseBasis` (supplied maxima) | `LatticeStrain.chooseBasis` | numeric selection done |
 | `index_bragg_directions`, `StrainMap.fit_basis_vectors` indexing | `LatticeStrain.index` overloads | done for supplied histogram directions; nearest-direction inclusive spacing and ties-to-even indices |
 | `fit_lattice_vectors` | `LatticeStrain.fit` | done: intensity squared objective, minimum-norm SVD, mean-distance residual |
 | `get_reference_g1g2` | `LatticeStrain.reference` | done: plain component medians of caller-selected valid ROI |
@@ -374,7 +375,7 @@ Tolerance `2e-6` normwise maximum error with unit floor; see DocC Scope for nume
 | App c809679c MAD reference | `referenceMAD` | named option: Float32 MAD rejection with 2% scale floor and half-population fallback; original helper pin |
 | App c809679c cluster-consensus selection | `chooseBasisConsensus` | named option: repeated vector clusters, bounded condition/support scoring; original helper pin |
 
-These rows refine the strain headline; orchestration and plotting are not APIs.
+These rows refine the strain headline; plotting and the `StrainMap` state object are not APIs.
 `tools/strain/pins.py` calls the actual pinned Python functions and independently
 compiles the original app helper text. Binary f64 pins cover planted strain and
 a public DM4 crop. Absolute tolerance 1e-10, maximum measured fit gap 5.33e-15
