@@ -30,6 +30,8 @@ public enum CuboError: Error, Equatable, Sendable, LocalizedError {
     case wrongRank(expected: Int, received: Int)
     /// A tiling with no rows.
     case invalidTiling(Int)
+    /// A crop-and-bin view that cannot be applied to its source.
+    case invalidView(String)
 
     public var errorDescription: String? {
         switch self {
@@ -57,6 +59,8 @@ public enum CuboError: Error, Equatable, Sendable, LocalizedError {
             return "Expected an array of rank \(expected), got rank \(received)."
         case .invalidTiling(let rows):
             return "A tiling needs at least one scan row per tile; got \(rows)."
+        case .invalidView(let detail):
+            return "The crop-and-bin view cannot be applied: \(detail)."
         }
     }
 }
