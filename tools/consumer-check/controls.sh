@@ -100,6 +100,23 @@ control access "ProbeKernel.flat"                 $V/VacuumProbe.swift         "
 control access "ProbeKernel.gaussian"             $V/VacuumProbe.swift         "gaussian"          'public static func gaussian'
 control access "ProbeKernel.sigmoid"              $V/VacuumProbe.swift         "sigmoid"           'public static func sigmoid'
 control access "SyntheticProbe.make"              $V/VacuumProbe.swift         "make"              'public static func make(radius'
+# 0.5.0 candidate: error normalisation, position correction, the trimmed origin fit, crop and bin, preprocessing and the engines.
+P=Sources/CuboPtycho
+control access  "OriginFit.fitTrimmed"                     Sources/CuboCore/OriginFit.swift "fitTrimmed"          'public static func fitTrimmed('
+control library "TrimmedOriginFit"                         Sources/CuboCore/OriginFit.swift "TrimmedOriginFit"    'public struct TrimmedOriginFit'
+control library "PtychographyErrorNormalization"           $P/Ptychography.swift        "PtychographyErrorNormalization" 'public enum PtychographyErrorNormalization'
+control library "PtychographyPositionCorrection"           $P/Ptychography.swift        "PtychographyPositionCorrection" 'public struct PtychographyPositionCorrection'
+control access  "SingleslicePtychography.Result.positions" $P/Ptychography.swift        "positions"            'public let positions: [PtychographyPosition]'
+control library "MixedstateZeroPixelError"                 $P/PtychographyEngines.swift "MixedstateZeroPixelError" 'public enum MixedstateZeroPixelError'
+control access  "PtychographyAmplitudes.errorNormalization" $P/PtychographyPreparation.swift "errorNormalization" 'public var errorNormalization'
+control access  "PtychographyPreparation.prepare"          $P/PtychographyPreparation.swift "prepare"             'public static func prepare(source'
+control access  "MixedstatePtychography.initialProbes"     $P/PtychographyEngines.swift "initialProbes"           'public static func initialProbes('
+control access  "MultislicePtychography.propagators"       $P/PtychographyEngines.swift "propagators"             'public static func propagators('
+control access  "AxisCrop.enclosing"                       Sources/CuboCore/CubeView.swift "enclosing"            'public static func enclosing('
+control library "ViewedCube"                              Sources/CuboCore/CubeView.swift "ViewedCube"           'public actor ViewedCube'
+control library "CubeViewSpecification"                   Sources/CuboCore/CubeView.swift "CubeViewSpecification" 'public struct CubeViewSpecification'
+control access  "DPCViews.magnitude"                       Sources/CuboPhase/DPCViews.swift "magnitude"           'public static func magnitude('
+control access  "RotationConvention.kit"                   Sources/CuboPhase/DPCViews.swift "kit"                 'public static func kit('
 # A slice-1 symbol, to show the earlier checks are guarded too.
 control overload "VirtualImaging.image"             $V/VirtualImaging.swift      "image"             'public static func image(of source'
 

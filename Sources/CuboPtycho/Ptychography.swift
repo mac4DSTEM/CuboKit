@@ -162,7 +162,7 @@ public enum SingleslicePtychography {
     /// py4DSTEM's `errors`; the default divides by the energy of `amplitudes` (they agree when no negative value was clipped).
     ///
     /// `positionCorrection` (off by default, as `fix_positions=True` in py4DSTEM) refines the positions: see
-    /// ``PtychographyPositionCorrection``. Each iteration, after the object and probe update and before the object amplitude cap,
+    /// ``PtychographyPositionCorrection``. Each iteration, after the object update and before the object amplitude cap,
     /// every position moves by `stepSize` times the least-squares solution of `d I/dr, d I/dc ~ measured^2 - |F|^2` over the detector,
     /// the derivatives being the intensity change when the object patch is read one row (column) further. An iteration is one
     /// batch of all positions, as py4DSTEM's default. A pattern whose 2 x 2 normal matrix is singular keeps its position

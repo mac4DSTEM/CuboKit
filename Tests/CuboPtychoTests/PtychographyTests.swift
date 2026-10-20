@@ -26,7 +26,7 @@ private func pin() throws -> Pin {
     return try JSONDecoder().decode(Pin.self, from: Data(contentsOf: path))
 }
 private func gap(_ a: [Double], _ b: [Double]) -> Double {
-    guard a.count == b.count else { return .infinity }
+    guard a.count == b.count, a.allSatisfy(\.isFinite) else { return .infinity }   // a NaN must fail, max() would skip it
     return zip(a,b).map { abs($0-$1) }.max()! / max(1, b.map(abs).max()!)
 }
 @Suite struct PtychographyTests {

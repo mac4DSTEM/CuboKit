@@ -7,8 +7,8 @@ Public Sendable numerical values only; no app types, settings, progress, provena
 probe terms, with py4DSTEM's sign/azimuth/aperture convention. `SingleslicePtychography`
 uses full-batch complex-object gradient descent, fixed positions, periodic object
 patches and the reference object amplitude constraint. Other probe aberrations,
-coherence envelopes, position updates and the Fourier-amplitude and aberration-fitting
-constraints are absent. Preprocessing, the mixed-state and the multislice engines and the
+coherence envelopes and the Fourier-amplitude and aberration-fitting
+constraints are absent; position correction is described in its section below (0.5.0). Preprocessing, the mixed-state and the multislice engines and the
 aperture and support constraints are described in the sections below (0.5.0).
 See the module's DocC Scope for the precise supported subset.
 
@@ -130,7 +130,7 @@ probe comparison removes one global phase per state; the object, errors and ever
 `initialProbes(from:count:seed:)` reproduces py4DSTEM's random linear-phase starting states with a port of NumPy's
 `RandomState` (MT19937, `np.random.seed(seed)` then `rand()`), pinned to the first draws and to two seeded
 `_initialize_probe` runs (gap 3.3e-8). An exactly zero far-field pixel contributes `measured^2` to the error (py4DSTEM
-divides by infinity there). Absent: the projection schemes, batching, position correction, Fourier-amplitude and
+divides by infinity there; see "Error normalisation"). Absent: the projection schemes, batching, position correction (single-slice only), Fourier-amplitude and
 aberration constraints, `MixedstateMultislicePtychography`.
 
 ## Multislice engine (`MultislicePtychography`, 0.5.0)
@@ -149,9 +149,63 @@ All three engines take `fixProbeAperture` (restore the initial probe's Fourier a
 intensity; state 0 only for mixed) and `probeSupportMask` (corner-centred, zero outside). Order as py4DSTEM: centre of
 mass, aperture, amplitude, support (then orthogonalisation for mixed). Both off by default. Pinned on the three engines
 (`extras` in `engines.json`), measured 3.9e-7 at tolerance `2e-6`. Still absent for all engines: Fourier-amplitude
-(sigmoid-fit) constraint, aberration fitting, position correction (`fix_positions=False`), object Gaussian/Butterworth/TV filters.
+(sigmoid-fit) constraint, aberration fitting, position correction on the mixed-state and multislice engines (`fix_positions=False`; the single-slice engine has it), object Gaussian/Butterworth/TV filters.
 
-Known differences from py4DSTEM, all documented in the API comments: the engines' `errors` are normalised by the energy of
-the amplitudes they are given (py4DSTEM uses the preprocessing mean intensity, which counts negative shifted values;
-`PtychographyAmplitudes.meanIntensity` is that value); the probe support mask is not gated on `fixProbe` (as py4DSTEM;
-the fixed-probe support case is pinned); an exactly zero mixed-state far-field pixel gives a finite error here and an infinite one in py4DSTEM.
+Known differences from py4DSTEM, all documented in the API comments: the probe support mask is not gated on `fixProbe` (as py4DSTEM;
+the fixed-probe support case is pinned); the rest of this section's former deviations (error normalisation, the zero mixed-state pixel) are
+now py4DSTEM's by option, below.
+
+## Error normalisation (0.5.0)
+
+py4DSTEM's `errors` are the summed squared amplitude residual of an iteration divided by `mean_intensity * positions`, where `mean_intensity`
+is the preprocessing mean (the sum of the shifted values over the detector, negatives counted, averaged over positions). The engines used to
+divide by the energy `sum(amplitudes^2)` of the amplitudes they were given, which is the same number only when no negative value was clipped.
+All three engines now take `errorNormalization: PtychographyErrorNormalization`:
+
+- `.meanIntensity(m)`: py4DSTEM. `PtychographyAmplitudes.errorNormalization` is `.meanIntensity` of the preprocessing, so
+  `errorNormalization: prepared.amplitudes.errorNormalization` is all a caller of `PtychographyPreparation` writes. The app's clipped mean is
+  `.meanIntensity(amplitudes.clippedMeanIntensity)` (it equals the energy per position).
+- `.suppliedAmplitudeEnergy`: the previous behaviour, and the default. The default cannot be py4DSTEM's, because an engine given a bare
+  `[Double]` has no preprocessing mean to divide by; a caller who wants py4DSTEM's `errors` passes the mean.
+
+The pins now go through py4DSTEM's preprocessing instead of injecting an equal value: `pins.py` and `engines_pins.py` build a raw Float32 cube
+(offset and noise make many pixels negative, a fractional origin), call `_normalize_diffraction_intensities`, and hand its amplitudes and mean
+to the engine; the mean differs from the amplitude energy by more than 2 percent (asserted in the generators), so the old normalisation
+fails the pins (a test checks it differs from py4DSTEM's errors by more than 5e-3 while leaving the object untouched). The Swift tests also
+run `PtychographyPreparation.amplitudes` on the raw cube and compare amplitudes, mean and the engines' errors (measured: amplitudes
+2.9e-8, mean 1e-8, errors 1.8e-7 to 2.5e-7, tolerance 2e-6). The fixed-probe, normalisation-0 single-slice variant of `ptycho.json` moved to
+normalisation 0.02 (the exactly-0 endpoint is no longer pinned): on the new data the Float32 reference's phase at weakly illuminated edge pixels (update 1 / |probe|^2) made the gap 5.2e-6
+at exactly 0; the port did not change.
+
+Zero far-field pixel of the mixed-state engine: py4DSTEM sets the amplitude there to infinity (update 0, error term infinite, so the
+iteration's error is infinite); `zeroFarFieldPixelError: .reference` (default) does the same, `.finite` adds `measured^2` as before. The
+single-slice and multislice engines give `measured^2` there in py4DSTEM too (the phase of zero is 0). Tested on a probe of ones on ones
+(an exact power-of-two transform).
+
+## Position correction (single-slice engine, 0.5.0)
+
+`positionCorrection: PtychographyPositionCorrection?` (nil = py4DSTEM's `fix_positions=True`) ports `_position_correction`, `positions_step_size`,
+`max_position_update_distance`, `max_position_total_distance` and the centre-of-mass constraint of the positions. One iteration is one batch
+of all positions (py4DSTEM's default `max_batch_size`). After the object update (computed with the probe of the iteration's start), and before the amplitude cap, each position moves by
+`stepSize` times the least-squares solution of `d(I_row), d(I_column)` against `measured^2 - |F|^2` over the detector, where `F` is the far field of
+the forward model of the iteration (old object) and the derivatives are `2 Re((F - F_shifted) conj(F))`, `F_shifted` the far field of the shifted probe
+times the *updated* object patch read one row (column) further. py4DSTEM mixes the two objects in that difference; so does the kit (the planted-truth
+test uses a frozen object to check the sign). The distances are in Å and converted with `sqrt(rowSampling^2 + columnSampling^2)`, as py4DSTEM.
+`constrainCenterOfMass` is py4DSTEM's `fix_positions_com=False` (its flag is inverted in use; its default applies no constraint). The result carries
+`positions`. A pattern whose 2 x 2 normal matrix is singular keeps its position (py4DSTEM's `inv` raises). Memory: the shifted probe and three
+far fields per pattern are recomputed, none stored. Not provided for the mixed-state and multislice engines (py4DSTEM has the same method there,
+with a sum over states "is this correct?" comment of its own).
+
+Pins: `tools/ptycho/position_pins.py` (`positions.json`, 8 x 8 positions that start up to 0.3 px from the data's, four iterations, a smooth
+probe because the one-pixel finite difference is useless for the strongly aberrated probe of the other pins): default step, step 0.2, both
+limits, the centre-of-mass constraint, fixed probe. Measured: positions 6.2e-7 px, object, probe and errors 4e-7 (tolerance 2e-6). py4DSTEM's
+estimate is only good near the truth: an exact-object, frozen-object case moves the mean distance to the data's positions from 0.230 to
+0.124 px in one iteration (kit and py4DSTEM agree to 6e-8); from a rough object the positions drift (up to 1.5 px in four iterations), in the reference
+and here alike.
+
+## Odd and non-square sizes (0.5.0)
+
+`tools/ptycho/odd_pins.py` (`odd.json`): a 9 x 7 detector through amplitudes (both interpolations), positions, the starting probe; a 15 x 13 probe on a
+31 x 29 object through the three engines with the centre-of-mass, amplitude, aperture and support constraints, the seeded mixed states, the
+propagators and `PtychographyProbe.build`, all through py4DSTEM's preprocessing. Measured 5e-8 (probe, amplitudes), 3.9e-7 (objects), 7.4e-7 (errors) at
+2e-6. No defect was found in the port: the frequency grid, corner-centred patch offsets and Fourier shifts already follow `fftfreq` for odd lengths.

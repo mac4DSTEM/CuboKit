@@ -151,6 +151,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `fit_origin(fitfunction="bezier_two")` | `OriginFit.fit(model: .bezierTwo)` | done (slice 3) |
 | `fit_origin(robust, robust_steps, robust_thresh)` | `OriginFit.fit(robust:robustSteps:robustThreshold:)` | done (slice 3) |
 | `fit_origin(mask=)` | `OriginFit.fit` | partial: NaN entries are left out of the fit; no boolean mask argument |
+| mac4DSTEM trimmed fit (`fitOriginTrimmed`, MAD cut, up to three rounds) | `OriginFit.fitTrimmed` | named option beside `fit(robust:)`; mask and surfaces pinned to a Float32 transcription of the app source, the final fit also to `fit_origin(mask=kept)` (not counted twice) |
 | `fit_origin(returnfitp=True)` | — | absent (the fit coefficients are not returned) |
 | `get_probe_size` (`process/calibration/probe.py`) | `ProbeSize.estimate` | done (slice 2; exact today, D12) |
 | `fit_ellipse_1D` | — | absent (planned: a calibration model; the fit may be DiffractoKit's geometry) |
@@ -318,7 +319,7 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | Ptychography | 11 | 0 | 3 | 8 |
 | **Total** | **182** | **79** | **37** | **66** |
 
-Of the 182 rows in scope: done 79, partial 37, absent 66 (0.4.0 candidate: 76, 35, 71; 0.3.0: 73, 36, 73; 0.1.0: 61, 23, 98). 0.5.0 adds crop_Q, crop_R and bin_Q as done, and the mixed-state and multislice classes as partial. The 0.3.0 breakdown of the done rows (slice 4, slices 1 to 3, hot pixels, strain, Bragg, parallax) was not redone for 0.4.0 and 0.5.0. The parallax alignment, preprocessing and subpixel
+Of the 182 rows in scope: done 79, partial 37, absent 66 (0.4.0 candidate: 76, 35, 71; 0.3.0: 73, 36, 73; 0.1.0: 61, 23, 98). 0.5.0 adds crop_Q, crop_R and bin_Q as done, and the mixed-state and multislice classes as partial; position correction and the error normalisation refine the single-slice row (still partial). The 0.3.0 breakdown of the done rows (slice 4, slices 1 to 3, hot pixels, strain, Bragg, parallax) was not redone for 0.4.0 and 0.5.0. The parallax alignment, preprocessing and subpixel
 rows and the ptychography rows stay partial; the details tables below refine them and are not counted twice.
 
 ## 0.2.0 notes (2026-10-15)
@@ -355,13 +356,14 @@ Supported input and numerical details: `docs/hot-pixels.md`.
 | py4DSTEM f050d207 | CuboKit | State |
 |---|---|---|
 | `ComplexProbe.build` | `PtychographyProbe.build` | partial: defocus, C12, C30, hard/cosine aperture; no coherence envelopes |
-| `SingleslicePtychography.reconstruct` gradient descent | `SingleslicePtychography.reconstruct` | partial: preprocessed amplitudes, complex object, fixed positions, full batches, probe updates, threshold/pure-phase object constraints, probe centre-of-mass (`fixProbeCenterOfMass`, default off), probe amplitude top-hat, fixed aperture (`fixProbeAperture`) and real-space support (`probeSupportMask`); Fourier-amplitude, aberration-fitting, position correction, object filters, batching and the projection schemes absent |
+| `SingleslicePtychography.reconstruct` gradient descent | `SingleslicePtychography.reconstruct` | partial: preprocessed amplitudes, complex object, fixed positions, full batches, probe updates, threshold/pure-phase object constraints, probe centre-of-mass (`fixProbeCenterOfMass`, default off), probe amplitude top-hat, fixed aperture (`fixProbeAperture`) and real-space support (`probeSupportMask`), py4DSTEM's error normalisation (`errorNormalization`), position correction (`positionCorrection`: `positions_step_size`, `max_position_update_distance`, `max_position_total_distance`, `fix_positions_com`); Fourier-amplitude, aberration-fitting, object filters, batching and the projection schemes absent |
 | `MixedstatePtychography.reconstruct` (gradient descent) | `MixedstatePtychography.reconstruct`, `.orthogonalize`, `.initialProbes` | partial: as single-slice, with `orthogonalizeProbes`; `fix_probe_com` shifts every state by state 0's centre of mass; aperture constrains state 0, amplitude and support every state; the NumPy `RandomState` initial states are reproduced for a given seed; per-state eigenvector phase is a convention (tests align it) |
 | `MultislicePtychography.reconstruct` (gradient descent), `_precompute_propagator_arrays` | `MultislicePtychography.reconstruct`, `.propagators` | partial: slice stack, `slice_thicknesses` per interval, `identical_slices`, probe constraints as single-slice; `kz_regularization_filter`, `theta_x/theta_y`, TV and `middle_focus` absent; the caller gives one thickness per interval (py4DSTEM broadcasts a scalar) |
 | `_normalize_diffraction_intensities` | `PtychographyPreparation.amplitudes` | partial: per-position origins, order-1 (bilinear) and order-3 (spline, grid-wrap) shifts, square root of the clipped values, the mean intensity; `crop_patterns`, `positions_mask`, `region_of_interest_shape` resampling absent |
 | `_calculate_scan_positions_in_pixels` (raster) | `PtychographyPreparation.scanPositions` | done: rotation (Float32 matrix as py4DSTEM), transpose, padding; `initial_scan_positions` and `positions_offset_ang` absent |
 | `_initialize_object`, `center_positions_in_fov` | `objectShape`, `centerPositions` | done (`object_fov_ang` absent) |
 | `_initialize_probe` (no vacuum probe) | `PtychographyPreparation.initialProbe` | done for the aperture probe with defocus, C12, C30; vacuum probes absent |
+| odd and non-square probe, detector and object sizes | all of the above | pinned (`odd.json`) |
 | mac4DSTEM `PtychographyPreparer` | `PtychographyPreparationOptions.mac4DSTEM(...)`: bilinear shifts, per-axis padding, no re-centring, clipped mean | named option; padding and mean pinned to the app source by a transcription, the rest to py4DSTEM |
 
 Pins: `tools/ptycho/pins.py` (`ptycho.json`), `tools/ptycho/preprocess_pins.py` (`preprocess.json`), `tools/ptycho/engines_pins.py` (`engines.json`), all in `Tests/CuboPtychoTests/Fixtures/`.

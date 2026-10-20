@@ -40,6 +40,7 @@ memory-mapped from a NumPy `.npy` file, read as Float32 and tiled along the scan
 - ``OriginFit``
 - ``OriginFitModel``
 - ``OriginFitError``
+- ``TrimmedOriginFit``
 
 ### Errors
 

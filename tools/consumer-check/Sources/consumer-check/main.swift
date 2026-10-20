@@ -133,6 +133,10 @@ do {
     let loaded = try await MemoryCube(loading: viewed)
     var firstBlock: Float = 0                      // scan (1, 0), detector rows 0..<2, columns 1..<3 summed
     for r in 0..<2 { for c in 0..<2 { firstBlock += values[(1 * 4) * 72 + r * 9 + 1 + c] } }
+    check("AxisCrop overflow guards",
+          AxisCrop.enclosing(firstRow: 1, firstColumn: 1, lastRow: 2, lastColumn: 2, strideRows: Int.max, planeRows: 10, planeColumns: 10) == nil
+          && AxisCrop(rowOffset: Int.max - 1, columnOffset: 0, rows: Int.max, columns: 1).rowRange.upperBound == Int.max
+          && !AxisCrop(rowOffset: 1, columnOffset: 1, rows: 1, columns: 1).fits(rows: Int.min, columns: 4))
     check("ViewedCube crop and bin", viewed.shape.extents == [2, 3, 3, 4] && viewed.geometry.discardedDetectorRows == 1
           && loaded.values.count == 72 && loaded.values[0] == firstBlock)
     let prepared = try await PtychographyPreparation.prepare(
@@ -147,6 +151,21 @@ do {
         amplitudes: prepared.amplitudes.values, positions: prepared.positions,
         object: PtychographyStack([prepared.object, prepared.object]), probe: prepared.probe, sliceThicknesses: [20],
         wavelength: 0.025, rowSampling: 0.5, columnSampling: 0.5, iterations: 1)
+    // Error normalisation (py4DSTEM's preprocessing mean), the zero-pixel option and position correction.
+    let normalized = try MixedstatePtychography.reconstruct(
+        amplitudes: prepared.amplitudes.values, positions: prepared.positions, object: prepared.object, probes: states, iterations: 1,
+        errorNormalization: prepared.amplitudes.errorNormalization, zeroFarFieldPixelError: .finite)
+    let energyNormalized = try MixedstatePtychography.reconstruct(
+        amplitudes: prepared.amplitudes.values, positions: prepared.positions, object: prepared.object, probes: states, iterations: 1,
+        errorNormalization: .suppliedAmplitudeEnergy, zeroFarFieldPixelError: .reference)
+    let corrected = try SingleslicePtychography.reconstruct(
+        amplitudes: prepared.amplitudes.values, positions: prepared.positions, object: prepared.object, probe: prepared.probe, iterations: 1,
+        errorNormalization: .meanIntensity(prepared.amplitudes.meanIntensity),
+        positionCorrection: PtychographyPositionCorrection(stepSize: 0.5, maxUpdateDistance: 1, maxTotalDistance: 2,
+                                                           rowSampling: 0.5, columnSampling: 0.5, constrainCenterOfMass: true))
+    check("CuboPtycho error normalisation and position correction", normalized.errors.count == 1 && energyNormalized.errors.count == 1
+          && corrected.positions.count == prepared.positions.count && corrected.errors.count == 1
+          && PtychographyPositionCorrection().stepSize == 0.5)
     check("CuboPtycho preprocessing and engines", prepared.amplitudes.positionCount == 12 && mixed.probes.count == 2
           && mixed.errors.count == 1 && multi.object.count == 2 && propagators.count == 1
           && mixed.object.real.allSatisfy(\.isFinite) && multi.probe.real.allSatisfy(\.isFinite))
@@ -194,6 +213,11 @@ let (origins, originRadius) = try await OriginMeasurement.measure(of: eager, rad
 check("OriginMeasurement.measure", originRadius == 2.5 && origins.row.values.count == 12 && origins.meanRow.isFinite)
 let fittedPlane = try OriginFit.fit(origins.row.values, rows: 3, columns: 4, model: .plane, robust: true)
 check("OriginFit.fit", fittedPlane.count == 12 && OriginFitModel.allCases.count == 4)
+let trimmedPlane = try OriginFit.fitTrimmed(originRow: origins.row.values, originColumn: origins.column.values, rows: 3, columns: 4,
+                                            model: .plane, trimSigma: 3, madScale: 1.4826, rounds: 3)
+check("OriginFit.fitTrimmed", trimmedPlane.fittedRow.count == 12 && trimmedPlane.fittedColumn.count == 12 && trimmedPlane.kept.count == 12
+      && trimmedPlane.kept.contains(true) && trimmedPlane.fullScanResidual >= 0 && trimmedPlane.keptResidual >= 0
+      && trimmedPlane.excludedFraction != nil)
 let centredImage = try await VirtualImaging.image(of: lazy, geometry: .circle(centerRow: 0, centerColumn: 0, radius: 2),
                                                   centeredOn: (row: origins.meanRow, column: origins.meanColumn),
                                                   pixelSize: nil, shift: .bilinear(origins))

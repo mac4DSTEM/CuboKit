@@ -23,7 +23,7 @@ private func pin() throws -> Pin {
     return try JSONDecoder().decode(Pin.self, from: Data(contentsOf: url))
 }
 private func gap(_ a: [Double], _ b: [Double]) -> Double {
-    guard a.count == b.count else { return .infinity }
+    guard a.count == b.count, a.allSatisfy(\.isFinite) else { return .infinity }   // a NaN must fail, max() would skip it
     return zip(a, b).map { abs($0 - $1) }.max()! / max(1, b.map(abs).max()!)
 }
 private func model(_ name: String) -> OriginFitModel {
@@ -102,5 +102,13 @@ private func model(_ name: String) -> OriginFitModel {
         // a single position is itself; its fit is exact and nothing is excluded
         let one = try OriginFit.fitTrimmed(originRow: [3], originColumn: [4], rows: 1, columns: 1, model: .plane)
         #expect(one.fittedRow == [3] && one.fittedColumn == [4] && one.kept == [true] && one.excludedFraction == 0 && one.keptResidual == 0)
+    }
+}
+
+@Suite struct OriginTrimmedOverflowTests {
+    @Test func overflowingResidualsDoNotTrap() throws {
+        let a: [Double] = [1e308, -1e308, 1e308, -1e308, 5, -5, 1e308, -1e308, 3]
+        let r = try OriginFit.fitTrimmed(originRow: a, originColumn: a.reversed(), rows: 3, columns: 3, model: .plane)
+        #expect(r.kept.count == 9)
     }
 }

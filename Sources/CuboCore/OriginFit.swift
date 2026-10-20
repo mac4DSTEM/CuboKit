@@ -211,6 +211,7 @@ extension OriginFit {
             fittedRow = try masked(originRow, kept); fittedColumn = try masked(originColumn, kept)
             let residual = residuals(fittedRow, fittedColumn)
             let finite = residual.filter(\.isFinite)
+            guard !finite.isEmpty else { break }       // every residual overflowed: nothing to take a median of
             let centre = median(finite)
             let deviation = madScale * median(finite.map { abs($0 - centre) })
             guard deviation.isFinite, deviation > 0 else { break }
