@@ -115,6 +115,10 @@ of mass of `P · [P > M · t]` (`get_CoM`: row then column). An empty trusted se
 
 ## 4. Claims and tolerances
 
+D12 (2026-10-19): "bit for bit" entries in these tables are what the tests assert today. Under the numerical
+testing policy in `CLAUDE.md`, numerics are held to the written tolerance against py4DSTEM, and bit for bit is only a
+quick check. Readers, I/O, indices and metadata stay exact. Converting an assertion is a later code change.
+
 | Quantity | Against the float64 definition | Against py4DSTEM's own | Metal against CPU |
 |---|---|---|---|
 | CoM sums (intensity, row and column moments) | integer cubes bit for bit; float cubes relative 1e-10 (slice 1's floor) | recorded | relative 1e-10 |

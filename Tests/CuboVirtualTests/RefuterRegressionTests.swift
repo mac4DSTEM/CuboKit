@@ -32,7 +32,7 @@ struct RefuterRegressionTests {
     static let noiseShapes: [[Int]] = [[32, 32, 64, 64], [128, 128, 32, 32], [20, 20, 128, 128]]
 
     /// F1: pure N(0, 500) noise, no signal; plain and randomly weighted detectors; Metal within 1e-5 of the CPU path
-    /// under the registered floor, the max bit for bit.
+    /// under the registered floor, the max exact.
     @Test(arguments: noiseShapes)
     func testMetalMeetsTheToleranceOnZeroMeanNoise(_ extents: [Int]) async throws {
         let shape = try CubeShape(extents)

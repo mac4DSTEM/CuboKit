@@ -41,8 +41,13 @@ their planned scope). Rules only here; state in `docs/status.md`.
   recorded beside the float64 ones in every pin and never asserted against (registration section 2, 3.4).
 - **Pins are generated before the Swift code** (`tools/slice-1/pins.py synthetic` writes `Tests/CuboVirtualTests/Fixtures/`);
   a difference is a failure of the port, never a tolerance to widen.
-- **Every accelerated path keeps the CPU reference** and a registered tolerance against it (Metal: relative 1e-5, the max bit
-  for bit). There is no automatic path choice: the caller asks for `.metal`, and the result records it.
+- **Numerical testing policy (D12, Paul 2026-10-19):** readers, I/O, indices and metadata are tested exact. Numerics are
+  compared against the pinned Python reference within a tolerance written per function (assert_allclose style: about 1e-7
+  relative for float64, 1e-5 for float32), never widened to hide a bug. During an app-to-kit switch, bit for bit is only a
+  quick check that nothing moved by accident; if it fails, verify against the Python reference within tolerance and do
+  not block. A moved pinned number gets its own commit with the reason. Elsewhere in this repo, "D12" means this rule.
+- **Every accelerated path keeps the CPU reference** and a registered tolerance against it (Metal: relative 1e-5; the max is
+  exact, D12). There is no automatic path choice: the caller asks for `.metal`, and the result records it.
 - **Public API only, no app types.** Nothing an app needs is `package`; nothing here names `AppState`, `FourDArray`,
   `DatasetDescriptor`, `LoadView` or any other app type; error messages never say "mac4DSTEM". `tools/consumer-check` is a
   separate package that compiles only while every symbol it names is `public`.

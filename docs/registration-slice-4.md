@@ -147,6 +147,10 @@ probe summing to zero, `ro ≤ ri`, a non-positive σ or width, a non-finite ori
 
 ## 4. Claims and tolerances
 
+D12 (2026-10-19): "bit for bit" entries in these tables are what the tests assert today. Under the numerical
+testing policy in `CLAUDE.md`, numerics are held to the written tolerance against py4DSTEM, and bit for bit is only a
+quick check. Readers, I/O, indices and metadata stay exact. Converting an assertion is a later code change.
+
 "Normwise t" means `max |got − want| ≤ t · max |want|` (slice 3's restated Fourier claim). "Relative t" is slice 1's
 (relative with the floor `1e-6 · max |want|`).
 

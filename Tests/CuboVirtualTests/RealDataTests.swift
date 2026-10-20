@@ -100,7 +100,7 @@ import CuboVirtual
             log.append(line)
         }
 
-        // Eager equals lazy, bit for bit, on the real cube (registration 3.4, gate 3).
+        // Eager equals lazy, exactly, on the real cube (registration 3.4, gate 3).
         let eager = try await MemoryCube(loading: cube)
         let e = try await VirtualDiffraction.meanAndMax(of: eager, path: .cpu)
         assertIdentical(e.mean.values, cpu.mean.values, "\(name) mean eager")

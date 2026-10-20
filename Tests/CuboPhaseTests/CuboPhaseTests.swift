@@ -193,7 +193,7 @@ func checkChain(measured: ScanVectorField, reference: CenterOfMassReference, pin
         #expect(off.accepted.allSatisfy { $0 } && off.finalStepSize == 8)
     }
 
-    /// Gate B F3: degrees become radians as NumPy's deg2rad and Python's math.radians do, deg · (π/180), bit for bit
+    /// Gate B F3: degrees become radians as NumPy's deg2rad and Python's math.radians do, deg · (π/180), asserted exact today
     /// (deg · π / 180 differs by an ulp for 38 of the 179 default angles); F4: a non-finite field is refused.
     @Test func testRadiansAndNonFiniteFields() throws {
         let f = (Pins2.pins["fields"] as! [[String: Any]]).first { $0["theta"] as! Double == 23 }!

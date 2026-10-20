@@ -153,6 +153,10 @@ sums into a Double accumulator in tile order and divides by N. `max[i, j]`: the 
 
 ### 3.4 What is bit-identical and what has a tolerance
 
+> D12 (2026-10-19): the "bit for bit" entries here are what the tests assert today. Under the numerical testing
+> policy in `CLAUDE.md`, numerics are held to the written tolerance against py4DSTEM, and bit for bit is only a quick
+> check. Readers, I/O, indices and metadata stay exact. Converting an assertion is a later code change.
+
 | Comparison | Claim |
 |---|---|
 | `MappedCube` against `MemoryCube` of the same bytes, every reducer, every path, every tiling | **bit for bit**: the tile floats are the same, the arithmetic is the same |
@@ -176,7 +180,7 @@ changed (a finer partial-sum tree), not the number.
 
 Every read returns Float32. Integer sources convert exactly up to 2²⁴ (16 777 216); above it the value is rounded to
 the nearest Float32 and the kit says so in `MappedCube.elementType` and the oracle's `exact_in_float32` flag per cube.
-`float64` sources round to nearest even (`vDSP_vdpsp`, NumPy's `astype(np.float32)`). The bit-for-bit claims of 3.4
+`float64` sources round to nearest even (`vDSP_vdpsp`, NumPy's `astype(np.float32)`). The exact claims of 3.4
 are made on the Float32 cube: the oracle computes py4DSTEM's numbers on `data.astype(np.float32)` for the pins, and
 records beside them the same calls on the original dtype, with the distance, so a reader sees what the conversion cost
 (zero on every cube of section 5 below 2²⁴). Non-finite pixels are not claimed: py4DSTEM propagates NaN through

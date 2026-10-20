@@ -58,7 +58,7 @@ enum S4 {
                 if stat == .mean {
                     assertRelative(got, want, 1e-10, "\(name) \(key) mean")
                     if !own.isEmpty, key == "weights" { assertRelative(got, own, 1e-10, "\(name) \(key) mean vs py4DSTEM") }
-                    if integer, key == "mask" {    // exact sums of integers, one division: bit for bit
+                    if integer, key == "mask" {    // exact sums of integers, one division: exact today (D12)
                         assertIdentical(got, want, "\(name) \(key) mean (integer)")
                         assertIdentical(got, own, "\(name) \(key) mean vs py4DSTEM (integer)")
                     }
@@ -221,7 +221,7 @@ enum S4 {
         let mean = try await VirtualDiffraction.mean(of: cube)
         assertRelative(ones.values, mean.values, 1e-15, "weights all one")
         let all = try await VirtualDiffraction.pattern(of: cube, statistic: .mean, scan: .all)
-        #expect(all.values == mean.values, "the .all mean is slice 1's, bit for bit")
+        #expect(all.values == mean.values, "the .all mean is slice 1's, exactly")
         let mx = try await VirtualDiffraction.max(of: cube)
         #expect(try await VirtualDiffraction.pattern(of: cube, statistic: .max).values == mx.values)
     }
@@ -321,7 +321,7 @@ enum S4 {
     }
 
     /// 5: the fast centre of the planted disk cube is the planted centre; excluded positions are NaN, selected ones
-    /// equal the unmasked run bit for bit; remove_NaN fills with the mean of the rest.
+    /// equal the unmasked run exactly; remove_NaN fills with the mean of the rest.
     @Test func testOriginsTruth() async throws {
         let s3 = (S3.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == "planted_f32" }!
         let cube = try MappedCube(npy: Fixtures.url("planted_f32.npy"))

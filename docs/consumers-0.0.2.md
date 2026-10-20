@@ -37,8 +37,8 @@ logic around the probe size.
    0.0 px on the owner's cubes and its Metal kernel (renormalised double-float sums) bit for bit on integer cubes and within 1e-9 px where
    |S| ≥ 1e-3 · Σ|wP| (strongly dark-subtracted positions below that: use `.cpu`) (py4DSTEM's own float32 centre of mass differs
    from it by up to 3.6e-5 px, on py4DSTEM's small cube).
-4. **The probe size is py4DSTEM's bit for bit** on the same pattern, and refuses (`probeNotFound`) where py4DSTEM returns
-   NaN. Check mac4DSTEM's port against it on the five cubes before switching; the CuboKit numbers are in its status.
+4. **The probe size is py4DSTEM's** on the same pattern (asserted exact today; D12: within the written tolerance), and refuses (`probeNotFound`) where py4DSTEM returns
+   NaN. Check mac4DSTEM's port against it (D12: bit for bit is a quick check; on a miss, compare within tolerance) on the five cubes before switching; the CuboKit numbers are in its status.
 5. **The rotation is py4DSTEM's selection rule** (ties keep the plain orientation and the first angle; the transposed
    orientation only when strictly better). The angles and transposes chosen on the owner's cubes: Al–Mg–Si 83° transposed,
    Au reference 2° transposed, simulated poly-Au 86°, particle 80° transposed, py4DSTEM's small cube −18°.

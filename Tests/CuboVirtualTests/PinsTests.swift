@@ -48,7 +48,7 @@ import CuboVirtual
         }
     }
 
-    /// Registration 3.4: CPU virtual images. Integer cubes bit for bit against py4DSTEM's own call; every cube within
+    /// Registration 3.4: CPU virtual images. Integer cubes exact against py4DSTEM's own call (D12: tolerance allowed); every cube within
     /// relative 1e-10 of the float64 evaluation; py4DSTEM's own float32 distance printed beside the kit's.
     @Test func testVirtualImagesOnTheCPUAgreeWithPy4DSTEM() async throws {
         for cube in pins.cubes {
@@ -67,8 +67,8 @@ import CuboVirtual
         }
     }
 
-    /// Registration 3.4: CPU mean (integer cubes bit for bit against py4DSTEM's get_dp_mean; float cubes within 1e-10 of
-    /// the float64 mean) and max (bit for bit everywhere).
+    /// Registration 3.4: CPU mean (integer cubes exact today against py4DSTEM's get_dp_mean; float cubes within 1e-10 of
+    /// the float64 mean) and max (exact everywhere).
     @Test func testMeanAndMaxOnTheCPUAgreeWithPy4DSTEM() async throws {
         for cube in pins.cubes {
             let source = try cube.mapped()
@@ -83,7 +83,7 @@ import CuboVirtual
         }
     }
 
-    /// Registration 3.4: Metal within relative 1e-5 of the CPU path; max bit for bit.
+    /// Registration 3.4: Metal within relative 1e-5 of the CPU path; max exact.
     @Test(.enabled(if: VirtualDiffraction.metalIsAvailable, "no Metal device on this machine"))
     func testMetalAgreesWithTheCPUWithinTheRegisteredTolerance() async throws {
         for cube in pins.cubes {

@@ -8,7 +8,7 @@ lists for strain, Bragg vectors and disk detection, parallax and ptychography. C
 ACOM) is DiffractoKit's; file formats (`read`, `import_file`, `save`) are FormatoKit's; simulation is SimulatoKit's;
 plotting and `show*` are not ported.
 
-Legend: **done** (pinned against py4DSTEM and planted truth, `docs/registration-slice-1.md` and its successors),
+Legend: **done** (pinned against py4DSTEM and planted truth, `docs/registration-slice-1.md` and its successors; under the numerical testing policy (D12, `CLAUDE.md`) numerics are held to a written tolerance and readers, I/O, indices and metadata are exact; where a test still asserts bit for bit, the row says "exact today"),
 **partial** (what is missing says so), **absent** (not in the kit; "planned: ..." names the slice or module where a plan
 exists), **app** (lives in mac4DSTEM, not in a kit), **n/a** (plotting or Python-only). "done (slice 4)" rows are
 `docs/registration-slice-4.md`.
@@ -85,14 +85,14 @@ CuPy, `dask`), the row says n/a once per method, not per argument.
 | `thin_R` | — | absent (planned: reshape slice) |
 | `pad_Q` | — | absent (planned: reshape slice) |
 | `resample_Q` (bilinear, `conserve_array_sums`) | — | absent (planned: reshape slice) |
-| `filter_hot_pixels` (`thresh`, `ind_compare`, `return_mask`) | `HotPixelFilter.filter`, `.mask`, `.replacing` | done: eager Float32 cube, means/masks/pixels pinned bit for bit; wrapped classification and clipped sequential replacement |
+| `filter_hot_pixels` (`thresh`, `ind_compare`, `return_mask`) | `HotPixelFilter.filter`, `.mask`, `.replacing` | done: eager Float32 cube, means/masks/pixels pinned exact today (D12); wrapped classification and clipped sequential replacement |
 | `median_filter_masked_pixels` | — | absent (planned: with `filter_hot_pixels`) |
 
 ## `DataCube`: probe, beam stop and background methods (datacube/datacube.py)
 
 | py4DSTEM | CuboKit | State |
 |---|---|---|
-| `get_probe_size` (`thresh_lower`, `thresh_upper`, `N`) | `ProbeSize.estimate` | done (slice 2; bit for bit) |
+| `get_probe_size` (`thresh_lower`, `thresh_upper`, `N`) | `ProbeSize.estimate` | done (slice 2; exact today, D12) |
 | `get_vacuum_probe(ROI=boolean array)` | `VacuumProbe.measure(of:scanMask:)` | done (slice 4) |
 | `get_vacuum_probe(ROI=4-tuple)` | — | absent (not ported: pass the equivalent boolean ROI) |
 | `get_vacuum_probe(align, zero_vacuum, mask)` | `VacuumProbe.measure(of:scanMask:align:zeroVacuum:detectorMask:)` | done (slice 4) |
@@ -152,7 +152,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `fit_origin(robust, robust_steps, robust_thresh)` | `OriginFit.fit(robust:robustSteps:robustThreshold:)` | done (slice 3) |
 | `fit_origin(mask=)` | `OriginFit.fit` | partial: NaN entries are left out of the fit; no boolean mask argument |
 | `fit_origin(returnfitp=True)` | — | absent (the fit coefficients are not returned) |
-| `get_probe_size` (`process/calibration/probe.py`) | `ProbeSize.estimate` | done (slice 2; bit for bit) |
+| `get_probe_size` (`process/calibration/probe.py`) | `ProbeSize.estimate` | done (slice 2; exact today, D12) |
 | `fit_ellipse_1D` | — | absent (planned: a calibration model; the fit may be DiffractoKit's geometry) |
 | `fit_ellipse_amorphous_ring` | — | absent (planned: with `fit_ellipse_1D`) |
 | `ellipse_err`, `double_sided_gaussian`, `double_sided_gaussian_fiterr` | — | absent (planned: with `fit_ellipse_1D`) |
@@ -348,7 +348,7 @@ iterative `DPC`. Absolute phase tolerance `1e-12` rad; details in `docs/idpc.md`
 
 This refines the preprocessing row above (not counted twice). Generator
 `tools/hot-pixels/pins.py` calls the actual pinned method. Eight fixtures (30,403 bytes)
-pin means, masks and every cleaned sample bit for bit. Measured gap 0; tolerance 0.
+pin means, masks and every cleaned sample exactly today (measured gap 0; D12 allows a written tolerance).
 Supported input and numerical details: `docs/hot-pixels.md`.
 
 ## CPU ptychography details (refines the headline above; not counted twice)

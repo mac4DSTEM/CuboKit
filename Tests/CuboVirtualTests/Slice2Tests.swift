@@ -33,7 +33,7 @@ enum Slice2 {
         #expect(Slice2.com.count == 24 && Slice2.probe.count == 20)
     }
 
-    /// 3.1, 4: the sums within 1e-10 of the float64 definition (integer cubes bit for bit), the centre of mass within
+    /// 3.1, 4: the sums within 1e-10 of the float64 definition (integer cubes exact today, D12), the centre of mass within
     /// 1e-9 px where the denominator is conditioned; py4DSTEM's own float32 distance printed.
     @Test func testCenterOfMassAgreesWithTheFloat64Definition() async throws {
         for e in Slice2.com {
@@ -84,7 +84,7 @@ enum Slice2 {
         }
     }
 
-    /// 3.5: py4DSTEM's get_probe_size is float64 on these patterns, so the port is held to it bit for bit; where it
+    /// 3.5: py4DSTEM's get_probe_size is float64 on these patterns, so the test asserts it exactly today (D12: a tolerance is allowed); where it
     /// returns NaN the kit refuses.
     @Test func testProbeSizeIsPy4DSTEMsBitForBit() async throws {
         for e in Slice2.probe {

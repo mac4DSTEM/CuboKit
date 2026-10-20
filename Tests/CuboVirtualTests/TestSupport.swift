@@ -150,7 +150,8 @@ func assertRelative(_ got: [Double], _ want: [Double], _ t: Double, _ message: @
     return worst
 }
 
-/// Bit for bit.
+/// Exact comparison (bit pattern). Use for readers, I/O, indices, metadata and same-code equality; for numerics against
+/// a Python reference D12 prefers a written tolerance.
 func assertIdentical(_ got: [Double], _ want: [Double], _ message: @autoclosure () -> String,
                      sourceLocation: SourceLocation = SourceLocation(fileID: #fileID, filePath: #filePath,
                                                                      line: #line, column: #column)) {

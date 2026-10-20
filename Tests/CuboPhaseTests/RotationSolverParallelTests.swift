@@ -1,6 +1,6 @@
 //
 //  RotationSolverParallelTests.swift
-//  `RotationSolver.curve` and the parallel angle grid in `solve`: bit identical to `solve`'s own curves, and the
+//  `RotationSolver.curve` and the parallel angle grid in `solve`: exactly equal to `solve`'s own curves, and the
 //  cancellation. Tier 1 (the numbers must not move).
 //
 

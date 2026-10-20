@@ -17,7 +17,7 @@ private func hotPixelPins() throws -> [HotPixelPin] {
             let shape = try CubeShape(p.shape)
             let cube = try MemoryCube(shape:shape,values:p.values)
             let result = try HotPixelFilter.filter(cube,threshold:p.threshold,comparisonIndex:p.index)
-            // Pinned actual Float32 py4DSTEM calls: means, masks and all output samples bit for bit.
+            // Pinned actual Float32 py4DSTEM calls: means, masks and all output samples, asserted exact today (D12: a tolerance against py4DSTEM is allowed for the samples).
             #expect(result.mean.map(\.bitPattern) == p.mean.map(\.bitPattern))
             #expect(result.mask == p.mask)
             #expect(result.cube.values.map(\.bitPattern) == p.filtered.map(\.bitPattern))

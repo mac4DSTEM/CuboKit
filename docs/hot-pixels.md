@@ -33,8 +33,8 @@ The generator verifies the pinned commit, installed oracle source bytes, Python
 and adjacent hot pixels, sequential replacement, even clipped medians, wraparound,
 comparison indices 0/1/8/20, a one-row detector and noninteger Float32 mean sums. A 256-position 1×1 detector cancellation case pins
 NumPy's pairwise mean 0 where sequential summation gives 0.00390625.
-Mean samples, masks and every filtered pixel are pinned bit for bit. Tolerance
-is zero; there is no comparison against a transcribed replacement implementation.
+Mean samples, masks and every filtered pixel are asserted exact today (tolerance zero;
+D12 allows a written tolerance against py4DSTEM for the samples). There is no comparison against a transcribed replacement implementation.
 
 Measured gap: 0 for means, masks and filtered pixels, tested via Float32 bit patterns.
 Fixture size: 30,403 bytes. Three new Swift Testing tests failed against identity/

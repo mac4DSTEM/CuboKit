@@ -32,7 +32,7 @@ enum S3 {
         let shape = cube.shape
         let r = Double(e["radius"] as! String)!
         var log = ["slice3 \(name)"]
-        // origins: the default radius is the probe size of the max pattern, bit for bit; origins 1e-9 px
+        // origins: the default radius is the probe size of the max pattern, asserted exact today (D12); origins 1e-9 px
         let (measured, radius) = try await OriginMeasurement.measure(of: cube)
         #expect(radius.bitPattern == r.bitPattern, "\(name): radius \(radius) vs \(r)")
         let orow = d(e["origin_row"]), ocol = d(e["origin_column"])
