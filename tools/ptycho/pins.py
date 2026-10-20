@@ -79,5 +79,26 @@ out['variants'] = variants
 other = ComplexProbe(energy=200e3,gpts=(7,10),sampling=(0.8,1.1),semiangle_cutoff=18,
                      rolloff=0,defocus=70,C12=25,phi12=0.31,C30=2e4).build()._array
 out['rectangularProbe'] = complex_array(other)
+# Probe constraints (fix_probe_com, constrain_probe_amplitude) from the same input, started from a probe that
+# is off-centre by a fractional shift (py4DSTEM's own fft_shift), so the centre-of-mass constraint has work to do.
+from py4DSTEM.process.phase.utils import fft_shift
+offset = np.array([1.3,-0.8])
+offcentre_probe = fft_shift(initial_probe, offset, np).astype(np.complex64)
+cases = []
+for name, com, amp, radius, width in [('com',True,False,0.5,0.05),('amplitude',False,True,0.3,0.1),
+                                      ('both',True,True,0.3,0.1),('amplitudeDefaults',False,True,0.5,0.05)]:
+    p._object = initial_object.copy(); p._probe = offcentre_probe.copy()
+    p._positions_px = positions.copy()
+    p.error_iterations = []
+    np.random.seed(1729)
+    p.reconstruct(num_iter=3, step_size=0.35, normalization_min=0.7, fix_probe_com=com,
+                  constrain_probe_amplitude=amp, constrain_probe_amplitude_relative_radius=radius,
+                  constrain_probe_amplitude_relative_width=width, fix_probe=False, fix_positions=True,
+                  gaussian_filter=False, butterworth_filter=False, tv_denoise=False,
+                  fix_potential_baseline=False, progress_bar=False, reset=False)
+    cases.append(dict(name=name,fixProbeCenterOfMass=com,constrainProbeAmplitude=amp,radius=radius,width=width,
+                      object=complex_array(p._object),probe=complex_array(p._probe),errors=p.error_iterations))
+out['offcentreProbe'] = complex_array(offcentre_probe)
+out['constraintCases'] = cases
 (KIT/'Tests/CuboPtychoTests/Fixtures/ptycho.json').write_text(json.dumps(out,separators=(',',':'))+'\n')
 print('fixture bytes', (KIT/'Tests/CuboPtychoTests/Fixtures/ptycho.json').stat().st_size)

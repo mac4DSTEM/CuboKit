@@ -83,19 +83,33 @@ public enum SingleslicePtychography {
     /// Reconstructs from corner-centered amplitudes `[position][row][column]`.
     /// Uses periodic object patches, ties-to-even center rounding, fractional probe
     /// shifts, py4DSTEM's normalization and |object| ≤ 1 constraint after each update.
-    /// Positions stay fixed; probe COM, aperture and smoothing constraints are disabled.
-    /// `purePhaseObject` forces unit object amplitude. No preprocessing is implicit.
+    /// Positions stay fixed. `purePhaseObject` forces unit object amplitude. No preprocessing is implicit.
+    ///
+    /// Probe constraints, applied after each probe update and only when `fixProbe` is false, in
+    /// py4DSTEM's order: `fixProbeCenterOfMass` re-centres the probe intensity centre of mass on
+    /// the corner pixel by a periodic Fourier shift (`fix_probe_com`; py4DSTEM defaults it on,
+    /// here it is off like every added option); `constrainProbeAmplitude` multiplies the probe by
+    /// a smooth top-hat of the given relative radius and width in cycles per pixel and restores
+    /// the probe's total intensity (`constrain_probe_amplitude`, `_relative_radius`,
+    /// `_relative_width`; the radius lies in 0...0.5 and the width in (0, 0.5]).
+    /// The object amplitude cap has no switch in py4DSTEM and stays unconditional.
     public static func reconstruct(amplitudes: [Double], positions: [PtychographyPosition],
                                    object: PtychographyArray, probe: PtychographyArray,
                                    iterations: Int = 8, stepSize: Double = 0.5,
                                    normalizationMinimum: Double = 1, fixProbe: Bool = false,
-                                   purePhaseObject: Bool = false) throws -> Result {
+                                   purePhaseObject: Bool = false,
+                                   fixProbeCenterOfMass: Bool = false,
+                                   constrainProbeAmplitude: Bool = false,
+                                   probeAmplitudeRelativeRadius: Double = 0.5,
+                                   probeAmplitudeRelativeWidth: Double = 0.05) throws -> Result {
         let n = probe.real.count, count = positions.count
         guard count > 0, count <= Int.max / n, amplitudes.count == count*n,
               amplitudes.allSatisfy({ $0.isFinite && $0 >= 0 }),
               iterations >= 0, stepSize.isFinite, stepSize > 0,
               normalizationMinimum.isFinite, (0...1).contains(normalizationMinimum),
               positions.allSatisfy({ $0.row.isFinite && $0.column.isFinite && abs($0.row) < Double(Int.max/4) && abs($0.column) < Double(Int.max/4) }),
+              probeAmplitudeRelativeRadius.isFinite, (0...0.5).contains(probeAmplitudeRelativeRadius),
+              probeAmplitudeRelativeWidth.isFinite, probeAmplitudeRelativeWidth > 0, probeAmplitudeRelativeWidth <= 0.5,
               object.rows >= probe.rows, object.columns >= probe.columns else { throw PtychographyError.invalidInput }
         let intensity = amplitudes.reduce(0) { $0+$1*$1 }
         guard intensity > 0, intensity.isFinite else { throw PtychographyError.invalidInput }
@@ -162,12 +176,57 @@ public enum SingleslicePtychography {
             if !fixProbe { for k in 0..<n {
                 let s = stepSize * inverse(on[k],maxON)
                 pr[k] += s*pnr[k]; pi[k] += s*pni[k]
-            } }
+            }
+            if fixProbeCenterOfMass { centerOfMassConstraint(&pr,&pi,fft) }
+            if constrainProbeAmplitude {
+                amplitudeConstraint(&pr,&pi,rows:probe.rows,columns:probe.columns,
+                                    radius:probeAmplitudeRelativeRadius,width:probeAmplitudeRelativeWidth)
+            }
+            }
             errors.append(error/intensity)
         }
         return try Result(object:PtychographyArray(rows:object.rows,columns:object.columns,real:or,imaginary:oi),
                           probe:PtychographyArray(rows:probe.rows,columns:probe.columns,real:pr,imaginary:pi),errors:errors)
     }
+}
+
+/// py4DSTEM `_probe_center_of_mass_constraint`: corner-centered intensity CoM, then a Fourier shift by its negative.
+private func centerOfMassConstraint(_ re: inout [Double], _ im: inout [Double], _ fft: FFT2D) {
+    let rows = fft.rows, columns = fft.columns
+    var total = 0.0, comRow = 0.0, comColumn = 0.0
+    for r in 0..<rows { for c in 0..<columns {
+        let k = r*columns+c, w = re[k]*re[k]+im[k]*im[k]
+        total += w
+        comRow += frequency(r,rows)*Double(rows)*w; comColumn += frequency(c,columns)*Double(columns)*w
+    } }
+    guard total > 0, total.isFinite else { return }
+    comRow /= total; comColumn /= total
+    fft.transform(&re,&im,inverse:false)
+    for r in 0..<rows { for c in 0..<columns {
+        let k = r*columns+c
+        let phase = -2 * Double.pi * (frequency(r,rows)*(-comRow)+frequency(c,columns)*(-comColumn))
+        let cosine = cos(phase), sine = sin(phase), a = re[k], b = im[k]
+        re[k] = a*cosine-b*sine; im[k] = a*sine+b*cosine
+    } }
+    fft.transform(&re,&im,inverse:true)
+}
+
+/// py4DSTEM `_probe_amplitude_constraint`: smooth top-hat in cycles per pixel, total intensity restored.
+private func amplitudeConstraint(_ re: inout [Double], _ im: inout [Double], rows: Int, columns: Int,
+                                 radius: Double, width: Double) {
+    let before = zip(re,im).reduce(0) { $0 + $1.0*$1.0 + $1.1*$1.1 }
+    let sigma = Double.pi.squareRoot()/width
+    var after = 0.0
+    for r in 0..<rows { for c in 0..<columns {
+        let k = r*columns+c
+        let d = hypot(frequency(r,rows),frequency(c,columns)) - radius
+        let mask = 0.5*(1-erf(sigma*d/(1-d*d)))
+        re[k] *= mask; im[k] *= mask
+        after += re[k]*re[k]+im[k]*im[k]
+    } }
+    guard before > 0, after > 0 else { return }
+    let scale = (before/after).squareRoot()
+    for k in re.indices { re[k] *= scale; im[k] *= scale }
 }
 
 private func frequency(_ k: Int, _ n: Int) -> Double { Double(k < (n+1)/2 ? k : k-n)/Double(n) }
