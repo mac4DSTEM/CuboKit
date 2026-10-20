@@ -1,9 +1,9 @@
-// CPU probe construction and single-slice complex-object reconstruction.
+// CPU ptychography preprocessing, probe construction and single-slice, mixed-state and multislice reconstruction.
 
 import CuboCore
 
 /// The numerical algorithms currently available in this module.
 public enum CuboPtycho {
-    /// Probe construction and CPU single-slice complex-object gradient descent.
-    public static let scope = "Probe construction and CPU single-slice ptychography; fixed positions, full batches; probe-centre and probe-amplitude constraints."
+    /// Preprocessing, probe construction and the CPU single-slice, mixed-state and multislice engines.
+    public static let scope = "Preprocessing (amplitudes, scan positions, object canvas, starting probe), probe construction and CPU single-slice, mixed-state and multislice ptychography; fixed positions, full batches; probe-centre, probe-amplitude, aperture and support constraints."
 }

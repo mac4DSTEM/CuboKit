@@ -125,6 +125,32 @@ do {
     check("StrainMapping scan-level", false)
 }
 check("CuboPtycho scope", CuboPtycho.scope.contains("probe-centre"))
+do {
+    // Crop-and-bin view, ptychography preprocessing and the three engines, through the public API.
+    let viewed = try ViewedCube(base: eager, specification: CubeViewSpecification(
+        scanCrop: AxisCrop(rowOffset: 1, columnOffset: 0, rows: 2, columns: 3),
+        detectorCrop: AxisCrop(rowOffset: 0, columnOffset: 1, rows: 7, columns: 8), detectorBin: 2))
+    let loaded = try await MemoryCube(loading: viewed)
+    var firstBlock: Float = 0                      // scan (1, 0), detector rows 0..<2, columns 1..<3 summed
+    for r in 0..<2 { for c in 0..<2 { firstBlock += values[(1 * 4) * 72 + r * 9 + 1 + c] } }
+    check("ViewedCube crop and bin", viewed.shape.extents == [2, 3, 3, 4] && viewed.geometry.discardedDetectorRows == 1
+          && loaded.values.count == 72 && loaded.values[0] == firstBlock)
+    let prepared = try await PtychographyPreparation.prepare(
+        source: eager, origins: .uniform(row: 0.3, column: -0.2), geometry: PtychographyScanGeometry(scanSamplingRow: 1, scanSamplingColumn: 1),
+        objectSamplingRow: 0.5, objectSamplingColumn: 0.5, wavelength: 0.025, semiangle: 10)
+    let states = try MixedstatePtychography.initialProbes(from: prepared.probe, count: 2, seed: 1)
+    let mixed = try MixedstatePtychography.reconstruct(amplitudes: prepared.amplitudes.values, positions: prepared.positions,
+                                                       object: prepared.object, probes: states, iterations: 1)
+    let propagators = try MultislicePtychography.propagators(rows: 8, columns: 9, rowSampling: 0.5, columnSampling: 0.5,
+                                                             wavelength: 0.025, sliceThicknesses: [20])
+    let multi = try MultislicePtychography.reconstruct(
+        amplitudes: prepared.amplitudes.values, positions: prepared.positions,
+        object: PtychographyStack([prepared.object, prepared.object]), probe: prepared.probe, sliceThicknesses: [20],
+        wavelength: 0.025, rowSampling: 0.5, columnSampling: 0.5, iterations: 1)
+    check("CuboPtycho preprocessing and engines", prepared.amplitudes.positionCount == 12 && mixed.probes.count == 2
+          && mixed.errors.count == 1 && multi.object.count == 2 && propagators.count == 1
+          && mixed.object.real.allSatisfy(\.isFinite) && multi.probe.real.allSatisfy(\.isFinite))
+}
 check("ElementType list", ElementType.allCases.count == 10 && ElementType.uint16.npyDescriptor == "<u2")
 // Slice 2: centre of mass, probe size, the reference, the rotation, DPC.
 for path in paths {
@@ -151,6 +177,11 @@ let rotation = try RotationSolver.solve(normalized, anglesDegrees: RotationSolve
 check("RotationSolver.solve", rotation.degrees == 0 && !rotation.transposed && rotation.curve.count == 179)
 let dpc = try DPC.reconstruct(rotation.corrected, scanSampling: (1, 1), paddingFactor: 2, maxIterations: 16)
 check("DPC.reconstruct", dpc.phase.count == rows * cols && dpc.errors.count <= 16 && dpc.finalStepSize > 0)
+let dpcMagnitude = DPCViews.magnitude(of: field)
+let dpcAngle = DPCViews.angle(of: field, convention: .rowOverColumn)
+check("DPCViews and RotationConvention", dpcMagnitude.count == rows * cols && dpcAngle.allSatisfy { $0 >= 0 && $0 < 2 * Double.pi }
+      && RotationConvention.kit(fromImageFrame: 0.5) == -0.5 && RotationConvention.degreesText(-0.01) == "0.0°"
+      && DPCViews.milliradiansPerPixel(wavelength: 0.02, reciprocalSampling: 0.05) == 1.0)
 do {
     _ = try DPC.reconstruct(try ScanVectorField(scanRows: 3, scanColumns: 3, row: Array(repeating: 0, count: 9),
                                                 column: Array(repeating: 0, count: 9)))
