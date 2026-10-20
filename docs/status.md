@@ -1,6 +1,8 @@
 # Status
 
-**Hand-off 2026-10-20 (kit gaps):** done: probe-centre and probe-amplitude constraints, `Parallax.reconstruct` plus end-to-end `process`, scan-level `StrainMapping`, all pinned to py4DSTEM (CHANGELOG "Unreleased", parity 76/35/71); next: owner pushes and tags 0.4.0, then multislice/mixed-state ptychography, the remaining ptycho probe constraints, parallax initial-aberration shifts.
+**Hand-off 2026-10-20 (app-resident computation):** done: ptychography preprocessing, mixed-state and multislice engines, aperture and support constraints, crop-and-bin views, DPC views and the R-Q sign convention, all pinned (CHANGELOG "Unreleased (0.5.0 candidate)", parity 79/37/66); next: owner pushes and tags 0.4.0 then 0.5.0, the app switches (preparer, load view, DPC views), then position correction, the Fourier-amplitude constraint, `MixedstateMultislicePtychography`.
+
+Previous hand-off (kit gaps, 2026-10-20): done: probe-centre and probe-amplitude constraints, `Parallax.reconstruct` plus end-to-end `process`, scan-level `StrainMapping`, all pinned to py4DSTEM (CHANGELOG "Unreleased", parity 76/35/71); next: owner pushes and tags 0.4.0, then multislice/mixed-state ptychography, the remaining ptycho probe constraints, parallax initial-aberration shifts.
 
 Earlier: D12 wording in CLAUDE.md, docs and test comments (d43b531); convert exact-asserting numeric tests to written tolerances (one per release).
 

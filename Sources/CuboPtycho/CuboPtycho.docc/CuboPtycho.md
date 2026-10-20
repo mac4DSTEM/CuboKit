@@ -1,13 +1,17 @@
 # ``CuboPtycho``
 
-CPU probe construction and single-slice ptychography from numerical arrays.
+CPU ptychography preprocessing, probe construction and single-slice, mixed-state and multislice reconstruction.
 
 ## Topics
 
 ### Processing
 
+- ``PtychographyPreparation``
 - ``PtychographyProbe``
 - ``SingleslicePtychography``
+- ``MixedstatePtychography``
+- ``MultislicePtychography``
+- ``PtychographyStack``
 - ``PtychographyArray``
 - ``PtychographyPosition``
 - ``PtychographyError``

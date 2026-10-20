@@ -23,6 +23,13 @@ memory-mapped from a NumPy `.npy` file, read as Float32 and tiled along the scan
 - ``ScanTile``
 - ``ScanTiling``
 
+### Crop and bin views
+
+- ``ViewedCube``
+- ``CubeViewSpecification``
+- ``CubeViewGeometry``
+- ``AxisCrop``
+
 ### The file format
 
 - ``NPYFile``

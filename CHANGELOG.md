@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased (0.5.0 candidate)
+
+App-resident computation moves into the kit, each piece pinned to py4DSTEM 0.14.19 (`f050d207`), NumPy or a transcription of
+the app source, with the tolerance written in its test (`docs/ptycho.md` has the measured gaps).
+
+- **CuboPtycho preprocessing:** `PtychographyPreparation` (`amplitudes`, `scanPositions`, `objectShape`, `centerPositions`, `initialProbe`, `prepare`) builds the amplitude stack, scan positions, object canvas and starting probe from a `CubeSource`. Bilinear and cubic-spline (SciPy grid-wrap) pattern shifts, py4DSTEM's rotation/transpose/padding, Float32 rotation matrix reproduced. Measured gaps 4.2e-8 (amplitudes), 0 (positions), 6e-8 (probe) at tolerance 2e-6. The app's choices are named options (`PtychographyPreparationOptions.mac4DSTEM`: bilinear shifts, per-axis padding, no re-centring, clipped mean intensity).
+- **CuboPtycho engines:** `MixedstatePtychography` (`reconstruct`, `orthogonalize`, `initialProbes` with NumPy-compatible seeded states) and `MultislicePtychography` (`reconstruct`, `propagators`, `identicalSlices`), CPU Double beside `SingleslicePtychography`; new `PtychographyStack` type. Measured gaps 3.9e-7 at 2e-6 over 11 py4DSTEM cases; one slice equals the single-slice engine to 2e-16.
+- **CuboPtycho constraints:** `fixProbeAperture` and `probeSupportMask` on all three engines (off by default), pinned to py4DSTEM on each.
+- **CuboCore:** `ViewedCube`, `CubeViewSpecification`, `CubeViewGeometry`, `AxisCrop`: scan crop, detector crop and detector bin applied at read time to any `CubeSource` (py4DSTEM `crop_data_real`, `crop_data_diffraction`, `bin_data_diffraction`: crop first, remainder trimmed off the end, blocks summed). Shapes and integer sums exact, float sums within 1e-6 (measured 1.2e-7). `AxisCrop.enclosing` is the app's drag-rectangle arithmetic. New error case `CuboError.invalidView`.
+- **CuboPhase:** `DPCViews` (magnitude, angle in [0, 2 pi) with py4DSTEM's `row + i column` direction or the image-frame `atan2(row, column)`, milliradians per pixel) and `RotationConvention` (the sign flip between py4DSTEM's R-Q angle and an image-frame caller's, display text), NumPy-pinned.
+- `docs/parity.md`: 79 done, 37 partial, 66 absent of 182 (crop_Q, crop_R, bin_Q done; mixed-state and multislice partial).
+
+### Migration
+
+Additive. `CuboError` gains a case (`invalidView`), so an exhaustive `switch` over it needs a default. `SingleslicePtychography.reconstruct` gains two defaulted parameters (`fixProbeAperture`, `probeSupportMask`). A caller in the app moves: the preparer (`PtychographyPreparer`) to `PtychographyPreparation.prepare(..., options: .mac4DSTEM(...))` after relabelling its axes to py4DSTEM's (its x and y are the kit's column and row); the load view's crop and bin to `ViewedCube` (its bin factors 2, 4, 8 stay the app's policy); the DPC magnitude and angle images to `DPCViews` (Double, not Float32 interleaved) and the rotation sign to `RotationConvention`. Not moved: the colour wheel (a display), the byte-count and residency arithmetic of the load configuration, the UI selection state.
+
 ## Unreleased (0.4.0 candidate)
 
 Three additions, each pinned to py4DSTEM 0.14.19 (`f050d207`) with the tolerance written in its test.

@@ -14,8 +14,8 @@ and an object amplitude cap of one (or unit amplitude for pure-phase objects).
 Probe updating can be disabled. Positions stay fixed. Two probe constraints are options,
 off by default: centre-of-mass centering (`fixProbeCenterOfMass`) and the real-space
 top-hat amplitude constraint (`constrainProbeAmplitude` with relative radius and width),
-applied in py4DSTEM's order after each probe update. No probe support, probe aperture
-constraint, smoothing, position refinement, batching or preprocessing is implicit.
+applied in py4DSTEM's order after each probe update; a fixed Fourier aperture
+(`fixProbeAperture`) and a real-space support mask (`probeSupportMask`) are options too. No smoothing, position refinement or batching is implicit.
 These choices correspond to explicitly disabled options in py4DSTEM.
 The probe adjoint intentionally follows the reference's sum without undoing each
 fractional shift. Input probes are already normalized to the measured intensities
@@ -29,5 +29,9 @@ Exact Fourier zeros have undefined phase; roundoff may choose different phases n
 those zeros, particularly for a uniform starting object and a hard aperture.
 This fixture uses a nonuniform initial object. Agreement is not microscope validation.
 
-Mixed-state and multislice reconstruction, further constraints, preprocessing,
-position refinement and acceleration remain future work. Parallax is outside this API.
+`MixedstatePtychography` (several incoherent probe states, orthogonalisation, NumPy-compatible seeded
+starting states) and `MultislicePtychography` (a stack of slices with Fresnel propagators) follow the same
+conventions and tolerance. `PtychographyPreparation` builds the amplitudes, scan positions, object canvas and
+starting probe from a `CubeSource`, with py4DSTEM's conventions by default and the app's as named options.
+The Fourier-amplitude and aberration-fitting constraints, position refinement, the projection schemes,
+batching and acceleration remain future work (`docs/ptycho.md`). Parallax is outside this API.

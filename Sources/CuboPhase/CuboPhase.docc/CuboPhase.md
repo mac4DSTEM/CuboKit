@@ -21,6 +21,11 @@ enter it.
 - ``RotationSolution``
 - ``RotationSolver``
 
+### Views and conventions
+
+- ``DPCViews``
+- ``RotationConvention``
+
 ### Reconstruction
 
 - ``DPC``

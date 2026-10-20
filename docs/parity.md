@@ -24,7 +24,7 @@ CuPy, `dask`), the row says n/a once per method, not per argument.
 | `R_Nx`, `R_Ny`, `Q_Nx`, `Q_Ny` | `CubeShape.scanRows`, `scanColumns`, `detectorRows`, `detectorColumns` | done |
 | `Rshape`, `Qshape`, `R_N` | `CubeShape`, `scanCount`, `detectorCount` | done |
 | `datacube[rx, ry]` | `readPattern(row:column:)` | done |
-| `bin_Q_mmap`, dask-backed lazy data | `MappedCube` | partial: lazy and memory-mapped; no bin on read |
+| `bin_Q_mmap`, dask-backed lazy data | `MappedCube` | partial: lazy and memory-mapped; crop and bin on read through `ViewedCube` (0.5.0) |
 | `DataCube(calibration=..., slicelabels=...)` | — | absent (planned: a calibration model, below) |
 | `copy`, `add`, the emdfile tree and `metadata` | — | n/a (value types; emdfile is FormatoKit's) |
 | `.polar` (polar-transformed datacube) | — | n/a (DiffractoKit: polar elliptical transforms) |
@@ -78,10 +78,10 @@ CuPy, `dask`), the row says n/a once per method, not per argument.
 | `swap_RQ` | — | absent (planned: reshape slice) |
 | `swap_Rxy` | — | absent (planned: reshape slice) |
 | `swap_Qxy` | — | absent (planned: reshape slice) |
-| `crop_Q` | — | absent (planned: reshape slice; mac4DSTEM's `LoadSpecification` crops at read time, app today) |
-| `crop_R` | — | absent (planned: reshape slice; `LoadSpecification`, app today) |
-| `bin_Q` | — | absent (planned: reshape slice; `LoadSpecification`, app today) |
-| `bin_R` | — | absent (planned: reshape slice; `LoadSpecification`, app today) |
+| `crop_Q` | `ViewedCube` with `CubeViewSpecification.detectorCrop` | done (0.5.0; a read-time view of any `CubeSource`; shapes exact, `tools/cubeview/pins.py`) |
+| `crop_R` | `ViewedCube` with `.scanCrop` | done (0.5.0; exact) |
+| `bin_Q` | `ViewedCube` with `.detectorBin` | done (0.5.0; py4DSTEM's rule: crop first, trim the remainder off the end, sum `bin x bin` blocks; Double sums rounded once to Float32, measured 1.2e-7 relative; any positive factor, the app's 2, 4, 8 is its own policy) |
+| `bin_R` | — | absent (planned: reshape slice) |
 | `thin_R` | — | absent (planned: reshape slice) |
 | `pad_Q` | — | absent (planned: reshape slice) |
 | `resample_Q` (bilinear, `conserve_array_sums`) | — | absent (planned: reshape slice) |
@@ -209,6 +209,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `DPC.reconstruct(reset, progress_bar)` | — | n/a (Python state and progress bar) |
 | result: `object_phase`, `error`, `sampling`, rotation and transpose | `DPCReconstruction.phase`, `errors`, `RotationSolution` | done (slice 2) |
 | `DPC.visualize`, `show_complex_CoM`, `to_h5` | — | n/a (plotting; FormatoKit) |
+| complex CoM magnitude and angle (`show_complex_CoM` data) | `DPCViews.magnitude`, `.angle` | not counted (derived views): py4DSTEM's `row + i column` direction or the image-frame `atan2(row, column)`, wrapped to [0, 2 pi); NumPy-pinned (`tools/dpcviews/pins.py`), `RotationConvention` states the sign flip between conventions |
 | `set_device`, `set_storage`, `clear_device_mem`, `attach_datacube`, `reinitialize_parameters`, `set_save_defaults` | — | n/a (Python object plumbing) |
 
 ## Strain (process/strain/)
@@ -283,8 +284,8 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | py4DSTEM | CuboKit | State |
 |---|---|---|
 | `SingleslicePtychography` (`preprocess`, `reconstruct`) | `CuboPtycho` | partial: CPU single-slice gradient descent from preprocessed amplitudes; scope below |
-| `MultislicePtychography` (`preprocess`, `reconstruct`) | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `MixedstatePtychography` (`preprocess`, `reconstruct`) | `CuboPtycho` | absent (planned: `CuboPtycho`) |
+| `MultislicePtychography` (`preprocess`, `reconstruct`) | `MultislicePtychography`, `PtychographyPreparation` | partial (0.5.0): CPU Double gradient descent through slices with Fresnel propagators, identical-slices option; tilted propagators, z-regularisation, TV and `middle_focus` absent; scope in the ptychography details below |
+| `MixedstatePtychography` (`preprocess`, `reconstruct`) | `MixedstatePtychography`, `PtychographyPreparation` | partial (0.5.0): CPU Double gradient descent with several probe states, orthogonalisation, seeded NumPy-compatible initial states, probe constraints; scope in the ptychography details below |
 | `MixedstateMultislicePtychography` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `DirectPtychography`: `SSB` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | `DirectPtychography`: `OBF` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
@@ -295,7 +296,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `PtychographyOptimizer`, `OptimizationParameter` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
 | the constraint and method mixins (`ObjectNDConstraintsMixin`, `ProbeMethodsMixin`, ...), `ComplexProbe`, `AffineTransform` | — | n/a (internals; their features count under the classes above) |
 
-## Count (0.3.0)
+## Count (0.5.0)
 
 Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows excluded). One row is one method or option group.
 
@@ -305,7 +306,7 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | DataCube: virtual images | 9 | 7 | 1 | 1 |
 | DataCube: virtual diffraction | 10 | 9 | 0 | 1 |
 | DataCube: calibration-bound properties and coordinates | 5 | 0 | 1 | 4 |
-| DataCube: reshaping and pre-processing | 13 | 1 | 0 | 12 |
+| DataCube: reshaping and pre-processing | 13 | 4 | 0 | 9 |
 | DataCube: probe, beam stop and background methods | 10 | 5 | 0 | 5 |
 | Calibration entries | 21 | 0 | 12 | 9 |
 | Calibration processes | 23 | 11 | 3 | 9 |
@@ -314,10 +315,10 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | Strain | 14 | 8 | 5 | 1 |
 | Bragg vectors and disk detection | 17 | 3 | 3 | 11 |
 | Parallax | 9 | 3 | 3 | 3 |
-| Ptychography | 11 | 0 | 1 | 10 |
-| **Total** | **182** | **76** | **35** | **71** |
+| Ptychography | 11 | 0 | 3 | 8 |
+| **Total** | **182** | **79** | **37** | **66** |
 
-Of the 182 rows in scope: done 76, partial 35, absent 71 (0.3.0: 73, 36, 73; 0.1.0: 61, 23, 98). Of the done rows, 25 are
+Of the 182 rows in scope: done 79, partial 37, absent 66 (0.4.0 candidate: 76, 35, 71; 0.3.0: 73, 36, 73; 0.1.0: 61, 23, 98). 0.5.0 adds crop_Q, crop_R and bin_Q as done, and the mixed-state and multislice classes as partial. Of the done rows, 25 are
 slice 4, 36 slices 1 to 3, one is hot-pixel filtering, eight strain rows, three Bragg disk detection, and three
 parallax (aberration fit, aberration correction, depth sectioning). The parallax alignment, preprocessing and subpixel
 rows and the CPU ptychography row stay partial; the details tables below refine them and are not counted twice.
@@ -356,9 +357,16 @@ Supported input and numerical details: `docs/hot-pixels.md`.
 | py4DSTEM f050d207 | CuboKit | State |
 |---|---|---|
 | `ComplexProbe.build` | `PtychographyProbe.build` | partial: defocus, C12, C30, hard/cosine aperture; no coherence envelopes |
-| `SingleslicePtychography.reconstruct` gradient descent | `SingleslicePtychography.reconstruct` | partial: preprocessed amplitudes, complex object, fixed positions, full batches, probe updates, threshold/pure-phase object constraints, probe centre-of-mass (`fixProbeCenterOfMass`, default off) and probe amplitude top-hat constraints; aperture, Fourier-amplitude, aberration-fitting and support constraints absent |
+| `SingleslicePtychography.reconstruct` gradient descent | `SingleslicePtychography.reconstruct` | partial: preprocessed amplitudes, complex object, fixed positions, full batches, probe updates, threshold/pure-phase object constraints, probe centre-of-mass (`fixProbeCenterOfMass`, default off), probe amplitude top-hat, fixed aperture (`fixProbeAperture`) and real-space support (`probeSupportMask`); Fourier-amplitude, aberration-fitting, position correction, object filters, batching and the projection schemes absent |
+| `MixedstatePtychography.reconstruct` (gradient descent) | `MixedstatePtychography.reconstruct`, `.orthogonalize`, `.initialProbes` | partial: as single-slice, with `orthogonalizeProbes`; `fix_probe_com` shifts every state by state 0's centre of mass; aperture constrains state 0, amplitude and support every state; the NumPy `RandomState` initial states are reproduced for a given seed; per-state eigenvector phase is a convention (tests align it) |
+| `MultislicePtychography.reconstruct` (gradient descent), `_precompute_propagator_arrays` | `MultislicePtychography.reconstruct`, `.propagators` | partial: slice stack, `slice_thicknesses` per interval, `identical_slices`, probe constraints as single-slice; `kz_regularization_filter`, `theta_x/theta_y`, TV and `middle_focus` absent; the caller gives one thickness per interval (py4DSTEM broadcasts a scalar) |
+| `_normalize_diffraction_intensities` | `PtychographyPreparation.amplitudes` | partial: per-position origins, order-1 (bilinear) and order-3 (spline, grid-wrap) shifts, square root of the clipped values, the mean intensity; `crop_patterns`, `positions_mask`, `region_of_interest_shape` resampling absent |
+| `_calculate_scan_positions_in_pixels` (raster) | `PtychographyPreparation.scanPositions` | done: rotation (Float32 matrix as py4DSTEM), transpose, padding; `initial_scan_positions` and `positions_offset_ang` absent |
+| `_initialize_object`, `center_positions_in_fov` | `objectShape`, `centerPositions` | done (`object_fov_ang` absent) |
+| `_initialize_probe` (no vacuum probe) | `PtychographyPreparation.initialProbe` | done for the aperture probe with defocus, C12, C30; vacuum probes absent |
+| mac4DSTEM `PtychographyPreparer` | `PtychographyPreparationOptions.mac4DSTEM(...)`: bilinear shifts, per-axis padding, no re-centring, clipped mean | named option; padding and mean pinned to the app source by a transcription, the rest to py4DSTEM |
 
-Pins: `tools/ptycho/pins.py`, `Tests/CuboPtychoTests/Fixtures/ptycho.json`.
+Pins: `tools/ptycho/pins.py` (`ptycho.json`), `tools/ptycho/preprocess_pins.py` (`preprocess.json`), `tools/ptycho/engines_pins.py` (`engines.json`), all in `Tests/CuboPtychoTests/Fixtures/`.
 Tolerance `2e-6` normwise maximum error with unit floor; see DocC Scope for numerical limits.
 
 ## Reciprocal lattice strain details
