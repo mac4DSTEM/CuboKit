@@ -116,16 +116,16 @@ public enum ParallaxAlignment: Sendable {
         return ParallaxAlignmentResult(shifts: shifts, images: aligned, mean: mean)
     }
 
-    private struct Spectrum {
+    package struct Spectrum {
         var real: [Double]
         var imaginary: [Double]
     }
 
-    private static func validateFactor(_ factor: Int) throws {
+    package static func validateFactor(_ factor: Int) throws {
         guard (3...64).contains(factor) else { throw ParallaxAlignmentError.invalidUpsampleFactor }
     }
 
-    private static func validate(_ image: [Double], rows: Int, columns: Int,
+    package static func validate(_ image: [Double], rows: Int, columns: Int,
                                  requireContrast: Bool = false) throws {
         let (count, overflow) = rows.multipliedReportingOverflow(by: columns)
         guard rows >= 3, columns >= 3, !overflow else { throw ParallaxAlignmentError.invalidDimensions }
@@ -134,7 +134,7 @@ public enum ParallaxAlignment: Sendable {
         if requireContrast, image.min() == image.max() { throw ParallaxAlignmentError.degenerateCorrelation }
     }
 
-    private static func spectrum(_ image: [Double], fft: FFT2D) throws -> Spectrum {
+    package static func spectrum(_ image: [Double], fft: FFT2D) throws -> Spectrum {
         var real = image, imaginary = Array(repeating: 0.0, count: image.count)
         fft.transform(&real, &imaginary, inverse: false)
         guard real.allSatisfy(\.isFinite), imaginary.allSatisfy(\.isFinite) else {
@@ -143,7 +143,7 @@ public enum ParallaxAlignment: Sendable {
         return Spectrum(real: real, imaginary: imaginary)
     }
 
-    private static func inverse(_ spectrum: Spectrum, fft: FFT2D) throws -> [Double] {
+    package static func inverse(_ spectrum: Spectrum, fft: FFT2D) throws -> [Double] {
         var real = spectrum.real, imaginary = spectrum.imaginary
         fft.transform(&real, &imaginary, inverse: true)
         guard real.allSatisfy(\.isFinite), imaginary.allSatisfy(\.isFinite) else {
@@ -152,7 +152,7 @@ public enum ParallaxAlignment: Sendable {
         return real
     }
 
-    private static func estimate(reference: Spectrum, moving: Spectrum, fft: FFT2D,
+    package static func estimate(reference: Spectrum, moving: Spectrum, fft: FFT2D,
                                  upsampleFactor: Int) throws -> ParallaxShift {
         var real = Array(repeating: 0.0, count: reference.real.count), imaginary = real
         for pixel in real.indices {
@@ -176,7 +176,7 @@ public enum ParallaxAlignment: Sendable {
         return (remainder < 0 ? remainder + period : remainder) - half
     }
 
-    private static func apply(_ shift: ParallaxShift, to spectrum: inout Spectrum, rows: Int, columns: Int) {
+    package static func apply(_ shift: ParallaxShift, to spectrum: inout Spectrum, rows: Int, columns: Int) {
         // Periodic reduction also keeps finite, very large user-supplied shifts from overflowing the phase.
         let rowShift = shift.row.truncatingRemainder(dividingBy: Double(rows))
         let columnShift = shift.column.truncatingRemainder(dividingBy: Double(columns))

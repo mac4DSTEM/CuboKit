@@ -41,6 +41,16 @@ public struct ParallaxPreprocessingResult: Sendable {
     public let incoherentImage: [Double]
     /// Normalized window-weighted absolute error.
     public let initialError: Double
+    /// Scan rows before padding.
+    public let scanRows: Int
+    /// Scan columns before padding.
+    public let scanColumns: Int
+    /// The edge window placed in the padded frame (zero in the padding), `rows * columns` values.
+    ///
+    /// This is py4DSTEM's `_window_pad`, the initial real-space mask of every image, and the
+    /// window that ``ParallaxSubpixel/correctPositions(images:rows:columns:shifts:window:scanSampling:factor:sigmaPixels:lanczosOrder:lowpass:options:)``
+    /// expects.
+    public let paddedWindow: [Double]
 }
 
 /// Constant-order virtual bright-field normalization from `Parallax.preprocess`.
@@ -133,8 +143,13 @@ public enum ParallaxPreprocessing: Sendable {
         }
         error /= windowSum * Double(selected.count) * stackMean
         guard stack.flatMap({$0}).allSatisfy(\.isFinite), incoherent.allSatisfy(\.isFinite), error.isFinite else { throw ParallaxError.nonfiniteValues }
+        var paddedWindow = [Double](repeating: 0, count: planeCount)
+        for p in 0..<shape.scanCount {
+            paddedWindow[(p / shape.scanColumns + paddingRows / 2) * columns + p % shape.scanColumns + paddingColumns / 2] = window[p]
+        }
         return ParallaxPreprocessingResult(rows: rows, columns: columns, detectorIndices: indices,
             reciprocalVectors: vectors, probeAngles: angles, window: window, stack: stack,
-            unshiftedStack: unshifted, incoherentImage: incoherent, initialError: error)
+            unshiftedStack: unshifted, incoherentImage: incoherent, initialError: error,
+            scanRows: shape.scanRows, scanColumns: shape.scanColumns, paddedWindow: paddedWindow)
     }
 }

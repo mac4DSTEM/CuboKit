@@ -177,7 +177,7 @@ public enum ParallaxSubpixel: Sendable {
 
     /// Iterative probe-position correction, following py4DSTEM `subpixel_alignment` with
     /// `position_correction_num_iter`. Trial scores always use bilinear sampling; deposition uses
-    /// `lanczosOrder` if given. `window` is the padded edge window (`ParallaxPreprocessingResult.window`).
+    /// `lanczosOrder` if given. `window` is the padded edge window (`ParallaxPreprocessingResult.paddedWindow`).
     public static func correctPositions(images: [[Double]], rows: Int, columns: Int, shifts: [ParallaxShift],
         window: [Double], scanSampling: ParallaxShift, factor: Double, sigmaPixels: Double = 0.125,
         lanczosOrder: Int? = nil, lowpass: Bool = false, options: ParallaxPositionCorrectionOptions) throws -> ParallaxPositionCorrectionResult {
