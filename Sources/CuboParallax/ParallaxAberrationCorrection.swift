@@ -9,7 +9,7 @@ public enum ParallaxHighpassBehavior: Sendable {
     case apply
 }
 
-/// Corrected padded image and the CTF phase surfaces used to form it.
+/// Corrected padded image, the CTF phase surfaces and the transfer function used to form it.
 public struct ParallaxCorrectionResult: Sendable {
     /// Real inverse FFT of the corrected spectrum, row-major.
     public let image: [Double]
@@ -17,6 +17,11 @@ public struct ParallaxCorrectionResult: Sendable {
     public let chiEven: [Double]
     /// Odd radial phase surface in radians.
     public let chiOdd: [Double]
+    /// Real part of the transfer function multiplied into the image spectrum,
+    /// `sign(sin(chiEven)) * cos(chiOdd) * envelope`, with DC set to zero.
+    public let transferReal: [Double]
+    /// Imaginary part of the transfer function, `-sign(sin(chiEven)) * sin(chiOdd) * envelope`.
+    public let transferImaginary: [Double]
 }
 
 /// Phase correction using Cartesian aberration coefficients in angstroms.
@@ -68,7 +73,7 @@ public enum ParallaxAberrationCorrection: Sendable {
         tr[0] = 0; ti[0] = 0
         let corrected = try parallaxTransfer(image, rows: rows, columns: columns, real: tr, imaginary: ti)
         guard even.allSatisfy(\.isFinite), odd.allSatisfy(\.isFinite) else { throw ParallaxError.nonfiniteValues }
-        return ParallaxCorrectionResult(image: corrected,chiEven: even,chiOdd: odd)
+        return ParallaxCorrectionResult(image: corrected,chiEven: even,chiOdd: odd,transferReal: tr,transferImaginary: ti)
     }
 }
 

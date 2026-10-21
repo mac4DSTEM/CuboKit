@@ -99,8 +99,13 @@ public enum ParallaxReconstruction: Sendable {
     ///
     /// Input and output are Double; py4DSTEM runs float32. Subset order within equal radius is lexicographic
     /// (a stable sort). Continuing a previous reconstruction is not provided: call this once on the preprocessing result.
+    ///
+    /// `isCancelled` is polled at every group and image step and throws `CancellationError` when it returns true;
+    /// `progress` receives `(completed, total)` after each alignment bin (one iteration of the coarse-to-fine schedule).
     public static func reconstruct(_ input: ParallaxPreprocessingResult,
-        options: ParallaxReconstructionOptions = .init()) throws -> ParallaxReconstructionResult {
+        options: ParallaxReconstructionOptions = .init(),
+        isCancelled: (() -> Bool)? = nil,
+        progress: ((_ completed: Int, _ total: Int) -> Void)? = nil) throws -> ParallaxReconstructionResult {
         let rows = input.rows, columns = input.columns, count = rows * columns
         let n = input.stack.count
         guard rows >= 3, columns >= 3, n >= 1, input.detectorIndices.count == n,
@@ -130,7 +135,8 @@ public enum ParallaxReconstruction: Sendable {
         let medianRow = median(indices.map { Double($0[0]) }), medianColumn = median(indices.map { Double($0[1]) })
         let binShift = options.centeredAlignmentBins ? 0.0 : 0.5
 
-        for bin in bins {
+        for (binIndex, bin) in bins.enumerated() {
+            try parallaxCheckCancelled(isCancelled)
             var reference = try ParallaxAlignment.spectrum(image, fft: fft)
             var members: [GroupKey: [Int]] = [:]
             for (i, index) in indices.enumerated() {
@@ -145,6 +151,7 @@ public enum ParallaxReconstruction: Sendable {
             }
             var update = [ParallaxShift](repeating: ParallaxShift(row: 0, column: 0), count: n)
             for (step, key) in ordered.enumerated() {
+                try parallaxCheckCancelled(isCancelled)
                 let subset = members[key]!
                 var mean = [Double](repeating: 0, count: count)
                 for i in subset { for p in 0..<count { mean[p] += stack[i][p] } }
@@ -172,6 +179,7 @@ public enum ParallaxReconstruction: Sendable {
             guard update.allSatisfy({ $0.row.isFinite && $0.column.isFinite }) else { throw ParallaxError.nonfiniteValues }
 
             for i in 0..<n {
+                try parallaxCheckCancelled(isCancelled)
                 var spectrum = try ParallaxAlignment.spectrum(stack[i], fft: fft)
                 ParallaxAlignment.apply(update[i], to: &spectrum, rows: rows, columns: columns)
                 stack[i] = try ParallaxAlignment.inverse(spectrum, fft: fft)
@@ -198,6 +206,7 @@ public enum ParallaxReconstruction: Sendable {
             error = error / maskSum / stackMean
             guard error.isFinite, image.allSatisfy(\.isFinite) else { throw ParallaxError.nonfiniteValues }
             errors.append(error)
+            progress?(binIndex + 1, bins.count)
         }
         return ParallaxReconstructionResult(rows: rows, columns: columns, alignedStack: stack, stackMask: masks,
             shifts: shifts, image: image, mask: reconMask, errors: errors, binValues: bins)
@@ -350,14 +359,25 @@ extension ParallaxReconstruction {
     /// chaining the individual public steps unchanged. `reciprocalSampling` is inverse angstroms per detector pixel and
     /// `scanSampling` angstroms per scan pixel; the upsampling limits use the row components as py4DSTEM does.
     /// Aberration fitting and correction and depth sectioning stay separate calls on the returned result.
+    ///
+    /// `isCancelled` is polled throughout and throws `CancellationError` when it returns true. `progress` receives
+    /// `(completed, total)` over the alignment bins followed by the position-correction iterations, if requested.
     public static func process(_ values: [Double], shape: CubeShape, reciprocalSampling: ParallaxShift,
         scanSampling: ParallaxShift, energyEV: Double,
-        options: ParallaxProcessingOptions = .init()) throws -> ParallaxProcessingResult {
+        options: ParallaxProcessingOptions = .init(),
+        isCancelled: (() -> Bool)? = nil,
+        progress: ((_ completed: Int, _ total: Int) -> Void)? = nil) throws -> ParallaxProcessingResult {
+        try parallaxCheckCancelled(isCancelled)
         let preprocessing = try ParallaxPreprocessing.prepare(values, shape: shape, reciprocalSampling: reciprocalSampling,
             energyEV: energyEV, threshold: options.threshold, edgeBlend: options.edgeBlend,
             paddingRows: options.paddingRows, paddingColumns: options.paddingColumns,
             detectorMask: options.detectorMask, retention: options.retention)
-        let reconstruction = try reconstruct(preprocessing, options: options.reconstruction)
+        let binCount = try binSchedule(detectorIndices: preprocessing.detectorIndices, options: options.reconstruction).count
+        let iterations = options.subpixel?.positionCorrection?.iterations ?? 0
+        let total = binCount + iterations
+        let reconstruction = try reconstruct(preprocessing, options: options.reconstruction, isCancelled: isCancelled,
+            progress: progress.map { report in { done, _ in report(done, total) } })
+        try parallaxCheckCancelled(isCancelled)
         let wavelength = try ParallaxPreprocessing.electronWavelength(energyEV: energyEV)
         guard let subpixel = options.subpixel else {
             return ParallaxProcessingResult(preprocessing: preprocessing, reconstruction: reconstruction,
@@ -375,7 +395,8 @@ extension ParallaxReconstruction {
                 rows: preprocessing.rows, columns: preprocessing.columns, shifts: reconstruction.shifts,
                 window: preprocessing.paddedWindow, scanSampling: scanSampling, factor: limits.factor,
                 sigmaPixels: subpixel.sigmaPixels, lanczosOrder: subpixel.lanczosOrder, lowpass: subpixel.lowpass,
-                options: positions)
+                options: positions, isCancelled: isCancelled,
+                progress: progress.map { report in { done, _ in report(binCount + done, total) } })
             correction = result
             image = result.image
         } else {

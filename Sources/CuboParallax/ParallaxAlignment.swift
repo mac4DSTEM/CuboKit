@@ -82,8 +82,13 @@ public enum ParallaxAlignment: Sendable {
     /// follows py4DSTEM's running Fourier reference: after the first image it replaces the
     /// supplied reference with that shifted image, then averages subsequent shifted spectra.
     /// The reference retains its complex Nyquist components until the next correlation.
+    ///
+    /// `isCancelled` is polled before each image and throws `CancellationError` when it returns true;
+    /// `progress` receives `(completed, total)` after each image. Both default to nothing.
     public static func align(_ images: [[Double]], reference: [Double], rows: Int, columns: Int,
-                             upsampleFactor: Int = 8, runningAverage: Bool = false) throws -> ParallaxAlignmentResult {
+                             upsampleFactor: Int = 8, runningAverage: Bool = false,
+                             isCancelled: (() -> Bool)? = nil,
+                             progress: ((_ completed: Int, _ total: Int) -> Void)? = nil) throws -> ParallaxAlignmentResult {
         try validateFactor(upsampleFactor)
         try validate(reference, rows: rows, columns: columns, requireContrast: true)
         guard !images.isEmpty else { throw ParallaxAlignmentError.inconsistentShape }
@@ -94,6 +99,7 @@ public enum ParallaxAlignment: Sendable {
         var aligned: [[Double]] = []
         var mean = Array(repeating: 0.0, count: reference.count)
         for (index, image) in images.enumerated() {
+            try parallaxCheckCancelled(isCancelled)
             var moving = try spectrum(image, fft: fft)
             let shift = try estimate(reference: referenceSpectrum, moving: moving,
                                      fft: fft, upsampleFactor: upsampleFactor)
@@ -111,6 +117,7 @@ public enum ParallaxAlignment: Sendable {
                         + moving.imaginary[pixel] / count
                 }
             }
+            progress?(index + 1, images.count)
         }
         guard mean.allSatisfy(\.isFinite) else { throw ParallaxAlignmentError.nonfiniteValues }
         return ParallaxAlignmentResult(shifts: shifts, images: aligned, mean: mean)
@@ -170,7 +177,7 @@ public enum ParallaxAlignment: Sendable {
         return ParallaxShift(row: wrapped(peak.row, size: fft.rows), column: wrapped(peak.column, size: fft.columns))
     }
 
-    private static func wrapped(_ value: Double, size: Int) -> Double {
+    package static func wrapped(_ value: Double, size: Int) -> Double {
         let period = Double(size), half = period / 2
         let remainder = (value + half).truncatingRemainder(dividingBy: period)
         return (remainder < 0 ? remainder + period : remainder) - half

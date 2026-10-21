@@ -30,8 +30,22 @@ public struct ParallaxProbeOffsets: Sendable, Equatable {
     public init(rows: [Double], columns: [Double]) { self.rows = rows; self.columns = columns }
 }
 
+/// Which implementation of the position-correction loop runs.
+public enum ParallaxPositionCorrectionVariant: Sendable {
+    /// py4DSTEM `subpixel_alignment`: Double arithmetic, optional Gaussian and Butterworth regularisation of the
+    /// offsets, the step floor applied to every site, and a zero gradient left to produce what the division gives.
+    case py4DSTEM
+    /// The source application's loop: Float arithmetic for the offsets, steps and scores (the deposition itself is
+    /// Double, rounded to Float for scoring), no regularisation (`gaussianSigma`, `lowpass` and `highpass` must be
+    /// `nil`), the step floor applied only to sites whose move was rejected, and a zero or non-finite gradient
+    /// norm giving a zero move.
+    case application
+}
+
 /// Options for iterative probe-position correction (py4DSTEM `position_correction_*`).
 public struct ParallaxPositionCorrectionOptions: Sendable {
+    /// The loop to run; py4DSTEM's unless asked otherwise.
+    public var variant = ParallaxPositionCorrectionVariant.py4DSTEM
     public var iterations: Int
     public var initialStep = 1.0
     public var minimumStep = 0.1
@@ -178,13 +192,23 @@ public enum ParallaxSubpixel: Sendable {
     /// Iterative probe-position correction, following py4DSTEM `subpixel_alignment` with
     /// `position_correction_num_iter`. Trial scores always use bilinear sampling; deposition uses
     /// `lanczosOrder` if given. `window` is the padded edge window (`ParallaxPreprocessingResult.paddedWindow`).
+    /// `options.variant` selects py4DSTEM's loop (the default) or the source application's.
+    /// `isCancelled` is polled before every deposition and iteration and throws `CancellationError` when it returns
+    /// true; `progress` receives `(completed, total)` after each iteration.
     public static func correctPositions(images: [[Double]], rows: Int, columns: Int, shifts: [ParallaxShift],
         window: [Double], scanSampling: ParallaxShift, factor: Double, sigmaPixels: Double = 0.125,
-        lanczosOrder: Int? = nil, lowpass: Bool = false, options: ParallaxPositionCorrectionOptions) throws -> ParallaxPositionCorrectionResult {
+        lanczosOrder: Int? = nil, lowpass: Bool = false, options: ParallaxPositionCorrectionOptions,
+        isCancelled: (() -> Bool)? = nil,
+        progress: ((_ completed: Int, _ total: Int) -> Void)? = nil) throws -> ParallaxPositionCorrectionResult {
         let n = rows * columns
         guard window.count == n, options.iterations >= 0, options.initialStep > 0, options.minimumStep > 0,
             options.stepFactor > 0, options.stepFactor <= 1, scanSampling.row > 0, scanSampling.column > 0,
             options.butterworthOrder.0 >= 1, options.butterworthOrder.1 >= 1 else { throw ParallaxError.invalidInput }
+        if options.variant == .application {
+            return try correctPositionsApplication(images: images, rows: rows, columns: columns, shifts: shifts,
+                window: window, factor: factor, sigmaPixels: sigmaPixels, lanczosOrder: lanczosOrder, lowpass: lowpass,
+                options: options, isCancelled: isCancelled, progress: progress)
+        }
         var dr = [Double](repeating: 0, count: n), dc = dr
         var step = [Double](repeating: options.initialStep, count: n)
         func kde() throws -> ParallaxSubpixelResult {
@@ -192,11 +216,13 @@ public enum ParallaxSubpixel: Sendable {
                 sigmaPixels: sigmaPixels, lanczosOrder: lanczosOrder, lowpass: lowpass,
                 probeOffsets: ParallaxProbeOffsets(rows: dr, columns: dc))
         }
+        try parallaxCheckCancelled(isCancelled)
         var image = try kde()
         var scores = Self.scores(image, images: images, rows: rows, columns: columns, shifts: shifts, dr: dr, dc: dc, window: window)
         var history = [scores.reduce(0, +) / Double(n)]
         let dirs: [(Double, Double)] = options.checkerboard ? [(-1, 0), (1, 0), (0, -1), (0, 1)] : [(-0.5, 0), (0.5, 0), (0, -0.5), (0, 0.5)]
-        for _ in 0..<options.iterations {
+        for iteration in 0..<options.iterations {
+            try parallaxCheckCancelled(isCancelled)
             let trials: [[Double]] = dirs.map { d in
                 Self.scores(image, images: images, rows: rows, columns: columns, shifts: shifts,
                     dr: (0..<n).map { dr[$0] + d.0 * step[$0] }, dc: (0..<n).map { dc[$0] + d.1 * step[$0] }, window: nil)
@@ -218,6 +244,9 @@ public enum ParallaxSubpixel: Sendable {
                     let d = hypot(gr, gc) / step[i]
                     ddr[i] = gr * window[i] / d; ddc[i] = gc * window[i] / d
                 }
+                // A zero gradient divides 0 by 0; the trial coordinates below would trap on NaN, so refuse (the
+                // application variant guards this case instead).
+                guard ddr.allSatisfy(\.isFinite), ddc.allSatisfy(\.isFinite) else { throw ParallaxError.nonfiniteValues }
                 let fixed = Self.scores(image, images: images, rows: rows, columns: columns, shifts: shifts,
                     dr: (0..<n).map { dr[$0] + ddr[$0] }, dc: (0..<n).map { dc[$0] + ddc[$0] }, window: window)
                 for i in 0..<n where fixed[i] < scores[i] { update[i] = true; dr[i] += ddr[i]; dc[i] += ddc[i] }
@@ -246,9 +275,11 @@ public enum ParallaxSubpixel: Sendable {
                 dr = filter(dr, options.lowpass?.row, options.highpass?.row, options.butterworthOrder.0)
                 dc = filter(dc, options.lowpass?.column, options.highpass?.column, options.butterworthOrder.1)
             }
+            try parallaxCheckCancelled(isCancelled)
             image = try kde()
             scores = Self.scores(image, images: images, rows: rows, columns: columns, shifts: shifts, dr: dr, dc: dc, window: window)
             history.append(scores.reduce(0, +) / Double(n))
+            progress?(iteration + 1, options.iterations)
         }
         guard dr.allSatisfy(\.isFinite), dc.allSatisfy(\.isFinite) else { throw ParallaxError.nonfiniteValues }
         return .init(offsets: ParallaxProbeOffsets(rows: dr, columns: dc), scores: history, image: image)
