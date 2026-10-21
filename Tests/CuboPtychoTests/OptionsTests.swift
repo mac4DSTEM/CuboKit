@@ -140,7 +140,7 @@ private func terms(_ polar: [Polar]) -> [PtychographyAberrationTerm] {
                 astigmatismAngle: azimuth, higherOrder: higher)
             let e = max(gap(probe.real, c.probe.real), gap(probe.imaginary, c.probe.imaginary))
             print("PTYCHO app-formula terms \(c.name) gap: \(e)")
-            #expect(e < 2e-6, "\(c.name)")
+            #expect(e < 1e-8, "\(c.name)")
         }
     }
     @Test func emptyTermsLeaveTheProbeUnchangedAndInvalidTermsAreRefused() throws {

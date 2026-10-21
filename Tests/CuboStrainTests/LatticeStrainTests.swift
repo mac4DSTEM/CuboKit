@@ -148,15 +148,16 @@ import Testing
         let positions = plantedPositions()
         #expect(throws: CancellationError.self) { try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { true }) }
         let counter = Counter()
-        // Cancels on the third poll: reached inside the candidate-pair loop, after clustering.
-        #expect(throws: CancellationError.self) {
-            try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { counter.tick() >= 3 })
-        }
-        #expect(counter.count >= 3)
-        // Polled per candidate pair, not just once.
+        // Polls: the entry, one per scan position (observation collection), then clustering and the candidate pairs. Cancel
+        // only after every position has been polled, so the cancellation lands in the clustering or the pair loop.
         let polls = Counter()
         _ = try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { _ = polls.tick(); return false })
-        #expect(polls.count > 3)
+        #expect(polls.count > positions.count + 2, "polled in the pair loop, not only per position")
+        let threshold = positions.count + 2
+        #expect(throws: CancellationError.self) {
+            try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { counter.tick() > threshold })
+        }
+        #expect(counter.count > threshold)
         // Invalid input still throws the input error first.
         #expect(throws: LatticeStrainError.self) { try LatticeStrain.chooseBasisConsensusResult([[.init(row: .nan, column: 0, intensity: 1)]], isCancelled: { true }) }
     }

@@ -185,6 +185,7 @@ public struct BraggDetector: Sendable {
     @discardableResult
     public static func fillNonFinite(_ v: inout [Float], rows: Int, columns: Int) -> Int {
         precondition(v.count == rows * columns, "fillNonFinite: \(v.count) values for \(rows) × \(columns)")
+        guard !v.isEmpty else { return 0 }
         return v.withUnsafeMutableBufferPointer { SingleNonFinite.fill($0.baseAddress!, rows: rows, columns: columns) }
     }
 }

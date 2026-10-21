@@ -1,5 +1,7 @@
 # Status
 
+**Hand-off 2026-10-21 (0.6.0 candidate, the app's remaining asks):** done: Float32 disk detection (`BraggPrecision.single`, 0.14 ms wall per 256 x 256 pattern), funnel counts, public `fillNonFinite`; ptycho object-amplitude toggle and higher-order probe terms; parallax Fourier shifter, spectrum shift estimate, transfer function, depth sectioner, cancellation/progress, app position-correction variant; streamed PCA, vDSP binning, k-means cancellation; strain consensus diagnostics and MAD inliers; hot-pixel `Replacer` (CHANGELOG 0.6.0); next: owner pushes and tags 0.6.0, mac4DSTEM re-pins and drops its copies (Migration paragraph), then a Float matrix DFT for multicorr, the amplitude toggle on the other ptycho engines, `LatticeStrain.diagnostics`.
+
 **Hand-off 2026-10-20 (ptycho follow-ups):** done: py4DSTEM error normalisation and zero-pixel option, odd-size pins, `AxisCrop` overflow guards, single-slice position correction, `OriginFit.fitTrimmed` (the app's MAD fit), consumer-check 89 checks with 15 more negative controls, on top of the preprocessing, mixed-state, multislice, crop-and-bin and DPC-view work (CHANGELOG "Unreleased (0.5.0 candidate)", parity 79/37/66); next: owner pushes and tags 0.4.0 then 0.5.0, the app switches (preparer, load view, DPC views, trimmed origin fit), then position correction for the mixed-state and multislice engines, the Fourier-amplitude constraint, `MixedstateMultislicePtychography`.
 
 

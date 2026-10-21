@@ -239,9 +239,9 @@ import Testing
         worst.ev = max(worst.ev, relativeGap(m.explainedVariance, reference.explainedVariance))
         worst.comps = max(worst.comps, gap(m.components, reference.components))
         print("embedding streamed tile-order invariance, worst gaps (mean, variance rel, components): \(worst)")
-        #expect(worst.mean <= 1e-13)
-        #expect(worst.ev <= 1e-12)
-        #expect(worst.comps <= 1e-10)
+        #expect(worst.mean <= 1e-14)
+        #expect(worst.ev <= 1e-13)
+        #expect(worst.comps <= 1e-11)
         // Sign resolution is independent of block order too, ties included.
         let r1 = try resolvedSigns(reference, data, blocks: cuts(n, 9))
         let r2 = try resolvedSigns(reference, data, blocks: cuts(n, 9).reversed())

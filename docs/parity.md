@@ -319,7 +319,7 @@ Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows exc
 | Ptychography | 11 | 0 | 3 | 8 |
 | **Total** | **182** | **79** | **37** | **66** |
 
-Of the 182 rows in scope: done 79, partial 37, absent 66 (0.4.0 candidate: 76, 35, 71; 0.3.0: 73, 36, 73; 0.1.0: 61, 23, 98). 0.5.0 adds crop_Q, crop_R and bin_Q as done, and the mixed-state and multislice classes as partial; position correction and the error normalisation refine the single-slice row (still partial). The 0.3.0 breakdown of the done rows (slice 4, slices 1 to 3, hot pixels, strain, Bragg, parallax) was not redone for 0.4.0 and 0.5.0. The parallax alignment, preprocessing and subpixel
+Of the 182 rows in scope: done 79, partial 37, absent 66 (0.6.0 adds app options and speed, no py4DSTEM row changes status: the object-amplitude toggle and higher-order probe terms refine the single-slice ptychography row; 0.4.0 candidate: 76, 35, 71; 0.3.0: 73, 36, 73; 0.1.0: 61, 23, 98). 0.5.0 adds crop_Q, crop_R and bin_Q as done, and the mixed-state and multislice classes as partial; position correction and the error normalisation refine the single-slice row (still partial). The 0.3.0 breakdown of the done rows (slice 4, slices 1 to 3, hot pixels, strain, Bragg, parallax) was not redone for 0.4.0 and 0.5.0. The parallax alignment, preprocessing and subpixel
 rows and the ptychography rows stay partial; the details tables below refine them and are not counted twice.
 
 ## 0.2.0 notes (2026-10-15)
