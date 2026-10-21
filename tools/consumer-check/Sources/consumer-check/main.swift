@@ -177,6 +177,29 @@ do {
 } catch {
     check("StrainMapping scan-level", false)
 }
+do {
+    // Round 6: consensus diagnostics with cancellation, MAD inliers.
+    let positions = (0..<20).map { _ in [(1.0, 0.0), (0.0, 1.0), (1.0, 1.0), (-1.0, 0.0), (0.0, -1.0)].map { LatticePeak(row: 8 * $0.0, column: 10 * $0.1, intensity: 1) } }
+    let result = try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { false })
+    let plain = try LatticeStrain.chooseBasisConsensus(positions)
+    var cancelled = false
+    do { _ = try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { true }) } catch is CancellationError { cancelled = true }
+    check("LatticeStrain.chooseBasisConsensusResult", result?.basis == plain && result?.observationCount == 100 && result?.supportCount == 100
+          && (result?.residual ?? 1) < 1e-5 && (result?.conditionNumber ?? 0) >= 1 && (result?.indexingTolerance ?? 0) >= 0.5 && cancelled)
+    let mad = try LatticeStrain.referenceMADResult([LatticeBasis(g1: .init(row: 8, column: 0), g2: .init(row: 0, column: 10)),
+                                                    LatticeBasis(g1: .init(row: 8, column: 0), g2: .init(row: 0, column: 10)),
+                                                    LatticeBasis(g1: .init(row: 8, column: 0), g2: .init(row: 0, column: 10))])
+    let again = try LatticeStrain.referenceMAD([mad.reference, mad.reference, mad.reference])
+    check("LatticeStrain.referenceMADResult", mad.inlierIndices == [0, 1, 2] && mad.inlierCount == 3 && mad.reference == again)
+    var one = StrainMapOptions(maximumPeakSpacing: 2); one.referenceMethod = .madRejection
+    let lists = (0..<4).map { _ in (-1...1).flatMap { h in (-1...1).map { k in StrainPeak(row: Double(8 * h), column: Double(8 * k), intensity: 1) } } }
+    let lat = try StrainDirections.lattice(basis: LatticeBasis(g1: .init(row: 8, column: 0), g2: .init(row: 0, column: 8)))
+    let m = try StrainMapping.compute(peaks: lists, scanRows: 2, scanColumns: 2, detectorRows: 32, detectorColumns: 32,
+                                      origin: LatticeVector(row: 16, column: 16), directions: lat, options: one)
+    check("StrainMapResult.referenceInlierCount", m.referenceInlierCount == 4 && m.referencePositionCount == 4)
+} catch {
+    check("round 6 strain", false)
+}
 check("CuboPtycho scope", CuboPtycho.scope.contains("probe-centre"))
 do {
     // Crop-and-bin view, ptychography preprocessing and the three engines, through the public API.

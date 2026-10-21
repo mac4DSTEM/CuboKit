@@ -43,6 +43,20 @@ The three compatibility options are independent:
   observation support. Pair ties prefer lower residual, then shorter vectors.
   Minimum noncentral radius defaults to 2. Empty/no-consensus inputs return nil.
 
+Result-returning variants (round 6, from the app's strain switch; the plain calls are unchanged and now delegate to them):
+
+- `chooseBasisConsensusResult(_:origin:minimumRadius:isCancelled:)` returns `LatticeStrain.ConsensusBasis`: the `basis`
+  (identical to `chooseBasisConsensus`), `observationCount` and `supportCount` (exact integers), and `residual` (RMS
+  distance of the supporting observations to their node), `conditionNumber` and `indexingTolerance` (the Float32
+  quantities the search computed, widened to Double). `isCancelled` is an optional `@Sendable () -> Bool` polled while
+  clustering and before each candidate pair; true throws `CancellationError`. Measured against a test-local Double
+  rescoring on a planted 60-position lattice: counts equal, residual/condition/tolerance gaps 1.4e-7, 3.7e-7, 8.1e-8
+  (written tolerance 1e-5, Float32).
+- `referenceMADResult(_:)` returns `LatticeStrain.ReferenceMAD`: the `reference` (identical to `referenceMAD`) and the
+  ascending `inlierIndices` into the input bases (`inlierCount`); all indices when the half-population fallback applies.
+- `StrainMapResult.referenceInlierCount`: positions the reference is the median of (equals `referencePositionCount`
+  for the median method, the MAD-retained count for `.madRejection`, 0 for a supplied reference).
+
 Their source is the read-only app commit `c809679c8ee23a355da6af4f63665aaf64f90d0d`,
 `Core/Analysis/StrainMapping.swift`. Only numeric helpers are retained; debug
 printing is removed. The generator independently compiles the **original** helper

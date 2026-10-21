@@ -141,6 +141,12 @@ control overload "BraggDetector.detect(Float)"         $B/BraggDisks.swift  "det
 control overload "BraggDetector.fillNonFinite(Double)" $B/BraggDisks.swift  "fillNonFinite"     'public static func fillNonFinite(_ v: inout [Double]'
 control overload "BraggDetector.fillNonFinite(Float)"  $B/BraggDisks.swift  "fillNonFinite"     'public static func fillNonFinite(_ v: inout [Float]'
 control access   "BraggMaxima.findWithFunnel"          $B/BraggMaxima.swift "findWithFunnel"    'public static func findWithFunnel'
+S=Sources/CuboStrain
+control access  "LatticeStrain.chooseBasisConsensusResult" $S/LatticeStrain.swift "chooseBasisConsensusResult" 'public static func chooseBasisConsensusResult('
+control access  "LatticeStrain.referenceMADResult"          $S/LatticeStrain.swift "referenceMADResult"          'public static func referenceMADResult('
+control library "LatticeStrain.ConsensusBasis"              $S/LatticeStrain.swift "ConsensusBasis"              'public struct ConsensusBasis'
+control library "LatticeStrain.ReferenceMAD"                $S/LatticeStrain.swift "ReferenceMAD"                'public struct ReferenceMAD'
+control access  "StrainMapResult.referenceInlierCount"      $S/StrainMapping.swift   "referenceInlierCount"      'public let referenceInlierCount'
 # A slice-1 symbol, to show the earlier checks are guarded too.
 control overload "VirtualImaging.image"             $V/VirtualImaging.swift      "image"             'public static func image(of source'
 

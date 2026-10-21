@@ -171,25 +171,68 @@ public enum LatticeStrain {
         guard let f = ConsensusNumerics.fitLattice(peaks.map { (Float($0.h),Float($0.k),Float($0.vector.row),Float($0.vector.column),max(Float($0.intensity),1e-6)) }) else { return nil }
         return .init(origin:.init(row:Double(f.originX),column:Double(f.originY)),basis:.init(g1:.init(row:Double(f.g1x),column:Double(f.g1y)),g2:.init(row:Double(f.g2x),column:Double(f.g2y))),residual:Double(f.residual))
     }
+    /// The reference of ``referenceMADResult(_:)`` and the candidates that produced it.
+    public struct ReferenceMAD: Sendable, Equatable {
+        /// Component-wise Float32 median of the retained candidates (what ``referenceMAD(_:)`` returns).
+        public let reference: LatticeBasis
+        /// Indices into the input bases of the candidates kept, ascending. All indices when fewer than half survive
+        /// the rejection (the fallback) or when there are two bases or fewer.
+        public let inlierIndices: [Int]
+        /// `inlierIndices.count`.
+        public var inlierCount: Int { inlierIndices.count }
+    }
     /// Compatibility option: reject reference bases beyond median + max(3*1.4826*MAD, 2% basis scale).
     /// Falls back to the entire set when fewer than half survive. Arithmetic follows Float32 source.
     public static func referenceMAD(_ bases: [LatticeBasis]) throws -> LatticeBasis {
+        try referenceMADResult(bases).reference
+    }
+    /// ``referenceMAD(_:)`` with the retained candidates: the same reference, plus which bases were kept.
+    public static func referenceMADResult(_ bases: [LatticeBasis]) throws -> ReferenceMAD {
         _ = try reference(bases)
         guard representable(bases.flatMap { [$0.g1.row,$0.g1.column,$0.g2.row,$0.g2.column] }) else { throw LatticeStrainError.invalidInput }
         let a = bases.map { Float($0.g1.row) }, b = bases.map { Float($0.g1.column) }, c = bases.map { Float($0.g2.row) }, d = bases.map { Float($0.g2.column) }
         let ids = ConsensusNumerics.robustReferenceIndices(candidates:Array(bases.indices),g1x:a,g1y:b,g2x:c,g2y:d)
         func med(_ v:[Float]) -> Double { Double(ConsensusNumerics.median(ids.map { v[$0] })!) }
-        return .init(g1:.init(row:med(a),column:med(b)),g2:.init(row:med(c),column:med(d)))
+        return .init(reference: .init(g1:.init(row:med(a),column:med(b)),g2:.init(row:med(c),column:med(d))), inlierIndices: ids)
+    }
+    /// The basis ``chooseBasisConsensus(_:origin:minimumRadius:)`` selects, with the diagnostics of its scoring.
+    /// Counts are exact; the Float32 diagnostics are widened to Double unchanged.
+    public struct ConsensusBasis: Sendable, Equatable {
+        /// The chosen basis (identical to the basis ``chooseBasisConsensus(_:origin:minimumRadius:)`` returns).
+        public let basis: LatticeBasis
+        /// Peaks beyond `minimumRadius` from the origin, over all positions (the denominator of the support fraction).
+        public let observationCount: Int
+        /// Observations indexed by the basis within `indexingTolerance` (|h|,|k| at most 8, not both zero).
+        public let supportCount: Int
+        /// RMS distance of the supporting observations to their lattice node, in detector units.
+        public let residual: Double
+        /// Condition number of the basis (at most 8 for a chosen basis).
+        public let conditionNumber: Double
+        /// Indexing tolerance in detector units: max(0.5, 0.18 * the shorter vector).
+        public let indexingTolerance: Double
+    }
+    /// ``chooseBasisConsensus(_:origin:minimumRadius:)`` with the scoring diagnostics and an optional cancellation closure,
+    /// polled while peaks are clustered and before each candidate pair is scored. Throws `CancellationError` when it
+    /// returns true. The basis is identical to the plain call's; no consensus returns nil.
+    public static func chooseBasisConsensusResult(_ positions: [[LatticePeak]], origin: LatticeVector = .init(row:0,column:0), minimumRadius: Double = 2,
+                                                  isCancelled: (@Sendable () -> Bool)? = nil) throws -> ConsensusBasis? {
+        guard positions.allSatisfy(valid), finite(origin), minimumRadius.isFinite, minimumRadius >= 0,
+              representable([origin.row,origin.column,minimumRadius]+positions.flatMap { $0.flatMap { [$0.vector.row,$0.vector.column] } }) else { throw LatticeStrainError.invalidInput }
+        if isCancelled?() == true { throw CancellationError() }
+        let grid = ConsensusPeakGrid(peaks:positions.map { $0.map { ConsensusPeak(x:Float($0.vector.row),y:Float($0.vector.column),intensity:Float($0.intensity)) } })
+        let token = isCancelled.map { ConsensusCancellation(check: $0) }
+        let e = ConsensusNumerics.estimateLatticeBasis(bragg:grid,x0:Float(origin.row),y0:Float(origin.column),minRadius:Float(minimumRadius),cancellation:token)
+        if isCancelled?() == true { throw CancellationError() }
+        guard let e else { return nil }
+        return .init(basis: .init(g1:.init(row:Double(e.g1.x),column:Double(e.g1.y)),g2:.init(row:Double(e.g2.x),column:Double(e.g2.y))),
+                     observationCount: e.observationCount, supportCount: e.supportCount, residual: Double(e.residualPixels),
+                     conditionNumber: Double(e.conditionNumber), indexingTolerance: Double(e.indexingTolerancePixels))
     }
     /// Compatibility option: cluster repeated vectors, score bounded candidate pairs by consensus.
     /// Uses Float32 source arithmetic, min radius 2 by default, condition limit 8,
     /// cluster support 8% of occupied positions, and at least 50% observation support.
     public static func chooseBasisConsensus(_ positions: [[LatticePeak]], origin: LatticeVector = .init(row:0,column:0), minimumRadius: Double = 2) throws -> LatticeBasis? {
-        guard positions.allSatisfy(valid), finite(origin), minimumRadius.isFinite, minimumRadius >= 0,
-              representable([origin.row,origin.column,minimumRadius]+positions.flatMap { $0.flatMap { [$0.vector.row,$0.vector.column] } }) else { throw LatticeStrainError.invalidInput }
-        let grid = ConsensusPeakGrid(peaks:positions.map { $0.map { ConsensusPeak(x:Float($0.vector.row),y:Float($0.vector.column),intensity:Float($0.intensity)) } })
-        guard let b = ConsensusNumerics.chooseLatticeVectors(bragg:grid,x0:Float(origin.row),y0:Float(origin.column),minRadius:Float(minimumRadius),cancellation:nil) else { return nil }
-        return .init(g1:.init(row:Double(b.g1.x),column:Double(b.g1.y)),g2:.init(row:Double(b.g2.x),column:Double(b.g2.y)))
+        try chooseBasisConsensusResult(positions, origin: origin, minimumRadius: minimumRadius)?.basis
     }
     private static func finite(_ v:LatticeVector) -> Bool { v.row.isFinite && v.column.isFinite }
     private static func valid(_ p:[LatticePeak]) -> Bool { p.allSatisfy { finite($0.vector) && $0.intensity.isFinite && $0.intensity >= 0 && $0.h.isFinite && $0.k.isFinite } }

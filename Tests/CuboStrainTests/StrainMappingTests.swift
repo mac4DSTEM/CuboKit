@@ -261,6 +261,8 @@ import Testing
         let mad = try run(o)
         let bases = base.valid.indices.filter { base.valid[$0] }.map { LatticeBasis(g1: .init(row: base.g1Row[$0], column: base.g1Column[$0]), g2: .init(row: base.g2Row[$0], column: base.g2Column[$0])) }
         #expect(mad.reference == (try LatticeStrain.referenceMAD(bases)))
+        #expect(mad.referenceInlierCount == (try LatticeStrain.referenceMADResult(bases)).inlierCount && mad.referenceInlierCount <= mad.referencePositionCount)
+        #expect(base.referenceInlierCount == base.referencePositionCount)
         #expect(base.reference == (try LatticeStrain.reference(bases)))
         // A caller-supplied lattice replaces the histogram stage.
         let lattice = try StrainDirections.lattice(basis: base.directions.basis, order: 2)

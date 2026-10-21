@@ -81,4 +81,99 @@ import Testing
         #expect(throws:LatticeStrainError.self) { try LatticeStrain.fit([.init(row:.nan,column:0,intensity:1)]) }
         #expect(try LatticeStrain.chooseBasisConsensus([]) == nil)
     }
+
+    // MARK: - Round 6: consensus diagnostics, cancellation, MAD inliers
+
+    final class Counter: @unchecked Sendable {
+        private let lock = NSLock(); private var n = 0
+        func tick() -> Int { lock.lock(); defer { lock.unlock() }; n += 1; return n }
+        var count: Int { lock.lock(); defer { lock.unlock() }; return n }
+    }
+    /// 60 positions of a planted lattice (g1 = (8, 0.5), g2 = (-0.4, 10)) with deterministic sub-tolerance jitter and an
+    /// occasional off-lattice peak.
+    func plantedPositions() -> [[LatticePeak]] {
+        (0..<60).map { p in
+            var peaks: [LatticePeak] = []
+            for (h, k) in [(1.0, 0.0), (0.0, 1.0), (1.0, 1.0), (-1.0, 0.0), (0.0, -1.0), (2.0, 0.0)] {
+                let j1 = 0.05 * Double((p * 7 + Int(h * 3 + k * 5 + 20)) % 5 - 2), j2 = 0.05 * Double((p * 3 + Int(h * 5 + k * 2 + 20)) % 5 - 2)
+                peaks.append(.init(row: 8 * h - 0.4 * k + j1, column: 0.5 * h + 10 * k + j2, intensity: 1 + Double(p % 3)))
+            }
+            if p % 7 == 0 { peaks.append(.init(row: 3.1 + Double(p) * 0.01, column: -13.3, intensity: 1)) }
+            return peaks
+        }
+    }
+    /// The scoring of the app's original inline search, written out in Double for the test (not the kit's code).
+    func rescore(_ b: LatticeBasis, _ positions: [[LatticePeak]], origin: LatticeVector, minimumRadius: Double) -> (obs: Int, support: Int, residual: Double, condition: Double, tolerance: Double) {
+        let obs = positions.flatMap { $0 }.map { (x: $0.vector.row - origin.row, y: $0.vector.column - origin.column) }
+            .filter { hypot($0.x, $0.y) > minimumRadius }
+        let g1 = b.g1, g2 = b.g2, det = g1.row * g2.column - g2.row * g1.column
+        let tol = max(0.5, 0.18 * min(hypot(g1.row, g1.column), hypot(g2.row, g2.column)))
+        var support = 0, sq = 0.0
+        for o in obs {
+            let h = ((g2.column * o.x - g2.row * o.y) / det).rounded(), k = ((-g1.column * o.x + g1.row * o.y) / det).rounded()
+            guard abs(h) <= 8, abs(k) <= 8, h != 0 || k != 0 else { continue }
+            let r = hypot(o.x - h * g1.row - k * g2.row, o.y - h * g1.column - k * g2.column)
+            if r <= tol { support += 1; sq += r * r }
+        }
+        let tr = g1.row*g1.row + g1.column*g1.column + g2.row*g2.row + g2.column*g2.column
+        let root = sqrt(max(0, tr*tr - 4*det*det)), cond = sqrt((tr + root) / (tr - root))
+        return (obs.count, support, support > 0 ? sqrt(sq / Double(support)) : .infinity, cond, tol)
+    }
+    @Test func consensusResultMatchesPlainCallAndRescoring() throws {
+        let positions = plantedPositions(), origin = LatticeVector(row: 0, column: 0)
+        let plain = try #require(try LatticeStrain.chooseBasisConsensus(positions))
+        let full = try #require(try LatticeStrain.chooseBasisConsensusResult(positions))
+        #expect(full.basis == plain)                                  // default unchanged: identical basis, bit for bit
+        let again = try #require(try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { false }))
+        #expect(again == full)                                        // a closure that never cancels changes nothing
+        let r = rescore(full.basis, positions, origin: origin, minimumRadius: 2)
+        #expect(full.observationCount == r.obs)                       // integers exact
+        #expect(full.supportCount == r.support)
+        #expect(full.supportCount * 2 >= full.observationCount)
+        let gaps = [abs(full.residual - r.residual), abs(full.conditionNumber - r.condition), abs(full.indexingTolerance - r.tolerance)]
+        print("consensus diagnostics gaps (residual, condition, tolerance): \(gaps), tolerance 1e-5 (Float32)")
+        #expect(gaps.allSatisfy { $0 <= 1e-5 * max(1, r.condition) })
+        #expect(full.conditionNumber <= 8)
+        // The pinned fixture case: the same basis as appBasis, with its diagnostics.
+        let c = try array("consensus")
+        let pinned = (0..<4).map { i in (0..<5).map { j in let n = (i*5+j)*3; return LatticePeak(row: c[n], column: c[n+1], intensity: c[n+2]) } }
+        let pr = try #require(try LatticeStrain.chooseBasisConsensusResult(pinned))
+        close([pr.basis.g1.row, pr.basis.g1.column, pr.basis.g2.row, pr.basis.g2.column], try array("appBasis"), 0)
+        let pre = rescore(pr.basis, pinned, origin: origin, minimumRadius: 2)
+        #expect(pr.observationCount == pre.obs && pr.supportCount == pre.support)
+        #expect(abs(pr.residual - pre.residual) <= 1e-5)
+        #expect(try LatticeStrain.chooseBasisConsensusResult([]) == nil)
+    }
+    @Test func consensusCancellation() throws {
+        let positions = plantedPositions()
+        #expect(throws: CancellationError.self) { try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { true }) }
+        let counter = Counter()
+        // Cancels on the third poll: reached inside the candidate-pair loop, after clustering.
+        #expect(throws: CancellationError.self) {
+            try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { counter.tick() >= 3 })
+        }
+        #expect(counter.count >= 3)
+        // Polled per candidate pair, not just once.
+        let polls = Counter()
+        _ = try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { _ = polls.tick(); return false })
+        #expect(polls.count > 3)
+        // Invalid input still throws the input error first.
+        #expect(throws: LatticeStrainError.self) { try LatticeStrain.chooseBasisConsensusResult([[.init(row: .nan, column: 0, intensity: 1)]], isCancelled: { true }) }
+    }
+    @Test func referenceMADInliers() throws {
+        let b = try array("appBases"), bases = stride(from: 0, to: b.count, by: 4).map { basis(Array(b[$0..<$0+4])) }
+        let plain = try LatticeStrain.referenceMAD(bases), full = try LatticeStrain.referenceMADResult(bases)
+        #expect(full.reference == plain)                              // default unchanged
+        #expect(full.inlierCount == full.inlierIndices.count && full.inlierIndices == full.inlierIndices.sorted())
+        #expect(full.inlierIndices.allSatisfy { bases.indices.contains($0) })
+        #expect(full.inlierCount * 2 >= bases.count)
+        // Planted: nine near-identical bases and two grossly distorted ones are rejected, exactly.
+        var planted = (0..<9).map { i in basis([8 + 0.001 * Double(i), 0.5, -0.4, 10 + 0.002 * Double(i)]) }
+        planted.insert(basis([9.5, 1.5, -1.4, 8.5]), at: 3); planted.append(basis([6.5, -0.5, 0.6, 11.5]))
+        let mad = try LatticeStrain.referenceMADResult(planted)
+        #expect(mad.inlierIndices == [0, 1, 2, 4, 5, 6, 7, 8, 9])
+        #expect(mad.inlierCount == 9)
+        // Fallback keeps every index; two or fewer bases are kept whole.
+        #expect(try LatticeStrain.referenceMADResult([planted[0], planted[3]]).inlierIndices == [0, 1])
+    }
 }

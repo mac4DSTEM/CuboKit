@@ -112,7 +112,10 @@ enum ConsensusNumerics {
         var clusters: [VectorCluster] = []
         var clusterCells: [VectorCell] = []
         var buckets: [VectorCell: [Int]] = [:]
+        var visited = 0
         for observation in observations.sorted(by: { $0.radius < $1.radius }) {
+            visited += 1
+            if visited & 1023 == 0, cancellation?.isCancelled == true { return nil }
             var nearestIndex: Int?
             var nearestDistance = clusterTolerance
             let observationCell = cell(x: observation.x, y: observation.y)
@@ -426,4 +429,7 @@ enum ConsensusNumerics {
 
 struct ConsensusPeakGrid { var peaks: [[ConsensusPeak]] }
 struct ConsensusPeak { var x: Float; var y: Float; var intensity: Float }
-struct ConsensusCancellation { let isCancelled = false }
+struct ConsensusCancellation {
+    let check: @Sendable () -> Bool
+    var isCancelled: Bool { check() }
+}

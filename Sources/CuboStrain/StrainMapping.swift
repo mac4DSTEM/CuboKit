@@ -190,6 +190,9 @@ public struct StrainMapResult: Sendable {
     public let reference: LatticeBasis
     /// Positions that entered the median (0 for a supplied reference).
     public let referencePositionCount: Int
+    /// How many of those positions the reference is the median of: all of them for the median method, the MAD-retained
+    /// ones for `.madRejection` (see ``LatticeStrain/referenceMADResult(_:)``); 0 for a supplied reference.
+    public let referenceInlierCount: Int
     /// Row-axis strain, `e_xx` (in the rotated axes when `coordinateRotation` is not 0).
     public let exx: [Double]
     /// Column-axis strain, `e_yy`.
@@ -366,10 +369,10 @@ public enum StrainMapping {
         }
 
         // get_reference_g1g2
-        let reference: LatticeBasis, referenceCount: Int
+        let reference: LatticeBasis, referenceCount: Int, inlierCount: Int
         switch options.reference {
         case .supplied(let b):
-            reference = b; referenceCount = 0
+            reference = b; referenceCount = 0; inlierCount = 0
         case .fittedMedian, .region:
             var chosen: [LatticeBasis] = []
             for position in 0..<n {
@@ -377,7 +380,12 @@ public enum StrainMapping {
                 if case .region(let r) = options.reference, !r[position] { continue }
                 chosen.append(b)
             }
-            reference = options.referenceMethod == .median ? try LatticeStrain.reference(chosen) : try LatticeStrain.referenceMAD(chosen)
+            if options.referenceMethod == .median {
+                reference = try LatticeStrain.reference(chosen); inlierCount = chosen.count
+            } else {
+                let mad = try LatticeStrain.referenceMADResult(chosen)
+                reference = mad.reference; inlierCount = mad.inlierCount
+            }
             referenceCount = chosen.count
         }
 
@@ -391,7 +399,7 @@ public enum StrainMapping {
         return StrainMapResult(scanRows: scanRows, scanColumns: scanColumns, histogram: histogram, directions: directions,
                                valid: valid, indexedPeakCount: indexedCount, originRow: x0, originColumn: y0,
                                g1Row: g1r, g1Column: g1c, g2Row: g2r, g2Column: g2c, residual: err,
-                               reference: reference, referencePositionCount: referenceCount,
+                               reference: reference, referencePositionCount: referenceCount, referenceInlierCount: inlierCount,
                                exx: exx, eyy: eyy, exy: exy, theta: theta, coordinateRotation: options.coordinateRotation)
     }
 
