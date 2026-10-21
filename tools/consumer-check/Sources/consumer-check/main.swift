@@ -103,6 +103,59 @@ do {
 } catch let error as CuboBraggError {
     check("CuboBraggError.invalidOption", { if case .invalidOption = error { return true } else { return false } }())
 }
+do {
+    // The Float32 path, the funnel and the non-finite fill (CuboBragg 0.6.0).
+    let image = DetectorImage(detectorRows: 48, detectorColumns: 48, values: braggValues, path: .cpu)
+    let detector = try BraggDetector(kernel: braggKernel)
+    var singleOptions = braggOptions
+    singleOptions.precision = .single
+    let (singlePeaks, singleFunnel) = try detector.detectWithFunnel(image, options: singleOptions)
+    let (doublePeaks, doubleFunnel) = try detector.detectWithFunnel(image, options: braggOptions)
+    check("BraggPrecision / BraggDiskOptions.precision", BraggDiskOptions().precision == .double
+          && BraggPrecision.allCases == [.double, .single] && singlePeaks.count == 2
+          && abs(singlePeaks[0].row - doublePeaks[0].row) < 1e-3 && abs(singlePeaks[1].column - doublePeaks[1].column) < 1e-3)
+    check("BraggDetector.supportsSinglePrecision", BraggDetector.supportsSinglePrecision(detectorRows: 48, detectorColumns: 48)
+          && !BraggDetector.supportsSinglePrecision(detectorRows: 56, detectorColumns: 40))
+    let plainPeaks = try detector.detect(image, options: braggOptions)
+    check("BraggDetector.detectWithFunnel(DetectorImage)", doublePeaks == plainPeaks
+          && doubleFunnel.acceptedCount == 2 && doubleFunnel.localMaximumCount >= 2 && singleFunnel.acceptedCount == 2)
+    check("BraggFunnel fields", doubleFunnel.localMaximumCount >= doubleFunnel.afterAbsoluteCutCount
+          && doubleFunnel.afterAbsoluteCutCount >= doubleFunnel.afterRelativeCutCount
+          && doubleFunnel.afterRelativeCutCount >= doubleFunnel.afterSpacingCount && doubleFunnel.afterSpacingCount >= doubleFunnel.acceptedCount
+          && !doubleFunnel.wasCountLimited && doubleFunnel.relativeReferenceIntensity != nil && doubleFunnel.relativeReferenceWasAvailable
+          && doubleFunnel.correlationMaximum > 0 && doubleFunnel.nonFinitePixelCount == 0)
+    let made = BraggFunnel(localMaximumCount: 5, afterAbsoluteCutCount: 4, afterRelativeCutCount: 3, afterSpacingCount: 2,
+                           acceptedCount: 1, wasCountLimited: true, relativeReferenceIntensity: 10,
+                           relativeReferenceWasAvailable: true, correlationMaximum: 12, nonFinitePixelCount: 3)
+    check("BraggFunnel.init", made.acceptedCount == 1 && made.wasCountLimited && made.nonFinitePixelCount == 3 && made == made)
+    let floats = braggValues.map { Float($0) }
+    let viaFloat = try floats.withUnsafeBufferPointer { try detector.detectWithFunnel($0, options: singleOptions) }
+    check("BraggDetector.detectWithFunnel(UnsafeBufferPointer<Float>)", viaFloat.peaks.count == 2 && viaFloat.funnel.acceptedCount == 2)
+    let detectedFloat = try floats.withUnsafeBufferPointer { try detector.detect($0, options: singleOptions) }
+    check("BraggDetector.detect(UnsafeBufferPointer<Float>)", detectedFloat == viaFloat.peaks)
+    var filled: [Double] = [1, 2, 3, .nan, 5, 6, 7, 8, 9]
+    var filledFloat: [Float] = [1, 2, 3, .infinity, 5, 6, 7, 8, 9]
+    check("BraggDetector.fillNonFinite(Double)", BraggDetector.fillNonFinite(&filled, rows: 3, columns: 3) == 1 && filled[3] == 5)
+    check("BraggDetector.fillNonFinite(Float)", BraggDetector.fillNonFinite(&filledFloat, rows: 3, columns: 3) == 1 && filledFloat[3] == 5)
+    var mapOptions = BraggDiskOptions()
+    mapOptions.correlationSigma = 0; mapOptions.subpixel = .pixel; mapOptions.edgeBoundary = 1; mapOptions.minimumPeakSpacing = 0
+    var map = [Double](repeating: 0, count: 100); map[55] = 3; map[22] = 1
+    let found = try BraggMaxima.findWithFunnel(in: map, rows: 10, columns: 10, options: mapOptions)
+    let plain = try BraggMaxima.find(in: map, rows: 10, columns: 10, options: mapOptions)
+    check("BraggMaxima.findWithFunnel", found.peaks.count == 2 && found.funnel.localMaximumCount == 2 && found.funnel.correlationMaximum == 3
+          && found.peaks == plain)
+    do {
+        var tooBig = singleOptions
+        tooBig.subpixel = .parabolic
+        _ = try BraggDetector(kernel: DetectorImage(detectorRows: 40, detectorColumns: 56, values: [Double](repeating: 1, count: 40 * 56), path: .cpu))
+            .detect(DetectorImage(detectorRows: 40, detectorColumns: 56, values: [Double](repeating: 1, count: 40 * 56), path: .cpu), options: tooBig)
+        check("BraggPrecision.single refuses an unsupported size", false)
+    } catch let error as CuboBraggError {
+        check("BraggPrecision.single refuses an unsupported size", { if case .invalidOption = error { return true } else { return false } }())
+    }
+} catch {
+    check("Bragg single path, funnel", false)
+}
 check("CuboStrain scope", CuboStrain.scope.contains("scan-level"))
 do {
     // Scan-level strain: a 2 x 2 scan of a square lattice, known directions, supplied reference.

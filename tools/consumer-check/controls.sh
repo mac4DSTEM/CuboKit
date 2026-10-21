@@ -118,6 +118,29 @@ control library "CubeViewSpecification"                   Sources/CuboCore/CubeV
 control access  "DPCViews.magnitude"                       Sources/CuboPhase/DPCViews.swift "magnitude"           'public static func magnitude('
 control access  "RotationConvention.kit"                   Sources/CuboPhase/DPCViews.swift "kit"                 'public static func kit('
 # (ViewedCube: a package-level generic actor is not found by the consumer at all, an error in its own main.swift: kind overload.)
+# CuboBragg 0.6.0: the Float32 path, the funnel, the public fill.
+B=Sources/CuboBragg
+control library  "BraggPrecision"                      $B/BraggTypes.swift  "BraggPrecision"    'public enum BraggPrecision'
+control access   "BraggDiskOptions.precision"          $B/BraggTypes.swift  "precision"         'public var precision: BraggPrecision'
+control library  "BraggFunnel"                         $B/BraggTypes.swift  "BraggFunnel"       'public struct BraggFunnel'
+control overload "BraggFunnel.init"                    $B/BraggTypes.swift  "init"              'public init(localMaximumCount: Int'
+control access   "BraggFunnel.localMaximumCount"       $B/BraggTypes.swift  "localMaximumCount" 'public var localMaximumCount'
+control access   "BraggFunnel.afterAbsoluteCutCount"   $B/BraggTypes.swift  "afterAbsoluteCutCount" 'public var afterAbsoluteCutCount'
+control access   "BraggFunnel.afterRelativeCutCount"   $B/BraggTypes.swift  "afterRelativeCutCount" 'public var afterRelativeCutCount'
+control access   "BraggFunnel.afterSpacingCount"       $B/BraggTypes.swift  "afterSpacingCount" 'public var afterSpacingCount'
+control access   "BraggFunnel.acceptedCount"           $B/BraggTypes.swift  "acceptedCount"     'public var acceptedCount'
+control access   "BraggFunnel.wasCountLimited"         $B/BraggTypes.swift  "wasCountLimited"   'public var wasCountLimited'
+control access   "BraggFunnel.relativeReferenceIntensity" $B/BraggTypes.swift "relativeReferenceIntensity" 'public var relativeReferenceIntensity'
+control access   "BraggFunnel.relativeReferenceWasAvailable" $B/BraggTypes.swift "relativeReferenceWasAvailable" 'public var relativeReferenceWasAvailable'
+control access   "BraggFunnel.correlationMaximum"      $B/BraggTypes.swift  "correlationMaximum" 'public var correlationMaximum'
+control access   "BraggFunnel.nonFinitePixelCount"     $B/BraggTypes.swift  "nonFinitePixelCount" 'public var nonFinitePixelCount'
+control access   "BraggDetector.supportsSinglePrecision" $B/BraggDisks.swift "supportsSinglePrecision" 'public static func supportsSinglePrecision'
+control overload "BraggDetector.detectWithFunnel(DetectorImage)" $B/BraggDisks.swift "detectWithFunnel" 'public func detectWithFunnel(_ pattern: DetectorImage'
+control overload "BraggDetector.detectWithFunnel(Float)" $B/BraggDisks.swift "detectWithFunnel" 'public func detectWithFunnel(_ pattern: UnsafeBufferPointer<Float>'
+control overload "BraggDetector.detect(Float)"         $B/BraggDisks.swift  "detect"            'public func detect(_ pattern: UnsafeBufferPointer<Float>'
+control overload "BraggDetector.fillNonFinite(Double)" $B/BraggDisks.swift  "fillNonFinite"     'public static func fillNonFinite(_ v: inout [Double]'
+control overload "BraggDetector.fillNonFinite(Float)"  $B/BraggDisks.swift  "fillNonFinite"     'public static func fillNonFinite(_ v: inout [Float]'
+control access   "BraggMaxima.findWithFunnel"          $B/BraggMaxima.swift "findWithFunnel"    'public static func findWithFunnel'
 # A slice-1 symbol, to show the earlier checks are guarded too.
 control overload "VirtualImaging.image"             $V/VirtualImaging.swift      "image"             'public static func image(of source'
 
