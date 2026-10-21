@@ -415,7 +415,7 @@ These rows sit outside the py4DSTEM tallies above. py4DSTEM's own featurization 
 |---|---|---|
 | `sklearn.decomposition.PCA(n_components=k, svd_solver="full")`: `components_`, `explained_variance_`, `explained_variance_ratio_`, `singular_values_`, `mean_`, `transform` | `PCA.fit`, `PCA.transform` | done: `svd_flip` u-based sign; covariance eigen route, not SVD; whiten, `n_components` fractions/`mle`, other solvers, `inverse_transform`, `score` absent |
 | `sklearn.cluster.KMeans(init=<array>, n_init=1, algorithm="lloyd")`: `cluster_centers_`, `labels_`, `inertia_`, `n_iter_` | `KMeans.fit` | done: strict and tolerance stopping, empty-cluster relocation (single empty cluster pinned), final relabel; k-means++ / random init, `n_init`, sample weights, elkan, `predict`, `transform` absent |
-| mac4DSTEM `DiffractionEmbedding` covariance PCA (c809679c) | `PCA.fit(..., variant: .diffractionEmbeddingApp)` | named option: Float32, divisor rows, raw LAPACK sign, clamped component count; original-source pin |
+| mac4DSTEM `DiffractionEmbedding` covariance PCA (c809679c) | `PCA.fit(..., variant: .diffractionEmbeddingApp)`, `PCA.project` (Float32 vDSP projection of one vector) | named option: Float32, divisor rows, raw LAPACK sign, clamped component count; original-source pin |
 | mac4DSTEM `DiffractionEmbedding.kMeans` | `KMeans.fitSeeded` | named option: splitmix64 k-means++, 50 passes, no tolerance; original-source pin |
 | mac4DSTEM `DiffractionEmbedding.embed` (log1p, max-normalise, box bin) | `DiffractionFeatures.binnedVector` | no external counterpart; original-source pin to Float32 rounding |
 

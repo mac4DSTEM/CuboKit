@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.1 (2026-10-21)
+
+- **CuboEmbedding:** public `PCA.project(_:mean:basis:dims:components:centred:into:)`, the Float32 projection of one vector on the principal components (`vDSP_vsub` centring, exact; `vDSP_dotpr` accumulation). It is the code mac4DSTEM's `DiffractionEmbedding.project` ran, and `PCA.fit(variant: .diffractionEmbeddingApp)` now calls it for its scores (same instructions, results unchanged). Tolerance, written in `ProjectFloatTests`: against a Double sum, `dims * 6e-8 * sum|centred * basis|` per coordinate (measured 1.8e-8 relative at 1024 dimensions); centring bit-exact. `tools/consumer-check`: 138 checks.
+- Not provided (documented ask): a Metal selected-area (weighted-pattern) kernel and a GPU-resident cube. `VirtualDiffraction.pattern` stays CPU (compensated Double). The app's `VirtualDiffraction.metal`, `FourDArray`, `ResidentCube`, `PendingLoad` and `VirtualDetector.tiledDiffraction` stay in mac4DSTEM until that is sized as its own change.
+
+### Migration
+
+Additive. In mac4DSTEM: `DiffractionEmbedding.project` is deleted; call `PCA.project` (same signature).
+
 ## 0.7.0 (2026-10-21)
 
 Parity with the app's copies, so mac4DSTEM can delete its ptychography engine, parallax alignment and the numerics below (the learned detector stays in the app). Timings: release build, one core, Mac under load 5-9, best of 5-20.

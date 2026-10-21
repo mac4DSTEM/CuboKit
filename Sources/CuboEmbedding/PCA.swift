@@ -73,6 +73,21 @@ public enum PCA {
         return out
     }
 
+    /// One Float32 vector's coordinates on the principal components: `out[c] = Σᵢ (vector[i] − mean[i]) · basis[c·dims + i]`.
+    ///
+    /// The mac4DSTEM projection: `vDSP_vsub` centres exactly, `vDSP_dotpr` accumulates in Float32 in vDSP's own order (not
+    /// left to right), so it differs from the scalar sum by Float32 rounding, about `dims · 6e-8` relative to
+    /// `Σ|centred · basis|`; pinned in `ProjectFloatTests`. `basis` is `components × dims` row-major, `centred` is `dims`
+    /// scratch, `out` takes `components` values. The same call `PCA.fit(variant: .diffractionEmbeddingApp)` makes for its scores.
+    public static func project(_ vector: UnsafePointer<Float>, mean: UnsafePointer<Float>, basis: UnsafePointer<Float>,
+                               dims: Int, components: Int, centred: UnsafeMutablePointer<Float>,
+                               into out: UnsafeMutablePointer<Float>) {
+        vDSP_vsub(mean, 1, vector, 1, centred, 1, vDSP_Length(dims))
+        for c in 0..<components {
+            vDSP_dotpr(centred, 1, basis + c * dims, 1, out + c, vDSP_Length(dims))
+        }
+    }
+
     // MARK: scikit-learn
 
     private static func fitScikit(_ data: [Double], _ n: Int, _ d: Int, _ k: Int) throws -> PCAResult {
@@ -159,15 +174,15 @@ public enum PCA {
         let meanF = mean.map { Float($0) }
         var coords = [Float](repeating: 0, count: n * k)
         var centred = [Float](repeating: 0, count: d)
-        for i in 0..<n {
-            x.withUnsafeBufferPointer { xb in
-                meanF.withUnsafeBufferPointer { mb in
-                    vDSP_vsub(mb.baseAddress!, 1, xb.baseAddress! + i * d, 1, &centred, 1, vDSP_Length(d))
-                }
-            }
-            for c in 0..<k {
+        x.withUnsafeBufferPointer { xb in
+            meanF.withUnsafeBufferPointer { mb in
                 basis.withUnsafeBufferPointer { bb in
-                    vDSP_dotpr(centred, 1, bb.baseAddress! + c * d, 1, &coords[i * k + c], vDSP_Length(d))
+                    coords.withUnsafeMutableBufferPointer { cb in
+                        for i in 0..<n {
+                            project(xb.baseAddress! + i * d, mean: mb.baseAddress!, basis: bb.baseAddress!, dims: d,
+                                    components: k, centred: &centred, into: cb.baseAddress! + i * k)
+                        }
+                    }
                 }
             }
         }

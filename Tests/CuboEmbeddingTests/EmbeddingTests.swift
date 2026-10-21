@@ -390,3 +390,45 @@ private struct SplitMix {
         return (-2 * log(u)).squareRoot() * cos(2 * .pi * v)
     }
 }
+
+/// `PCA.project`: the Float32 vDSP projection the app used. Tolerance: against a Double transcription of the sum,
+/// `dims · 6e-8 · Σ|centred · basis|` per coordinate (Float32 rounding, vDSP's order); centring is exact.
+@Suite struct ProjectFloatTests {
+    @Test(arguments: [(32, 4, 50), (1024, 8, 20), (7, 3, 11)])
+    func matchesDoubleSum(_ c: (Int, Int, Int)) {
+        let (dims, k, n) = c
+        var state: UInt64 = UInt64(dims * 31 + n)
+        func next() -> Float {
+            state = state &* 6364136223846793005 &+ 1442695040888963407
+            return Float(Int64(bitPattern: state >> 11) % 20_000) / 10_000 - 1
+        }
+        let vectors = (0..<n * dims).map { _ in next() * 5 + 3 }
+        let mean = (0..<dims).map { _ in next() }
+        let basis = (0..<k * dims).map { _ in next() }
+        var centred = [Float](repeating: 0, count: dims)
+        var out = [Float](repeating: 0, count: n * k)
+        for i in 0..<n {
+            vectors.withUnsafeBufferPointer { v in
+                out.withUnsafeMutableBufferPointer { o in
+                    PCA.project(v.baseAddress! + i * dims, mean: mean, basis: basis, dims: dims, components: k,
+                                centred: &centred, into: o.baseAddress! + i * k)
+                }
+            }
+            for j in 0..<dims { #expect(centred[j] == vectors[i * dims + j] - mean[j]) }
+        }
+        var worst = 0.0
+        for i in 0..<n {
+            for c in 0..<k {
+                var exact = 0.0, mass = 0.0
+                for j in 0..<dims {
+                    let t = Double(vectors[i * dims + j] - mean[j]) * Double(basis[c * dims + j])
+                    exact += t; mass += abs(t)
+                }
+                let gap = abs(Double(out[i * k + c]) - exact)
+                worst = max(worst, gap / max(mass, 1e-30))
+                #expect(gap <= Double(dims) * 6e-8 * mass + 1e-30)
+            }
+        }
+        print("PCA.project dims \(dims): worst gap / mass \(worst), tolerance \(Double(dims) * 6e-8)")
+    }
+}

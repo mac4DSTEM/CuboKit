@@ -507,6 +507,12 @@ let streamedFit = try PCA.fit(covariance: streamedCovariance, count: embeddingAc
 let accumulatorFit = try PCA.fit(embeddingAccumulator, components: 2)
 check("PCA.fit(covariance:count:mean:components:) and PCA.fit(_:components:) agree, scores are empty",
       streamedFit == accumulatorFit && streamedFit.scores.isEmpty && streamedFit.rows == 40 && streamedFit.componentCount == 2)
+do {
+    let v: [Float] = [3, 4, 5], mu: [Float] = [1, 1, 1], b: [Float] = [1, 0, 0, 0, 1, 0]
+    var cen = [Float](repeating: 0, count: 3), o = [Float](repeating: 0, count: 2)
+    PCA.project(v, mean: mu, basis: b, dims: 3, components: 2, centred: &cen, into: &o)
+    check("PCA.project (Float32 vDSP projection)", o == [2, 3] && cen == [2, 3, 4])
+}
 let memoryFit = try PCA.fit(embeddingData, rows: embeddingRows, columns: embeddingColumns, components: 2)
 var embeddingResolver = PCASignResolver(result: streamedFit)
 var embeddingResolverTail = PCASignResolver(result: streamedFit)
