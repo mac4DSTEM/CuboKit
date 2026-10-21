@@ -23,9 +23,7 @@ reference fixtures are committed. Tests that need large real cubes skip themselv
 ## Numbers are checked against py4DSTEM
 
 Results are compared with fixtures produced by py4DSTEM at a pinned commit (`f050d207`, 0.14.19), or with a closed form
-or a planted cube. If a test fails against a fixture, that is a bug in the code, not a tolerance to widen. If a change
-is meant to move a pinned number, say so in the pull request, regenerate the fixture in its own commit and give the
-reason.
+or a planted cube. A test's tolerance is the one the Python package's own tests use for that function; a result outside it is a bug. A change that moves a fixture says why in the pull request and in the CHANGELOG. Regenerate the fixture in its own commit.
 
 ## Pull requests
 

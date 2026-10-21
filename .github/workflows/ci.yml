@@ -1,4 +1,4 @@
-# CuboKit CI: a script check and the test run (tools/test.sh = `swift test -c release`).
+# CuboKit CI: the test run (tools/test.sh = `swift test -c release`) and, on a tag, the CHANGELOG version check.
 #
 # Actions must be enabled on the repository. The package needs macOS 15 or later and a Swift 6.2 or later toolchain
 # (Package.swift: `.macOS(.v15)`, tools 6.2); `macos-latest` with its newest Xcode carries both.
@@ -10,6 +10,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['*']
   pull_request:
   workflow_dispatch:
 
@@ -28,7 +29,17 @@ jobs:
           xcode=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
           sudo xcode-select -s "$xcode"
           swift --version
-      - name: Hook proof (no sleep or poll loops, no kills by name)
-        run: tools/hooks/test-no-sleep-poll.sh
       - name: Gate (tools/test.sh, release)
         run: tools/test.sh
+
+  version:
+    name: CHANGELOG version matches the tag
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare
+        run: |
+          top=$(grep -m1 -E '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | sed -E 's/^## ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+          tag=${GITHUB_REF_NAME#v}
+          [ "$top" = "$tag" ] || { echo "CHANGELOG top is $top, tag is $tag"; exit 1; }

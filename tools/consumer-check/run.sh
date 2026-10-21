@@ -4,9 +4,6 @@
 # build is warning-free, no test-only target was built, and every check passed.
 #
 #   run.sh            build, run the checks, print "consumer-check: all passed — N checks ..." and exit 0.
-#
-# Negative controls (reverting one `public` to `package` in a copy and requiring the build to fail) are controls.sh
-# beside this script: controls.sh <scratch folder>.
 set -euo pipefail
 here=${0:A:h}
 root=${here:h:h}

@@ -12,7 +12,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 No virtual image or diffraction pattern computed by this library is validated
 on a microscope: agreement with py4DSTEM and recovery of planted cubes are what
-is claimed (docs/registration-slice-1.md, section 8, design and validation notes).
+is claimed (design note, archived in the suite's private folder).
 
 
 ================================================================================
