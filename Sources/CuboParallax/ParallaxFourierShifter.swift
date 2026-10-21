@@ -1,3 +1,4 @@
+import Accelerate
 import CuboCore
 import Foundation
 
@@ -34,6 +35,7 @@ public struct ParallaxFourierShifter: Sendable {
     /// Image columns.
     public let columns: Int
     private let fft: FFT2D
+    private let singleFFT: FloatFFT2D?
 
     /// Builds the plan. Dimensions must be at least three on each axis and their product must fit in `Int`.
     public init(rows: Int, columns: Int) throws {
@@ -42,6 +44,7 @@ public struct ParallaxFourierShifter: Sendable {
         self.rows = rows
         self.columns = columns
         fft = FFT2D(rows: rows, columns: columns)
+        singleFFT = FloatFFT2D(rows: rows, columns: columns)
     }
 
     /// Applies a periodic Fourier translation; identical to ``ParallaxAlignment/shifted(_:rows:columns:by:)``.
@@ -66,6 +69,65 @@ public struct ParallaxFourierShifter: Sendable {
         for (index, image) in images.enumerated() {
             try parallaxCheckCancelled(isCancelled)
             out.append(try shifted(image, by: shifts[index]))
+            progress?(index + 1, images.count)
+        }
+        return out
+    }
+
+    /// Whether the Float32 shifter is available for this size: vDSP's DFT must take both lengths (`2^n × {1, 3, 5, 15}`).
+    public var supportsSingle: Bool { singleFFT != nil }
+
+    /// ``shifted(_:by:)`` in Float32 (named apart so integer-literal arrays keep resolving to the Double form) on vDSP's Float DFT, for pipelines that hold their images in Float: agrees with the Double
+    /// shifter to 1e-4 px-equivalent (about 1e-5 relative to the image's range; D12 Float32) at about half the cost. Throws
+    /// ``ParallaxAlignmentError/invalidDimensions`` when ``supportsSingle`` is false.
+    public func shiftedSingle(_ image: [Float], by shift: ParallaxShift) throws -> [Float] {
+        guard let single = singleFFT else { throw ParallaxAlignmentError.invalidDimensions }
+        guard image.count == rows * columns else { throw ParallaxAlignmentError.inconsistentShape }
+        guard image.allSatisfy(\.isFinite) else { throw ParallaxAlignmentError.nonfiniteValues }
+        guard shift.row.isFinite, shift.column.isFinite else { throw ParallaxAlignmentError.nonfiniteValues }
+        let n = rows * columns
+        let rowShift = shift.row.truncatingRemainder(dividingBy: Double(rows))
+        let columnShift = shift.column.truncatingRemainder(dividingBy: Double(columns))
+        let inverseCount = 1 / Float(n)
+        // the spectrum comes out transposed (columns x rows); the ramp and the 1/n are applied there
+        let rowRamp = (0..<rows).map { row -> (Float, Float) in
+            let angle = -2 * Double.pi * rowShift * (Double(row < (rows + 1) / 2 ? row : row - rows) / Double(rows))
+            return (Float(cos(angle)), Float(sin(angle)))
+        }
+        let columnRamp = (0..<columns).map { column -> (Float, Float) in
+            let angle = -2 * Double.pi * columnShift * (Double(column < (columns + 1) / 2 ? column : column - columns) / Double(columns))
+            return (Float(cos(angle)) * inverseCount, Float(sin(angle)) * inverseCount)
+        }
+        var aRe = image, aIm = [Float](repeating: 0, count: n), bRe = aIm, bIm = aIm
+        aRe.withUnsafeMutableBufferPointer { ar in aIm.withUnsafeMutableBufferPointer { ai in
+        bRe.withUnsafeMutableBufferPointer { br in bIm.withUnsafeMutableBufferPointer { bi in
+            single.forward(aRe: ar.baseAddress!, aIm: ai.baseAddress!, bRe: br.baseAddress!, bIm: bi.baseAddress!)
+            for column in 0..<columns {
+                let (cc, cs) = columnRamp[column]
+                for row in 0..<rows {
+                    let (rc, rs) = rowRamp[row]
+                    let cosine = rc * cc - rs * cs, sine = rs * cc + rc * cs
+                    let k = column * rows + row, re = br[k], im = bi[k]
+                    br[k] = re * cosine - im * sine; bi[k] = re * sine + im * cosine
+                }
+            }
+            single.inverse(aRe: br.baseAddress!, aIm: bi.baseAddress!, bRe: ar.baseAddress!, bIm: ai.baseAddress!)
+        } } } }
+        guard aRe.allSatisfy(\.isFinite) else { throw ParallaxAlignmentError.nonfiniteValues }
+        return aRe
+    }
+
+    /// Shifts every Float image by its own translation, as the Double batch form does (`isCancelled` before each image,
+    /// `progress` after each).
+    public func shiftedSingle(_ images: [[Float]], by shifts: [ParallaxShift],
+                        isCancelled: (() -> Bool)? = nil,
+                        progress: ((_ completed: Int, _ total: Int) -> Void)? = nil) throws -> [[Float]] {
+        guard images.count == shifts.count else { throw ParallaxAlignmentError.inconsistentShape }
+        var out: [[Float]] = []
+        out.reserveCapacity(images.count)
+        for (index, image) in images.enumerated() {
+            try parallaxCheckCancelled(isCancelled)
+            out.append(try shiftedSingle(image, by: shifts[index]))
             progress?(index + 1, images.count)
         }
         return out

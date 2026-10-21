@@ -9,6 +9,8 @@ public enum ParallaxError: Error, Sendable, Equatable {
     case degenerateData
     /// Inputs or arithmetic results contain NaN or infinity.
     case nonfiniteValues
+    /// The padded stacks of a streamed preprocessing would need `bytes`, above the caller's `limit` (both in bytes).
+    case stackTooLarge(bytes: Int, limit: Int)
 }
 
 /// Which normalized image is retained for subsequent subpixel reconstruction.

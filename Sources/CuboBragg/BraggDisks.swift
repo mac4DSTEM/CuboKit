@@ -229,11 +229,38 @@ public enum BraggDisks {
     /// `find_Bragg_disks(datacube, template)`: every scan position of `source`, a scan tile at a time, the patterns of a tile
     /// on every core. Patterns are read as Float32 and, for `.double`, widened to Double; `.single` uses them as they are, one
     /// scratch per concurrent worker. Throws `CancellationError` if the task is cancelled
-    /// between tiles.
+    /// between tiles, and `CuboBraggError.nonFiniteRefinement` on the first tile holding a pattern that fails.
     public static func detectAll(in source: some CubeSource, kernel: DetectorImage,
                                  options: BraggDiskOptions = BraggDiskOptions(),
                                  tiling: ScanTiling = .automatic) async throws -> BraggVectors {
-        try BraggMaxima.validate(options)
+        try await detectAll(in: source, kernel: kernel, options: options, tiling: tiling,
+                            failurePolicy: .throwOnFirst, isCancelled: { false }, progress: { _ in }).vectors
+    }
+
+    /// The whole-cube pass with the failure accounting a progress-reporting caller needs. As `detectAll(in:kernel:options:tiling:)`
+    /// (same peaks, bit for bit, for every pattern that detects), plus:
+    /// - `failurePolicy`: `.throwOnFirst` throws `CuboBraggError.nonFiniteRefinement` after the tile holding the first failing
+    ///   pattern; `.recordEmpty` gives a failing pattern an empty peak list, lists its scan-order index in
+    ///   `BraggScanResult.failedPositions` and keeps going.
+    /// - `isCancelled`: polled before each tile; when it returns true the pass throws `CancellationError` (as does a cancelled task).
+    /// - `progress`: called after each tile with the fraction of scan positions done, in (0, 1], non-decreasing, 1 after the last tile.
+    /// Invalid options and a shape mismatch throw before any pattern is read.
+    public static func detectAll(in source: some CubeSource, kernel: DetectorImage,
+                                 options: BraggDiskOptions = BraggDiskOptions(),
+                                 tiling: ScanTiling = .automatic,
+                                 failurePolicy: BraggFailurePolicy,
+                                 isCancelled: @Sendable () -> Bool = { false },
+                                 progress: @Sendable (Double) -> Void = { _ in }) async throws -> BraggScanResult {
+        try await scan(in: source, kernel: kernel, options: options, tiling: tiling, failurePolicy: failurePolicy,
+                       isCancelled: isCancelled, progress: progress, forcedFailures: [])
+    }
+
+    /// The pass behind both entries. `forcedFailures` (scan-order indices) makes those patterns fail as a non-finite refinement
+    /// does, so tests can exercise the failure accounting; the public entries pass none.
+    static func scan(in source: some CubeSource, kernel: DetectorImage, options: BraggDiskOptions, tiling: ScanTiling,
+                     failurePolicy: BraggFailurePolicy, isCancelled: @Sendable () -> Bool,
+                     progress: @Sendable (Double) -> Void, forcedFailures: Set<Int>) async throws -> BraggScanResult {
+        try options.validate()
         let shape = source.shape
         guard shape.detectorRows == kernel.detectorRows, shape.detectorColumns == kernel.detectorColumns else {
             throw CuboBraggError.shapeMismatch("the cube's detector is \(shape.detectorRows) × \(shape.detectorColumns), the kernel \(kernel.detectorRows) × \(kernel.detectorColumns)")
@@ -241,14 +268,19 @@ public enum BraggDisks {
         let detector = try BraggDetector(kernel: kernel)
         let single = options.precision == .single ? try detector.singleState() : nil   // refuses an unsupported size before any read
         let n = shape.detectorCount
+        let total = shape.scanCount
         var all: [[BraggPeak]] = []
-        all.reserveCapacity(shape.scanCount)
+        all.reserveCapacity(total)
+        var failedPositions: [Int] = []
+        var firstFailure: String?
         for range in try tiling.ranges(for: shape) {
             try Task.checkCancellation()
+            if isCancelled() { throw CancellationError() }
             let tile = try await source.readScanTile(rows: range)
             let count = tile.positionCount
+            let first = all.count
             var slots = [[BraggPeak]](repeating: [], count: count)
-            var failures = [UInt8](repeating: 0, count: count)
+            var failures = [String?](repeating: nil, count: count)
             tile.values.withUnsafeBufferPointer { values in
                 slots.withUnsafeMutableBufferPointer { out in
                     failures.withUnsafeMutableBufferPointer { fail in
@@ -256,6 +288,7 @@ public enum BraggDisks {
                             f = SharedBuffer(base: fail.baseAddress!)
                         DispatchQueue.concurrentPerform(iterations: count) { k in
                             do {
+                                if forcedFailures.contains(first + k) { throw CuboBraggError.nonFiniteRefinement }
                                 if let single {
                                     o.base[k] = try single.detect(v.base + k * n, options: options).peaks
                                 } else {
@@ -263,17 +296,56 @@ public enum BraggDisks {
                                     o.base[k] = try detector.detect(values: pattern, options: options).peaks
                                 }
                             } catch {
-                                f.base[k] = 1
+                                f.base[k] = error.localizedDescription
                             }
                         }
                     }
                 }
             }
-            if failures.contains(1) { throw CuboBraggError.nonFiniteRefinement }
+            let base = all.count
+            for k in 0..<count {
+                guard let message = failures[k] else { continue }
+                if failurePolicy == .throwOnFirst { throw CuboBraggError.nonFiniteRefinement }
+                slots[k] = []
+                failedPositions.append(base + k)
+                if firstFailure == nil { firstFailure = message }
+            }
             all.append(contentsOf: slots)
+            progress(Double(all.count) / Double(total))
         }
-        return BraggVectors(scanRows: shape.scanRows, scanColumns: shape.scanColumns, peaks: all)
+        return BraggScanResult(vectors: BraggVectors(scanRows: shape.scanRows, scanColumns: shape.scanColumns, peaks: all),
+                               failedPositions: failedPositions, firstFailure: firstFailure)
     }
+}
+
+/// What a whole-cube pass does with a pattern whose detection fails (a non-finite refinement).
+public enum BraggFailurePolicy: Sendable, Hashable {
+    /// Stop with `CuboBraggError.nonFiniteRefinement` (the behaviour of `BraggDisks.detectAll(in:kernel:options:tiling:)`).
+    case throwOnFirst
+    /// Give the pattern an empty peak list, list it in `BraggScanResult.failedPositions` and carry on.
+    case recordEmpty
+}
+
+/// The result of a whole-cube pass with failure accounting.
+public struct BraggScanResult: Sendable {
+    /// The peaks of every scan position, scan order; a failed position holds an empty list.
+    public let vectors: BraggVectors
+    /// Scan-order indices (`scanRow * scanColumns + scanColumn`) of the patterns whose detection failed, ascending.
+    public let failedPositions: [Int]
+    /// The description of the failure at the lowest failed index; nil when nothing failed.
+    public let firstFailure: String?
+
+    public init(vectors: BraggVectors, failedPositions: [Int], firstFailure: String?) {
+        self.vectors = vectors
+        self.failedPositions = failedPositions
+        self.firstFailure = firstFailure
+    }
+}
+
+extension BraggDiskOptions {
+    /// Throws `CuboBraggError.invalidOption` for an option py4DSTEM would turn into NaN, an exception or silence (a negative
+    /// σ, an upsampling factor of 2 or less for `.multicorr`, a negative or non-finite cut, ...). Every detection entry runs it.
+    public func validate() throws { try BraggMaxima.validate(self) }
 }
 
 /// A pointer handed to concurrent workers that each touch only their own elements.

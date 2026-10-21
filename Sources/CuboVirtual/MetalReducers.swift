@@ -4,7 +4,7 @@
 //  safe math mode (no fast-math reassociation), compensated Float32 sums, Double combination on the host.
 //  Held to the CPU path within relative 1e-5 (registration 3.4).
 //
-//  Two kernels: one thread per scan position over a detector mask, and one thread per detector pixel over the scan
+//  Four kernels: one thread per scan position (a detector mask, the centre of mass, the origin) or per detector pixel over the scan
 //  positions. Every sum is compensated
 //  (TwoSum and the fma TwoProduct, Dot2) and each thread returns its sum and its correction, which the host adds in
 //  Double (the first version's plain two-level Float32 sums missed the registered 1e-5 on zero-mean data: Gate B,
@@ -16,7 +16,7 @@ import CuboCore
 import Foundation
 import Metal
 
-/// The Metal device, queue and the two pipelines, built once. Immutable after construction; Metal's device, queue and
+/// The Metal device, queue and the pipelines, built once. Immutable after construction; Metal's device, queue and
 /// pipeline objects are thread-safe, which is what the unchecked conformance states.
 final class MetalContext: @unchecked Sendable {
     let device: MTLDevice
@@ -24,6 +24,7 @@ final class MetalContext: @unchecked Sendable {
     let virtualImage: MTLComputePipelineState
     let sumAndMax: MTLComputePipelineState
     let centerOfMass: MTLComputePipelineState
+    let measureOrigin: MTLComputePipelineState
 
     static let shared: Result<MetalContext, CuboVirtualError> = {
         guard let device = MTLCreateSystemDefaultDevice() else { return .failure(.noMetalDevice) }
@@ -51,6 +52,7 @@ final class MetalContext: @unchecked Sendable {
         self.virtualImage = try pipeline("cubo_virtual_image")
         self.sumAndMax = try pipeline("cubo_sum_and_max")
         self.centerOfMass = try pipeline("cubo_center_of_mass")
+        self.measureOrigin = try pipeline("cubo_measure_origin")
     }
 
     /// Mirrors `struct CuboDims` in the source: four 4-byte fields.
@@ -159,6 +161,96 @@ final class MetalContext: @unchecked Sendable {
         out[3 * gid + 1] = float2(s1, c1);
         out[3 * gid + 2] = float2(s2, c2);
     }
+
+    // Mirrors `MetalContext.OriginParams`: eight 4-byte fields.
+    struct CuboOriginParams {
+        uint positions; uint detectorRows; uint detectorColumns; uint passes; uint binned;
+        float radius; float radiusScale; float margin;
+    };
+
+    // Non-finite test on the bits, so no math mode can fold it away. A non-finite pixel reads as the median of its
+    // finite 8 neighbours of the original pattern (0 when none), the CPU reference's rule.
+    inline bool cubo_non_finite(float v) { return (as_type<uint>(v) & 0x7F800000u) == 0x7F800000u; }
+
+    inline float cubo_filled(const device float *pat, int row, int col, uint qy, uint qx) {
+        const float v = pat[uint(row) * qx + uint(col)];
+        if (!cubo_non_finite(v)) { return v; }
+        float nb[8];
+        int k = 0;
+        for (int dr = -1; dr <= 1; ++dr) {
+            for (int dc = -1; dc <= 1; ++dc) {
+                if (dr == 0 && dc == 0) { continue; }
+                const int rr = row + dr, cc = col + dc;
+                if (rr < 0 || rr >= int(qy) || cc < 0 || cc >= int(qx)) { continue; }
+                const float w = pat[uint(rr) * qx + uint(cc)];
+                if (cubo_non_finite(w)) { continue; }
+                int i = k++;
+                while (i > 0 && nb[i - 1] > w) { nb[i] = nb[i - 1]; --i; }
+                nb[i] = w;
+            }
+        }
+        if (k == 0) { return 0.0f; }
+        return (k % 2 == 1) ? nb[k / 2] : 0.5f * (nb[k / 2 - 1] + nb[k / 2]);
+    }
+
+    // One thread per scan position: the iterated-window origin (IteratedWindow.origin is the same algorithm operation by
+    // operation; the multiply-adds are explicit fma on both sides). Returns (row, column).
+    kernel void cubo_measure_origin(const device float *data [[buffer(0)]],
+                                    device float2 *out [[buffer(1)]],
+                                    constant CuboOriginParams &p [[buffer(2)]],
+                                    uint gid [[thread_position_in_grid]])
+    {
+        if (gid >= p.positions) { return; }
+        const uint qy = p.detectorRows, qx = p.detectorColumns;
+        const device float *pat = data + (ulong)gid * ((ulong)qy * qx);
+        const uint bin = p.binned != 0u ? max(1u, uint(round(p.radius))) : 1u;
+        float bestSum = -FLT_MAX;
+        float coarseR = 0.5f * float(qy - 1), coarseC = 0.5f * float(qx - 1);
+        for (uint by = 0; by < qy; by += bin) {
+            const uint yEnd = min(by + bin, qy);
+            for (uint bx = 0; bx < qx; bx += bin) {
+                const uint xEnd = min(bx + bin, qx);
+                float s = 0.0f;
+                for (uint y = by; y < yEnd; ++y) {
+                    for (uint x = bx; x < xEnd; ++x) { s += cubo_filled(pat, int(y), int(x), qy, qx); }
+                }
+                if (s > bestSum) {
+                    bestSum = s;
+                    coarseC = 0.5f * float(bx + xEnd - 1);
+                    coarseR = 0.5f * float(by + yEnd - 1);
+                }
+            }
+        }
+        const float win = max(p.radius * p.radiusScale, p.radius + p.margin);
+        const float win2 = win * win;
+        float cr = coarseR, cc = coarseC;
+        for (uint pass = 0; pass < p.passes; ++pass) {
+            const int y0 = max(0, int(floor(cr - win)));
+            const int y1 = min(int(qy) - 1, int(ceil(cr + win)));
+            const int x0 = max(0, int(floor(cc - win)));
+            const int x1 = min(int(qx) - 1, int(ceil(cc + win)));
+            float sumI = 0.0f, sumIX = 0.0f, sumIY = 0.0f;
+            for (int y = y0; y <= y1; ++y) {
+                const float dy = float(y) - cr;
+                const float dy2 = dy * dy;
+                if (dy2 > win2) { continue; }
+                for (int x = x0; x <= x1; ++x) {
+                    const float dx = float(x) - cc;
+                    if (fma(dx, dx, dy2) > win2) { continue; }
+                    const float v = max(cubo_filled(pat, y, x, qy, qx), 0.0f);
+                    sumI += v;
+                    sumIX = fma(v, float(x), sumIX);
+                    sumIY = fma(v, float(y), sumIY);
+                }
+            }
+            if (!(sumI > 0.0f)) { break; }
+            const float nc = sumIX / sumI, nr = sumIY / sumI;
+            const bool settled = fabs(nc - cc) < 1e-4f && fabs(nr - cr) < 1e-4f;
+            cc = nc; cr = nr;
+            if (settled) { break; }
+        }
+        out[gid] = float2(cr, cc);
+    }
     """
 
     func buffer(_ values: [Float], label: String) throws -> MTLBuffer {
@@ -180,13 +272,31 @@ final class MetalContext: @unchecked Sendable {
 
     /// Encodes one dispatch of `threads` threads and waits for it without blocking a cooperative thread.
     func run(_ pipeline: MTLComputePipelineState, threads: Int, buffers: [MTLBuffer], dims: Dims) async throws {
+        try await run(pipeline, threads: threads, buffers: buffers, constants: dims)
+    }
+
+    /// Mirrors `struct CuboOriginParams` in the source: eight 4-byte fields.
+    struct OriginParams {
+        var positions: UInt32
+        var detectorRows: UInt32
+        var detectorColumns: UInt32
+        var passes: UInt32
+        var binned: UInt32
+        var radius: Float
+        var radiusScale: Float
+        var margin: Float
+    }
+
+    /// The same dispatch with any plain-old-data constants block after the buffers.
+    func run<Constants: BitwiseCopyable>(_ pipeline: MTLComputePipelineState, threads: Int, buffers: [MTLBuffer],
+                        constants: Constants) async throws {
         guard let commands = queue.makeCommandBuffer(), let encoder = commands.makeComputeCommandEncoder() else {
             throw CuboVirtualError.metal("no command buffer")
         }
         encoder.setComputePipelineState(pipeline)
         for (index, b) in buffers.enumerated() { encoder.setBuffer(b, offset: 0, index: index) }
-        var d = dims
-        encoder.setBytes(&d, length: MemoryLayout<Dims>.stride, index: buffers.count)
+        var d = constants
+        encoder.setBytes(&d, length: MemoryLayout<Constants>.stride, index: buffers.count)
         let width = min(pipeline.maxTotalThreadsPerThreadgroup, max(1, pipeline.threadExecutionWidth * 4))
         encoder.dispatchThreads(MTLSize(width: threads, height: 1, depth: 1),
                                 threadsPerThreadgroup: MTLSize(width: width, height: 1, depth: 1))
@@ -251,6 +361,20 @@ enum MetalReducers {
             progress?(Double(range.upperBound) / Double(shape.scanRows))
         }
         return (s, r, c)
+    }
+
+    /// The iterated-window origins of one tile, (row, column) per position, from `cubo_measure_origin`.
+    static func iteratedWindowOrigins(_ metal: MetalContext, tile: [Float], positions: Int, shape: CubeShape, radius: Float,
+                                      radiusScale: Float, passes: Int, margin: Float, binned: Bool) async throws -> [(Float, Float)] {
+        let data = try metal.buffer(tile, label: "CuboKit origin tile")
+        let out = try metal.buffer(floats: 2 * positions, label: "CuboKit origins (row, column)")
+        try await metal.run(metal.measureOrigin, threads: positions, buffers: [data, out],
+                            constants: MetalContext.OriginParams(
+                                positions: UInt32(positions), detectorRows: UInt32(shape.detectorRows),
+                                detectorColumns: UInt32(shape.detectorColumns), passes: UInt32(passes),
+                                binned: binned ? 1 : 0, radius: radius, radiusScale: radiusScale, margin: margin))
+        let v = MetalContext.floats(out, count: 2 * positions)
+        return (0..<positions).map { (v[2 * $0], v[2 * $0 + 1]) }
     }
 
     static func virtualImage(of source: some CubeSource, mask: [Float], tiling: ScanTiling,

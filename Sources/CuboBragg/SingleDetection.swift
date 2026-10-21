@@ -7,6 +7,7 @@
 //  Float neighbourhood, matrix-DFT upsampling on the Float complex correlation widened to Double).
 //
 
+import CuboCore
 import Accelerate
 import CuboVirtual
 import Foundation

@@ -89,6 +89,18 @@ public enum HotPixelFilter {
         return output
     }
 
+    /// Replaces the masked pixels of the frame at `base` in `pixels`, in place, with a prebuilt plan: the loop entry for callers
+    /// that clean many frames (`replacing(_:rows:columns:mask:)` is the one-off entry and costs O(pixels) per call: it validates,
+    /// copies and scans the whole mask). Bit-identical to it. With `validatingFinite` (default true) only the pixels the plan
+    /// reads are checked for finiteness, before anything is written; pass false when the caller has checked the cube.
+    /// Throws `HotPixelFilterError.invalidInput` for a frame outside the buffer or a nonfinite pixel the plan would read.
+    public static func replacing(in pixels: UnsafeMutableBufferPointer<Float>, base: Int = 0, plan: Replacer,
+                                 validatingFinite: Bool = true) throws {
+        guard base >= 0, base <= pixels.count - plan.rows * plan.columns else { throw HotPixelFilterError.invalidInput }
+        if validatingFinite, !plan.readsOnlyFinite(pixels, base: base) { throw HotPixelFilterError.invalidInput }
+        plan.apply(to: pixels, base: base)
+    }
+
     /// A reusable replacement plan for one mask: the clipped 3×3 neighbour indices of every
     /// masked pixel are computed once, so `apply` allocates nothing per frame. Results are
     /// bit-identical to `replacing`, which sequentially replaces masked pixels in row-major
@@ -118,6 +130,13 @@ public enum HotPixelFilter {
             }
             self.rows = rows; self.columns = columns
             self.targets = targets; self.starts = starts; self.neighbours = neighbours
+        }
+
+        fileprivate func readsOnlyFinite(_ pixels: UnsafeMutableBufferPointer<Float>, base: Int) -> Bool {
+            guard let data = pixels.baseAddress else { return neighbours.isEmpty }
+            let frame = data + base
+            for index in neighbours where !frame[index].isFinite { return false }
+            return true
         }
 
         /// Replaces the masked pixels of the `rows*columns` frame starting at `base`, in place.

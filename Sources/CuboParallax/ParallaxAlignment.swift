@@ -187,17 +187,27 @@ public enum ParallaxAlignment: Sendable {
         // Periodic reduction also keeps finite, very large user-supplied shifts from overflowing the phase.
         let rowShift = shift.row.truncatingRemainder(dividingBy: Double(rows))
         let columnShift = shift.column.truncatingRemainder(dividingBy: Double(columns))
-        for row in 0..<rows {
-            let rowFrequency = Double(row < (rows + 1) / 2 ? row : row - rows) / Double(rows)
-            for column in 0..<columns {
-                let columnFrequency = Double(column < (columns + 1) / 2 ? column : column - columns) / Double(columns)
-                let angle = -2 * Double.pi * (rowShift * rowFrequency + columnShift * columnFrequency)
-                let cosine = cos(angle), sine = sin(angle)
-                let pixel = row * columns + column
-                let real = spectrum.real[pixel], imaginary = spectrum.imaginary[pixel]
-                spectrum.real[pixel] = real * cosine - imaginary * sine
-                spectrum.imaginary[pixel] = real * sine + imaginary * cosine
-            }
+        // exp(i (a_r + a_c)) as the product of a row ramp and a column ramp: rows + columns sincos, not one per pixel
+        let rowRamp = (0..<rows).map { row -> (Double, Double) in
+            let angle = -2 * Double.pi * rowShift * (Double(row < (rows + 1) / 2 ? row : row - rows) / Double(rows))
+            return (cos(angle), sin(angle))
         }
+        let columnRamp = (0..<columns).map { column -> (Double, Double) in
+            let angle = -2 * Double.pi * columnShift * (Double(column < (columns + 1) / 2 ? column : column - columns) / Double(columns))
+            return (cos(angle), sin(angle))
+        }
+        spectrum.real.withUnsafeMutableBufferPointer { re in spectrum.imaginary.withUnsafeMutableBufferPointer { im in
+            for row in 0..<rows {
+                let (rc, rs) = rowRamp[row]
+                for column in 0..<columns {
+                    let (cc, cs) = columnRamp[column]
+                    let cosine = rc * cc - rs * cs, sine = rs * cc + rc * cs
+                    let pixel = row * columns + column
+                    let real = re[pixel], imaginary = im[pixel]
+                    re[pixel] = real * cosine - imaginary * sine
+                    im[pixel] = real * sine + imaginary * cosine
+                }
+            }
+        } }
     }
 }

@@ -228,7 +228,22 @@ public enum SingleslicePtychography {
                                    fixProbeAperture: Bool = false,
                                    probeSupportMask: [Bool]? = nil,
                                    errorNormalization: PtychographyErrorNormalization = .suppliedAmplitudeEnergy,
-                                   positionCorrection: PtychographyPositionCorrection? = nil) throws -> Result {
+                                   positionCorrection: PtychographyPositionCorrection? = nil,
+                                   precision: PtychographyPrecision = .double,
+                                   isCancelled: (() -> Bool)? = nil,
+                                   progress: ((_ completed: Int, _ total: Int) -> Void)? = nil) throws -> Result {
+        if precision == .single {
+            guard positionCorrection == nil else { throw PtychographyError.invalidInput }
+            guard amplitudes.allSatisfy({ $0.isFinite && $0 >= 0 }) else { throw PtychographyError.invalidInput }
+            return try reconstructSingle(
+                amplitudes: amplitudes.map { Float($0) }, positions: positions, object: object, probe: probe,
+                iterations: iterations, stepSize: stepSize, normalizationMinimum: normalizationMinimum, fixProbe: fixProbe,
+                purePhaseObject: purePhaseObject, constrainObjectAmplitude: constrainObjectAmplitude,
+                fixProbeCenterOfMass: fixProbeCenterOfMass, constrainProbeAmplitude: constrainProbeAmplitude,
+                probeAmplitudeRelativeRadius: probeAmplitudeRelativeRadius, probeAmplitudeRelativeWidth: probeAmplitudeRelativeWidth,
+                fixProbeAperture: fixProbeAperture, probeSupportMask: probeSupportMask,
+                errorNormalization: errorNormalization, isCancelled: isCancelled, progress: progress)
+        }
         let n = probe.real.count, count = positions.count
         guard count > 0, count <= Int.max / n, amplitudes.count == count*n,
               amplitudes.allSatisfy({ $0.isFinite && $0 >= 0 }),
@@ -254,50 +269,96 @@ public enum SingleslicePtychography {
         var currentPositions = positions
         let initialMean = (positions.reduce(0) { $0 + $1.row } / Double(count), positions.reduce(0) { $0 + $1.column } / Double(count))
         func wrapped(_ v: Int, _ n: Int) -> Int { let m = v % n; return m < 0 ? m+n : m }
-        for _ in 0..<iterations {
+        let rows = probe.rows, columns = probe.columns, objectRows = object.rows, objectColumns = object.columns
+        let rowFrequency = (0..<rows).map { frequency($0, rows) }, columnFrequency = (0..<columns).map { frequency($0, columns) }
+        var rowCos = [Double](repeating: 0, count: rows), rowSin = rowCos
+        var columnCos = [Double](repeating: 0, count: columns), columnSin = columnCos
+        var rowBase = [Int](repeating: 0, count: rows), columnIndex = [Int](repeating: 0, count: columns)
+        var indices = [Int](repeating: 0, count: n)
+        var sr = [Double](repeating: 0, count: n), si = sr, fr = sr, fi = sr
+        var scratch = [Double](repeating: 0, count: fft.usesDFT ? 4*n : 1)
+        for iteration in 0..<iterations {
+            try checkCancelled(isCancelled)
             var onr = [Double](repeating:0,count:or.count), oni = onr, pn = onr
             var pnr = [Double](repeating:0,count:n), pni = pnr, on = pnr
             var psr = pr, psi = pi
             fft.transform(&psr,&psi,inverse:false)
             var error = 0.0
-            for pattern in 0..<count {
-                let position = currentPositions[pattern]
-                let rr = Int(position.row.rounded(.toNearestOrEven)), cc = Int(position.column.rounded(.toNearestOrEven))
-                let dr = position.row-Double(rr), dc = position.column-Double(cc)
-                var sr = psr, si = psi
-                for r in 0..<probe.rows { for c in 0..<probe.columns {
-                    let k = r*probe.columns+c
-                    let phase = -2 * Double.pi * (frequency(r,probe.rows)*dr+frequency(c,probe.columns)*dc)
-                    let cosine = cos(phase), sine = sin(phase)
-                    sr[k] = psr[k]*cosine-psi[k]*sine; si[k] = psr[k]*sine+psi[k]*cosine
-                } }
-                fft.transform(&sr,&si,inverse:true)
-                var indices = [Int](repeating:0,count:n)
-                var fr = sr, fi = si
-                for r in 0..<probe.rows { for c in 0..<probe.columns {
-                    let k = r*probe.columns+c
-                    let rowOffset = r < (probe.rows+1)/2 ? r : r-probe.rows
-                    let colOffset = c < (probe.columns+1)/2 ? c : c-probe.columns
-                    let j = wrapped(rr+rowOffset,object.rows)*object.columns+wrapped(cc+colOffset,object.columns)
-                    indices[k] = j
-                    fr[k] = sr[k]*or[j]-si[k]*oi[j]; fi[k] = sr[k]*oi[j]+si[k]*or[j]
-                } }
-                fft.transform(&fr,&fi,inverse:false)
-                for k in 0..<n {
-                    let magnitude = hypot(fr[k],fi[k]), measured = amplitudes[pattern*n+k]
-                    error += (measured-magnitude)*(measured-magnitude)
-                    let angle = atan2(fi[k],fr[k])
-                    fr[k] = measured*cos(angle)-fr[k]; fi[k] = measured*sin(angle)-fi[k]
+            var cancelled = false
+            pn.withUnsafeMutableBufferPointer { pnP in on.withUnsafeMutableBufferPointer { onP in
+            onr.withUnsafeMutableBufferPointer { onrP in oni.withUnsafeMutableBufferPointer { oniP in
+            pnr.withUnsafeMutableBufferPointer { pnrP in pni.withUnsafeMutableBufferPointer { pniP in
+            or.withUnsafeBufferPointer { orP in oi.withUnsafeBufferPointer { oiP in
+            amplitudes.withUnsafeBufferPointer { ampP in
+            psr.withUnsafeBufferPointer { psrP in psi.withUnsafeBufferPointer { psiP in
+            sr.withUnsafeMutableBufferPointer { srP in si.withUnsafeMutableBufferPointer { siP in
+            fr.withUnsafeMutableBufferPointer { frP in fi.withUnsafeMutableBufferPointer { fiP in
+            scratch.withUnsafeMutableBufferPointer { scP in
+                let srp = srP.baseAddress!, sip = siP.baseAddress!, frp = frP.baseAddress!, fip = fiP.baseAddress!
+                for pattern in 0..<count {
+                    if pattern & 3 == 0, isCancelled?() == true { cancelled = true; break }
+                    let position = currentPositions[pattern]
+                    let rr = Int(position.row.rounded(.toNearestOrEven)), cc = Int(position.column.rounded(.toNearestOrEven))
+                    let dr = position.row-Double(rr), dc = position.column-Double(cc)
+                    // the shifted probe: spectrum times exp(-2 pi i (f_r dr + f_c dc)), a product of a row and a column ramp
+                    for r in 0..<rows {
+                        let a = -2 * Double.pi * rowFrequency[r] * dr
+                        rowCos[r] = cos(a); rowSin[r] = sin(a)
+                    }
+                    for c in 0..<columns {
+                        let a = -2 * Double.pi * columnFrequency[c] * dc
+                        columnCos[c] = cos(a); columnSin[c] = sin(a)
+                    }
+                    for r in 0..<rows {
+                        let rc = rowCos[r], rs = rowSin[r], base = r*columns
+                        for c in 0..<columns {
+                            let cosine = rc*columnCos[c]-rs*columnSin[c], sine = rs*columnCos[c]+rc*columnSin[c]
+                            let a = psrP[base+c], b = psiP[base+c]
+                            srp[base+c] = a*cosine-b*sine; sip[base+c] = a*sine+b*cosine
+                        }
+                    }
+                    fft.transform(real: srp, imaginary: sip, inverse: true, scratch: scP.baseAddress!)
+                    for r in 0..<rows {
+                        let rowOffset = r < (rows+1)/2 ? r : r-rows
+                        rowBase[r] = wrapped(rr+rowOffset,objectRows)*objectColumns
+                    }
+                    for c in 0..<columns {
+                        let colOffset = c < (columns+1)/2 ? c : c-columns
+                        columnIndex[c] = wrapped(cc+colOffset,objectColumns)
+                    }
+                    for r in 0..<rows {
+                        let base = r*columns, rowStart = rowBase[r]
+                        for c in 0..<columns {
+                            let k = base+c, j = rowStart+columnIndex[c]
+                            indices[k] = j
+                            frp[k] = srp[k]*orP[j]-sip[k]*oiP[j]; fip[k] = srp[k]*oiP[j]+sip[k]*orP[j]
+                        }
+                    }
+                    fft.transform(real: frp, imaginary: fip, inverse: false, scratch: scP.baseAddress!)
+                    // Fourier-modulus projection: measured * F/|F| - F (a vanishing F takes phase 0, as atan2(0, 0))
+                    for k in 0..<n {
+                        let a = frp[k], b = fip[k]
+                        let magnitude = (a*a+b*b).squareRoot(), measured = ampP[pattern*n+k]
+                        error += (measured-magnitude)*(measured-magnitude)
+                        if magnitude > 0 {
+                            let scale = measured/magnitude
+                            frp[k] = scale*a-a; fip[k] = scale*b-b
+                        } else {
+                            frp[k] = measured; fip[k] = 0
+                        }
+                    }
+                    fft.transform(real: frp, imaginary: fip, inverse: true, scratch: scP.baseAddress!)
+                    for k in 0..<n {
+                        let j = indices[k]
+                        let sk = srp[k], ik = sip[k], fk = frp[k], gk = fip[k]
+                        onrP[j] += sk*fk+ik*gk; oniP[j] += sk*gk-ik*fk
+                        pnP[j] += sk*sk+ik*ik
+                        pnrP[k] += orP[j]*fk+oiP[j]*gk; pniP[k] += orP[j]*gk-oiP[j]*fk
+                        onP[k] += orP[j]*orP[j]+oiP[j]*oiP[j]
+                    }
                 }
-                fft.transform(&fr,&fi,inverse:true)
-                for k in 0..<n {
-                    let j = indices[k]
-                    onr[j] += sr[k]*fr[k]+si[k]*fi[k]; oni[j] += sr[k]*fi[k]-si[k]*fr[k]
-                    pn[j] += sr[k]*sr[k]+si[k]*si[k]
-                    pnr[k] += or[j]*fr[k]+oi[j]*fi[k]; pni[k] += or[j]*fi[k]-oi[j]*fr[k]
-                    on[k] += or[j]*or[j]+oi[j]*oi[j]
-                }
-            }
+            } } } } } } } } } } } } } } } }
+            if cancelled { throw CancellationError() }
             let maxPN = pn.max()!, maxON = on.max()!, m = normalizationMinimum
             func inverse(_ local: Double, _ maximum: Double) -> Double {
                 1/sqrt(1e-16 + pow((1-m)*local,2) + pow(m*maximum,2))
@@ -315,10 +376,9 @@ public enum SingleslicePtychography {
                     positions: currentPositions, initial: positions, stepSize: correction.stepSize, limits: limits)
             }
             if constrainObjectAmplitude || purePhaseObject { for j in or.indices {
-                let amplitude = hypot(or[j],oi[j])
-                let phase = atan2(oi[j],or[j])
+                let amplitude = (or[j]*or[j]+oi[j]*oi[j]).squareRoot()
                 let a = purePhaseObject ? 1 : min(amplitude,1)
-                or[j] = a*cos(phase); oi[j] = a*sin(phase)
+                if amplitude > 0 { let scale = a/amplitude; or[j] *= scale; oi[j] *= scale } else { or[j] = a; oi[j] = 0 }
             } }
             if !fixProbe { for k in 0..<n {
                 let s = stepSize * inverse(on[k],maxON)
@@ -338,6 +398,7 @@ public enum SingleslicePtychography {
                 currentPositions = currentPositions.map { PtychographyPosition(row: $0.row - (mean.0 - initialMean.0), column: $0.column - (mean.1 - initialMean.1)) }
             }
             errors.append(error/intensity)
+            progress?(iteration + 1, iterations)
         }
         return try Result(object:PtychographyArray(rows:object.rows,columns:object.columns,real:or,imaginary:oi),
                           probe:PtychographyArray(rows:probe.rows,columns:probe.columns,real:pr,imaginary:pi),errors:errors,

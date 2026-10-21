@@ -645,5 +645,62 @@ check("ParallaxReconstruction.reconstruct and process: a cancelled call throws C
         return false
     } catch is CancellationError { return true } catch { return false }
 }())
+
+// CuboKit 0.7.0: Float32 ptycho and shifter, in-place hot-pixel entry, streamed preprocessing, origin estimator, strain fit, Bragg scan result.
+do {
+    let d = 16, count = 4
+    let probeRe = (0..<(d * d)).map { k -> Double in let r = Double(min(k / d, d - k / d)), c = Double(min(k % d, d - k % d)); return exp(-(r * r + c * c) / 8) }
+    let probe = try PtychographyArray(rows: d, columns: d, real: probeRe, imaginary: [Double](repeating: 0, count: d * d))
+    let object = try PtychographyArray(rows: 24, columns: 24, real: [Double](repeating: 1, count: 576), imaginary: [Double](repeating: 0, count: 576))
+    let amps = [Double](repeating: 1, count: count * d * d)
+    let positions = (0..<count).map { PtychographyPosition(row: Double(8 + 3 * $0), column: Double(8 + 2 * $0)) }
+    nonisolated(unsafe) var ptychoProgress: [Int] = []
+    let single = try SingleslicePtychography.reconstruct(amplitudes: amps, positions: positions, object: object, probe: probe, iterations: 2,
+                                                         precision: .single, progress: { done, _ in ptychoProgress.append(done) })
+    let singleFloat = try SingleslicePtychography.reconstructSingle(amplitudes: amps.map { Float($0) }, positions: positions, object: object, probe: probe, iterations: 2)
+    check("SingleslicePtychography precision .single, reconstructSingle and progress",
+          single.errors.count == 2 && ptychoProgress == [1, 2] && singleFloat.errors == single.errors && PtychographyPrecision.double != .single)
+    let shifter = try ParallaxFourierShifter(rows: 16, columns: 16)
+    let shiftedFloat = try shifter.shiftedSingle([Float](repeating: 1, count: 256), by: ParallaxShift(row: 0.5, column: 0.25))
+    let shiftedBatch = try shifter.shiftedSingle([[Float](repeating: 1, count: 256)], by: [ParallaxShift(row: 1, column: 1)])
+    check("ParallaxFourierShifter.shiftedSingle and supportsSingle", shifter.supportsSingle && shiftedFloat.count == 256 && shiftedBatch.count == 1)
+    var hpFrames = [Float](repeating: 1, count: 20); hpFrames[3] = 50
+    let hpPlan = try HotPixelFilter.Replacer(rows: 4, columns: 5, mask: (0..<20).map { $0 == 3 })
+    try hpFrames.withUnsafeMutableBufferPointer { try HotPixelFilter.replacing(in: $0, plan: hpPlan) }
+    check("HotPixelFilter.replacing(in:base:plan:)", hpFrames[3] == 1)
+    let source = try MemoryCube(shape: pCubeShape, values: pCube.map { Float($0) })
+    let streamed = try await ParallaxPreprocessing.prepare(source: source, reciprocalSampling: ParallaxShift(row: 0.1, column: 0.1), energyEV: 200_000,
+                                                          threshold: 0.5, edgeBlend: 2, paddingRows: 4, paddingColumns: 4, maximumStackBytes: 1 << 30)
+    check("ParallaxPreprocessing.prepare(source:) streamed", streamed.brightFieldCount > 0 && streamed.stack.count == streamed.brightFieldCount * streamed.rows * streamed.columns
+          && streamed.detectorMask.count == 64)
+    do { _ = try await ParallaxPreprocessing.prepare(source: source, reciprocalSampling: ParallaxShift(row: 0.1, column: 0.1), energyEV: 200_000,
+                                                    maximumStackBytes: 8); check("ParallaxError.stackTooLarge", false) }
+    catch { if case ParallaxError.stackTooLarge = error { check("ParallaxError.stackTooLarge", true) } else { check("ParallaxError.stackTooLarge", false) } }
+    let planted = (0..<(4 * 4 * 20 * 20)).map { k -> Float in
+        let r = Double(k / 20 % 20) - 9.5, c = Double(k % 20) - 9.5
+        return Float(exp(-(r * r + c * c) / 18))
+    }
+    let originSource = try MemoryCube(shape: CubeShape(scanRows: 4, scanColumns: 4, detectorRows: 20, detectorColumns: 20), values: planted)
+    let originMap = try await OriginMeasurement.measure(of: originSource, radius: 5, estimator: .iteratedWindow(), path: .cpu)
+    let sensitivity = try await OriginMeasurement.windowSensitivity(of: originSource, radius: 5)
+    let originNear = abs(originMap.meanRow - 9.5) < 0.2 && abs(originMap.meanColumn - 9.5) < 0.2
+    let estimatorsDiffer = OriginEstimator.py4DSTEM != OriginEstimator.iteratedWindow()
+    check("OriginMeasurement.measure(estimator: .iteratedWindow) and windowSensitivity", originNear && estimatorsDiffer && sensitivity != nil)
+    let indices: [(Int, Int)] = [(-2, -2), (-2, 1), (-1, 2), (0, 1), (1, -1), (1, 2), (2, 0), (2, 2), (-1, -1)]
+    var lattice: [LatticePeak] = []
+    for (h, k) in indices {
+        let hh = Double(h), kk = Double(k)
+        lattice.append(LatticePeak(row: 10 * hh + kk, column: 10 * kk - 0.5 * hh, intensity: 1, h: hh, k: kk))
+    }
+    let robust = try LatticeStrain.fitRobust(lattice)
+    let rotated = StrainFrame.rotate(exx: [0.01], eyy: [0.02], exy: [0], theta: [0], rotation: .pi / 2, transposed: false)
+    let rotatedOK = abs(rotated.exx[0] - 0.02) < 1e-12
+    let indexingDiffers = StrainIndexing.nearestDirection != StrainIndexing.basisRounding()
+    check("LatticeStrain.fitRobust and StrainFrame.rotate", robust != nil && rotatedOK && indexingDiffers)
+    var validated = true
+    do { try BraggDiskOptions().validate() } catch { validated = false }
+    check("BraggDiskOptions.validate, BraggFailurePolicy and BraggScanResult",
+          validated && BraggFailurePolicy.recordEmpty != BraggFailurePolicy.throwOnFirst && BraggScanResult.self == BraggScanResult.self)
+}
 print("consumer-check summary: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

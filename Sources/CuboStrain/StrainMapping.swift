@@ -127,6 +127,19 @@ public enum StrainFitMethod: Sendable, Equatable {
     case py4DSTEM
     /// mac4DSTEM's intensity-once normal equations in Float32 (``LatticeStrain/fitIntensityOnce(_:)``).
     case intensityOnce
+    /// ``intensityOnce`` after one robust reweighting pass that drops off-lattice peaks (``LatticeStrain/fitRobust(_:minimumPeaks:)``);
+    /// a position whose fit the kit refuses (invalid input) is left unfitted and counted in ``StrainMapResult/refusedFitCount``.
+    case robustIntensityOnce
+}
+
+/// How each peak is assigned its lattice indices (h, k).
+public enum StrainIndexing: Sendable, Equatable {
+    /// py4DSTEM's `fit_basis_vectors`: the indices of the nearest direction of ``StrainDirections``, within `maximumPeakSpacing`.
+    case nearestDirection
+    /// mac4DSTEM's: the peak vector in the basis of ``StrainDirections/basis`` rounded to integers
+    /// (``LatticeStrain/indexByRounding(peaks:origin:basis:tolerance:maximumOrder:)``), kept when |h|, |k| <= `maximumOrder`
+    /// and within ``StrainMapOptions/indexingTolerance``. The origin is the diffraction origin (the peaks are centred).
+    case basisRounding(maximumOrder: Int = 8)
 }
 
 /// How the median reference is taken.
@@ -151,6 +164,11 @@ public struct StrainMapOptions: Sendable, Equatable {
     public var referenceMethod: StrainReferenceMethod = .median
     /// py4DSTEM's fit or the intensity-once variant.
     public var fitMethod: StrainFitMethod = .py4DSTEM
+    /// Nearest direction (py4DSTEM) or basis rounding.
+    public var indexing: StrainIndexing = .nearestDirection
+    /// Distance to the lattice node within which a peak is indexed by ``StrainIndexing/basisRounding(maximumOrder:)``, pixels;
+    /// nil takes ``LatticeStrain/indexingTolerance(basis:)`` of the directions' basis. Ignored by `.nearestDirection`.
+    public var indexingTolerance: Double?
     /// `coordinate_rotation`: degrees, counterclockwise; exx, eyy and exy are expressed in the rotated axes, theta is unchanged.
     public var coordinateRotation: Double = 0
     /// Creates options with py4DSTEM's defaults.
@@ -203,6 +221,16 @@ public struct StrainMapResult: Sendable {
     public let theta: [Double]
     /// The coordinate rotation applied, degrees.
     public let coordinateRotation: Double
+    /// Positions whose lattice fit the kit refused as invalid input (``StrainFitMethod/robustIntensityOnce`` only), left unfitted.
+    public let refusedFitCount: Int
+    /// The first refusal's reason; nil when there was none.
+    public let firstRefusal: String?
+    /// Fraction of all peaks beyond the origin (radius > 0, over every position) that
+    /// ``LatticeStrain/scoreBasis(basis:observations:tolerance:)`` of the directions' basis supports at the indexing
+    /// tolerance; 0 without such peaks or for a singular basis.
+    public let basisSupportFraction: Double
+    /// ``LatticeStrain/conditionNumber(basis:)`` of the directions' basis; nil when singular.
+    public let basisConditionNumber: Double?
 }
 
 /// Scan-level strain mapping after py4DSTEM's `StrainMap` (see `docs/strain.md`).
@@ -346,10 +374,25 @@ public enum StrainMapping {
         var valid = [Bool](repeating: false, count: n), indexedCount = [Int](repeating: 0, count: n)
         var x0 = [Double](repeating: nan, count: n), y0 = x0, g1r = x0, g1c = x0, g2r = x0, g2c = x0, err = x0
         var bases = [LatticeBasis?](repeating: nil, count: n)
+        let dBasis = directions.basis
+        var rounding: (order: Int, tolerance: Double)?
+        if case .basisRounding(let order) = options.indexing {
+            guard order >= 0 else { throw bad("the indexing order must not be negative (\(order))") }
+            let tolerance = options.indexingTolerance ?? LatticeStrain.indexingTolerance(basis: dBasis)
+            guard tolerance.isFinite, tolerance >= 0 else { throw bad("the indexing tolerance must be finite and not negative (\(tolerance))") }
+            rounding = (order, tolerance)
+        }
+        var refusedCount = 0, firstRefusal: String?
         for position in 0..<n where options.scanMask?[position] ?? true {
             let measured = peaks[position].map { LatticePeak(row: $0.row, column: $0.column, intensity: $0.intensity) }
-            let indexed = try LatticeStrain.index(peaks: measured, directions: directions.directions,
+            let indexed: [LatticePeak]
+            if let rounding {
+                indexed = try LatticeStrain.indexByRounding(peaks: measured, origin: .init(row: 0, column: 0), basis: dBasis,
+                                                            tolerance: rounding.tolerance, maximumOrder: rounding.order)
+            } else {
+                indexed = try LatticeStrain.index(peaks: measured, directions: directions.directions,
                                                   maximumSpacing: options.maximumPeakSpacing)
+            }
             indexedCount[position] = indexed.count
             let fit: LatticeFit?
             switch options.fitMethod {
@@ -358,6 +401,13 @@ public enum StrainMapping {
                 catch LatticeStrainError.invalidInput { fit = nil }   // the peaks were validated by the indexing: zero total weight
             case .intensityOnce:
                 fit = indexed.count >= options.minimumPeaks ? try LatticeStrain.fitIntensityOnce(indexed) : nil
+            case .robustIntensityOnce:
+                do { fit = try LatticeStrain.fitRobust(indexed, minimumPeaks: options.minimumPeaks) }
+                catch {
+                    refusedCount += 1
+                    if firstRefusal == nil { firstRefusal = "local lattice fit: \(error.localizedDescription)" }
+                    fit = nil
+                }
             }
             guard let fit else { continue }
             valid[position] = true
@@ -396,11 +446,20 @@ public enum StrainMapping {
             let s = try LatticeStrain.strain(local: local, reference: reference, coordinateRotation: options.coordinateRotation)
             exx[position] = s.exx; eyy[position] = s.eyy; exy[position] = s.exy; theta[position] = s.theta
         }
+        let observations = peaks.flatMap { $0 }.compactMap { p -> LatticeVector? in
+            let r = hypot(p.row, p.column)
+            return r > 0 && r.isFinite ? LatticeVector(row: p.row, column: p.column) : nil
+        }
+        let score = LatticeStrain.scoreBasis(basis: dBasis, observations: observations,
+                                             tolerance: rounding?.tolerance ?? LatticeStrain.indexingTolerance(basis: dBasis))
         return StrainMapResult(scanRows: scanRows, scanColumns: scanColumns, histogram: histogram, directions: directions,
                                valid: valid, indexedPeakCount: indexedCount, originRow: x0, originColumn: y0,
                                g1Row: g1r, g1Column: g1c, g2Row: g2r, g2Column: g2c, residual: err,
                                reference: reference, referencePositionCount: referenceCount, referenceInlierCount: inlierCount,
-                               exx: exx, eyy: eyy, exy: exy, theta: theta, coordinateRotation: options.coordinateRotation)
+                               exx: exx, eyy: eyy, exy: exy, theta: theta, coordinateRotation: options.coordinateRotation,
+                               refusedFitCount: refusedCount, firstRefusal: firstRefusal,
+                               basisSupportFraction: observations.isEmpty ? 0 : Double(score.support) / Double(observations.count),
+                               basisConditionNumber: LatticeStrain.conditionNumber(basis: dBasis))
     }
 
     /// The scan-position lists of a `CuboBragg` detection result as centred strain peaks: `origin` is subtracted from each
