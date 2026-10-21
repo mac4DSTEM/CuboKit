@@ -113,7 +113,7 @@ import Testing
     @Test func nonSquareAndWideFilter() throws {
         let s = fixture.scene("S1")
         var worstMap = 0.0, worstFourier = 0.0
-        for (rows, columns, sigma) in [(64, 48, 0.0), (48, 64, 1.5), (16, 64, 0.0), (16, 16, 5.0), (32, 80, 2.0)] {
+        for (rows, columns, sigma) in [(64, 48, 0.0), (48, 64, 1.5), (16, 64, 0.0), (16, 16, 5.0), (32, 80, 2.0), (32, 32, 0.1)] {   // σ 0.1: radius 0
             // The S1 data tiled onto the grid: any values do, both precisions see the same ones.
             let kernel = DetectorImage(detectorRows: rows, detectorColumns: columns,
                                        values: (0..<(rows * columns)).map { s.kernel.values[$0 % 4096] }, path: .cpu)

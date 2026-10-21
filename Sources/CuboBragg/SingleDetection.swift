@@ -261,7 +261,7 @@ enum SingleFilter {
             for r in 0..<rows {
                 let out = dst + r * columns
                 vDSP_vsmul(tmp + r * columns, 1, kp + R, out, 1, vDSP_Length(columns))
-                for t in 1...R {
+                for t in stride(from: 1, through: R, by: 1) {
                     vDSP_vsma(tmp + reflect(r - t, rows) * columns, 1, kp + (R - t), out, 1, out, 1, vDSP_Length(columns))
                     vDSP_vsma(tmp + reflect(r + t, rows) * columns, 1, kp + (R - t), out, 1, out, 1, vDSP_Length(columns))
                 }
