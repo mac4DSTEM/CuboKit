@@ -88,13 +88,17 @@ public struct PtychographyPreparationOptions: Sendable {
     public var rolloff: Double
     /// Probe defocus (Å), two-fold astigmatism (Å) and angle (rad), spherical aberration C30 (Å).
     public var defocus: Double, astigmatism: Double, astigmatismAngle: Double, sphericalAberration: Double
+    /// Further aberration terms of the starting probe (``PtychographyAberrationTerm``); empty by default.
+    public var higherOrderAberrations: [PtychographyAberrationTerm]
     /// Tiling of the pass over the cube.
     public var tiling: ScanTiling
     /// py4DSTEM's defaults: cubic spline, its padding, centred positions, unclipped mean, 2 mrad rolloff.
     public init(shift: PtychographyShift = .cubicSpline, padding: PtychographyPadding? = nil,
                 centerPositionsInField: Bool = true, useClippedMeanIntensity: Bool = false, rolloff: Double = 2,
                 defocus: Double = 0, astigmatism: Double = 0, astigmatismAngle: Double = 0,
-                sphericalAberration: Double = 0, tiling: ScanTiling = .automatic) {
+                sphericalAberration: Double = 0, tiling: ScanTiling = .automatic,
+                higherOrderAberrations: [PtychographyAberrationTerm] = []) {
+        self.higherOrderAberrations = higherOrderAberrations
         self.shift = shift; self.padding = padding; self.centerPositionsInField = centerPositionsInField
         self.useClippedMeanIntensity = useClippedMeanIntensity; self.rolloff = rolloff
         self.defocus = defocus; self.astigmatism = astigmatism; self.astigmatismAngle = astigmatismAngle
@@ -238,13 +242,14 @@ public enum PtychographyPreparation {
     public static func initialProbe(rows: Int, columns: Int, samplingRow: Double, samplingColumn: Double,
                                     wavelength: Double, semiangle: Double, rolloff: Double = 2,
                                     defocus: Double = 0, astigmatism: Double = 0, astigmatismAngle: Double = 0,
-                                    sphericalAberration: Double = 0, meanIntensity: Double) throws -> PtychographyArray {
+                                    sphericalAberration: Double = 0,
+                                    higherOrder: [PtychographyAberrationTerm] = [], meanIntensity: Double) throws -> PtychographyArray {
         guard meanIntensity.isFinite, meanIntensity > 0 else { throw PtychographyError.invalidInput }
         let built = try PtychographyProbe.build(rows: rows, columns: columns, rowSampling: samplingRow,
                                                 columnSampling: samplingColumn, wavelength: wavelength,
                                                 cutoff: semiangle / 1e3, rolloff: rolloff / 1e3, defocus: defocus,
                                                 astigmatism: astigmatism, astigmatismAngle: astigmatismAngle,
-                                                sphericalAberration: sphericalAberration)
+                                                sphericalAberration: sphericalAberration, higherOrder: higherOrder)
         var re = built.real, im = built.imaginary
         FFT2D(rows: rows, columns: columns).transform(&re, &im, inverse: false)
         let energy = zip(re, im).reduce(0) { $0 + $1.0*$1.0 + $1.1*$1.1 }
@@ -275,7 +280,8 @@ public enum PtychographyPreparation {
                                      wavelength: wavelength, semiangle: semiangle, rolloff: options.rolloff,
                                      defocus: options.defocus, astigmatism: options.astigmatism,
                                      astigmatismAngle: options.astigmatismAngle,
-                                     sphericalAberration: options.sphericalAberration, meanIntensity: mean)
+                                     sphericalAberration: options.sphericalAberration,
+                                     higherOrder: options.higherOrderAberrations, meanIntensity: mean)
         let n = size.rows * size.columns
         let object = try PtychographyArray(rows: size.rows, columns: size.columns, real: [Double](repeating: 1, count: n),
                                            imaginary: [Double](repeating: 0, count: n))

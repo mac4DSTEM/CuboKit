@@ -8,6 +8,7 @@ CPU ptychography preprocessing, probe construction and single-slice, mixed-state
 
 - ``PtychographyPreparation``
 - ``PtychographyProbe``
+- ``PtychographyAberrationTerm``
 - ``SingleslicePtychography``
 - ``MixedstatePtychography``
 - ``MultislicePtychography``

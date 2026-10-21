@@ -242,6 +242,21 @@ do {
     check("CuboPtycho error normalisation and position correction", normalized.errors.count == 1 && energyNormalized.errors.count == 1
           && corrected.positions.count == prepared.positions.count && corrected.errors.count == 1
           && PtychographyPositionCorrection().stepSize == 0.5)
+    // App options: the object amplitude toggle and the higher-order probe terms.
+    let terms = PtychographyAberrationTerm.polar(radialOrder: 2, angularOrder: 3, magnitude: 1000, azimuth: 0.1)
+        + [PtychographyAberrationTerm(radialOrder: 6, angularOrder: 0, coefficient: 1e9)]
+    let aberrated = try PtychographyProbe.build(rows: 8, columns: 9, rowSampling: 0.5, columnSampling: 0.5, wavelength: 0.025, cutoff: 0.02,
+                                                higherOrder: terms)
+    let startingProbe = try PtychographyPreparation.initialProbe(rows: 8, columns: 9, samplingRow: 0.5, samplingColumn: 0.5, wavelength: 0.025,
+                                                                 semiangle: 20, higherOrder: terms, meanIntensity: 10)
+    let uncapped = try SingleslicePtychography.reconstruct(
+        amplitudes: prepared.amplitudes.values, positions: prepared.positions, object: prepared.object, probe: prepared.probe, iterations: 1,
+        constrainObjectAmplitude: false)
+    var preparationOptions = PtychographyPreparationOptions()
+    preparationOptions.higherOrderAberrations = terms
+    check("CuboPtycho app options", terms.count == 3 && terms[2].component == .cosine && terms[1].component == .sine
+          && aberrated.real.allSatisfy(\.isFinite) && startingProbe.real.count == 72 && uncapped.errors.count == 1
+          && preparationOptions.higherOrderAberrations == terms)
     check("CuboPtycho preprocessing and engines", prepared.amplitudes.positionCount == 12 && mixed.probes.count == 2
           && mixed.errors.count == 1 && multi.object.count == 2 && propagators.count == 1
           && mixed.object.real.allSatisfy(\.isFinite) && multi.probe.real.allSatisfy(\.isFinite))

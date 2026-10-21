@@ -6,11 +6,14 @@ All public inputs and outputs are Sendable values. See ``PtychographyProbe`` and
 ``SingleslicePtychography``. Probe sampling and wavelength use Å; angles use radians.
 
 Supported probe aberrations are defocus (C10 = −defocus), polar two-fold astigmatism
-and C30. Coherence envelopes and other aberrations are not implemented.
+and C30, plus any number of ``PtychographyAberrationTerm`` (`higherOrder`): py4DSTEM's C21 to C56 (as Cartesian
+cosine and sine terms, or through `PtychographyAberrationTerm/polar(radialOrder:angularOrder:magnitude:azimuth:)` from C and phi) and,
+beyond py4DSTEM's set, the mac4DSTEM app's arbitrary (radial, angular) terms. Coherence envelopes are not implemented.
 
 Reconstruction uses periodic object patches, ties-to-even rounding, Fourier shifts
 of the probe for fractional positions, the reference's normalized gradient updates,
-and an object amplitude cap of one (or unit amplitude for pure-phase objects).
+and an object amplitude cap of one (or unit amplitude for pure-phase objects). The cap is py4DSTEM's and on by default;
+`constrainObjectAmplitude: false` is the mac4DSTEM app's option to leave the amplitude free (a deviation from py4DSTEM, which has no switch; `purePhaseObject` still wins).
 Probe updating can be disabled. Positions stay fixed unless `positionCorrection` is given (single-slice only, py4DSTEM's `fix_positions=False`). Two probe constraints are options,
 off by default: centre-of-mass centering (`fixProbeCenterOfMass`) and the real-space
 top-hat amplitude constraint (`constrainProbeAmplitude` with relative radius and width),

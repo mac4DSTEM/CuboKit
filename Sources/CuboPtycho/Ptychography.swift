@@ -92,19 +92,63 @@ public struct PtychographyPosition: Sendable {
     public init(row: Double, column: Double) { self.row = row; self.column = column }
 }
 
+/// One probe aberration term beyond defocus, two-fold astigmatism and C30: radial order `n` (the power `alpha^(n+1)/(n+1)`),
+/// angular order `m` and a cosine or sine component, in Cartesian form: `chi += 2 pi / wavelength * coefficient *
+/// alpha^(n+1)/(n+1) * cos(m phi)` (or `sin(m phi)`), with `phi = atan2(column frequency, row frequency)`. This is py4DSTEM's
+/// `ComplexProbe` Cartesian coefficient `C_nm a` / `C_nm b` (`polar_aberrations_to_cartesian`) and the mac4DSTEM app's
+/// higher-order term; the sign is not negated (only the defocus is: `C10 = -defocus`). Use ``polar(radialOrder:angularOrder:magnitude:azimuth:)``
+/// for py4DSTEM's `C21`/`phi21` style input.
+public struct PtychographyAberrationTerm: Sendable, Equatable {
+    /// Cosine or sine of `angularOrder * phi`.
+    public enum Component: Sendable, Equatable { case cosine, sine }
+    /// `n >= 1`: the term goes with `alpha^(n+1)`.
+    public var radialOrder: Int
+    /// `m >= 0` (`m = 0` is rotationally symmetric and has no sine component).
+    public var angularOrder: Int
+    public var component: Component
+    /// The coefficient in Å.
+    public var coefficient: Double
+    public init(radialOrder: Int, angularOrder: Int, component: Component = .cosine, coefficient: Double) {
+        self.radialOrder = radialOrder; self.angularOrder = angularOrder
+        self.component = component; self.coefficient = coefficient
+    }
+    /// py4DSTEM's polar form `C_nm cos(m (phi - phi_nm))` as the cosine and sine terms it equals
+    /// (`C cos(m phi_nm)` and `C sin(m phi_nm)`; one term for `m = 0`, where the azimuth is ignored).
+    public static func polar(radialOrder: Int, angularOrder: Int, magnitude: Double, azimuth: Double) -> [PtychographyAberrationTerm] {
+        if angularOrder == 0 { return [.init(radialOrder: radialOrder, angularOrder: 0, coefficient: magnitude)] }
+        let m = Double(angularOrder)
+        return [.init(radialOrder: radialOrder, angularOrder: angularOrder, component: .cosine, coefficient: magnitude * cos(m * azimuth)),
+                .init(radialOrder: radialOrder, angularOrder: angularOrder, component: .sine, coefficient: magnitude * sin(m * azimuth))]
+    }
+    var isValid: Bool {
+        coefficient.isFinite && radialOrder >= 1 && radialOrder <= 64 && angularOrder >= 0 && (component == .cosine || angularOrder > 0)
+    }
+    /// The term's contribution to `chi * wavelength / (2 pi)` (Å).
+    func phase(alpha: Double, azimuth: Double) -> Double {
+        let radial = pow(alpha, Double(radialOrder + 1)) / Double(radialOrder + 1)
+        if angularOrder == 0 { return coefficient * radial }
+        let angle = Double(angularOrder) * azimuth
+        return coefficient * radial * (component == .cosine ? cos(angle) : sin(angle))
+    }
+}
+
 /// Probe construction following py4DSTEM ComplexProbe, without coherence envelopes.
 public enum PtychographyProbe {
     /// Builds a corner-centered, unit-norm probe. Sampling and wavelength are in Å;
     /// aperture angles are radians. Defocus uses C10 = -defocus; C12 is polar
     /// two-fold astigmatism in Å, its azimuth in radians; C30 is in Å.
+    /// `higherOrder` adds terms to chi (see ``PtychographyAberrationTerm``): py4DSTEM's `C21 ... C56` (pinned) and, beyond its
+    /// set, any `(n, m)` the mac4DSTEM app can enter (pinned to a transcription of the app's formula). Empty (default): unchanged.
     public static func build(rows: Int, columns: Int, rowSampling: Double, columnSampling: Double,
                              wavelength: Double, cutoff: Double, rolloff: Double = 0.002,
                              defocus: Double = 0, astigmatism: Double = 0,
-                             astigmatismAngle: Double = 0, sphericalAberration: Double = 0) throws -> PtychographyArray {
+                             astigmatismAngle: Double = 0, sphericalAberration: Double = 0,
+                             higherOrder: [PtychographyAberrationTerm] = []) throws -> PtychographyArray {
         guard rows > 1, columns > 1, rows <= Int.max / columns,
               [rowSampling,columnSampling,wavelength,cutoff].allSatisfy({ $0.isFinite && $0 > 0 }),
               rolloff.isFinite, rolloff >= 0,
-              [defocus,astigmatism,astigmatismAngle,sphericalAberration].allSatisfy(\.isFinite) else {
+              [defocus,astigmatism,astigmatismAngle,sphericalAberration].allSatisfy(\.isFinite),
+              higherOrder.allSatisfy(\.isValid) else {
             throw PtychographyError.invalidInput
         }
         var re = [Double](repeating: 0, count: rows * columns), im = re
@@ -116,7 +160,9 @@ public enum PtychographyProbe {
                 aperture = alpha > cutoff ? 0 : 0.5 * (1 + cos(.pi * (alpha-cutoff+rolloff)/rolloff))
             } else { aperture = alpha < cutoff ? 1 : 0 }
             let a2 = alpha * alpha
-            let chi = 2 * Double.pi / wavelength * (a2/2 * (-defocus + astigmatism * cos(2*(angle-astigmatismAngle))) + a2*a2/4*sphericalAberration)
+            var phase = a2/2 * (-defocus + astigmatism * cos(2*(angle-astigmatismAngle))) + a2*a2/4*sphericalAberration
+            for term in higherOrder { phase += term.phase(alpha: alpha, azimuth: angle) }
+            let chi = 2 * Double.pi / wavelength * phase
             re[r*columns+c] = aperture*cos(chi); im[r*columns+c] = -aperture*sin(chi)
         } }
         FFT2D(rows:rows,columns:columns).transform(&re,&im,inverse:true)
@@ -155,7 +201,9 @@ public enum SingleslicePtychography {
     /// `fixProbeAperture` restores the Fourier amplitude of the probe given at the start (`fix_probe_aperture`) and
     /// `probeSupportMask` (corner-centred, row-major, `true` = kept) zeroes the probe outside it
     /// (`probe_real_space_support_mask`); both follow the centre of mass and the aperture precedes the amplitude
-    /// constraint, as in py4DSTEM. The object amplitude cap has no switch in py4DSTEM and stays unconditional.
+    /// constraint, as in py4DSTEM. The object amplitude cap (`|object| <= 1`) has no switch in py4DSTEM; `constrainObjectAmplitude: false` (default true = py4DSTEM)
+    /// is the mac4DSTEM app's option (DEVIATION from py4DSTEM, pinned to py4DSTEM with its threshold constraint replaced by the identity):
+    /// no cap, and unit amplitude only if `purePhaseObject` (which always wins, as in the app).
     ///
     /// `errorNormalization` divides each iteration's squared residual: pass `.meanIntensity(m)` with the
     /// ``PtychographyAmplitudes/meanIntensity`` of the preprocessing (``PtychographyAmplitudes/errorNormalization``) to get
@@ -172,6 +220,7 @@ public enum SingleslicePtychography {
                                    iterations: Int = 8, stepSize: Double = 0.5,
                                    normalizationMinimum: Double = 1, fixProbe: Bool = false,
                                    purePhaseObject: Bool = false,
+                                   constrainObjectAmplitude: Bool = true,
                                    fixProbeCenterOfMass: Bool = false,
                                    constrainProbeAmplitude: Bool = false,
                                    probeAmplitudeRelativeRadius: Double = 0.5,
@@ -265,12 +314,12 @@ public enum SingleslicePtychography {
                     probeSpectrum: (psr, psi), rows: probe.rows, columns: probe.columns, fft: fft, amplitudes: amplitudes,
                     positions: currentPositions, initial: positions, stepSize: correction.stepSize, limits: limits)
             }
-            for j in or.indices {
+            if constrainObjectAmplitude || purePhaseObject { for j in or.indices {
                 let amplitude = hypot(or[j],oi[j])
                 let phase = atan2(oi[j],or[j])
                 let a = purePhaseObject ? 1 : min(amplitude,1)
                 or[j] = a*cos(phase); oi[j] = a*sin(phase)
-            }
+            } }
             if !fixProbe { for k in 0..<n {
                 let s = stepSize * inverse(on[k],maxON)
                 pr[k] += s*pnr[k]; pi[k] += s*pni[k]

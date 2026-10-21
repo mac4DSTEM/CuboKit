@@ -4,10 +4,9 @@ Probe construction precedes the CPU engine in the API and in the regression test
 Public Sendable numerical values only; no app types, settings, progress, provenance, UI or Metal.
 
 `PtychographyProbe.build` supports the app's defocus, two-fold astigmatism and C30
-probe terms, with py4DSTEM's sign/azimuth/aperture convention. `SingleslicePtychography`
+probe terms (and, from 0.6.0, the higher-order terms below), with py4DSTEM's sign/azimuth/aperture convention. `SingleslicePtychography`
 uses full-batch complex-object gradient descent, fixed positions, periodic object
-patches and the reference object amplitude constraint. Other probe aberrations,
-coherence envelopes and the Fourier-amplitude and aberration-fitting
+patches and the reference object amplitude constraint (switchable, below). Coherence envelopes and the Fourier-amplitude and aberration-fitting
 constraints are absent; position correction is described in its section below (0.5.0). Preprocessing, the mixed-state and the multislice engines and the
 aperture and support constraints are described in the sections below (0.5.0).
 See the module's DocC Scope for the precise supported subset.
@@ -77,13 +76,10 @@ to |CoM| = 6.6e-15 px (bound 1e-9) with intensity kept; invalid radius or width 
 On non-compact probes (such as the pinned 16x16 one) the periodic centre of mass is
 not a fixed point of one shift, in py4DSTEM as here (0.017 px remains from 1.2 px).
 
-Not ported: py4DSTEM has no switch for the object amplitude cap (`_object_threshold_constraint`
-is unconditional for a complex object), so `constrainObjectAmplitude` of mac4DSTEM is not
-ported; the cap stays unconditional. mac4DSTEM's versions of the two probe constraints
+Object amplitude cap: see "App options" below (the cap stays on by default, as py4DSTEM). mac4DSTEM's versions of the two probe constraints
 compute the same formulas in Float32 (CoM shift rounded to Float32, mask in Double); the
 kit does everything in Double, which is the py4DSTEM-conformant choice, so no app variant
-is offered. The other py4DSTEM probe constraints (aperture, Fourier amplitude,
-aberration fitting, real-space support) remain absent.
+is offered. The other py4DSTEM probe constraints (Fourier amplitude, aberration fitting) remain absent.
 
 ## Preprocessing (`PtychographyPreparation`, 0.5.0)
 
@@ -209,3 +205,34 @@ and here alike.
 31 x 29 object through the three engines with the centre-of-mass, amplitude, aperture and support constraints, the seeded mixed states, the
 propagators and `PtychographyProbe.build`, all through py4DSTEM's preprocessing. Measured 5e-8 (probe, amplitudes), 3.9e-7 (objects), 7.4e-7 (errors) at
 2e-6. No defect was found in the port: the frequency grid, corner-centred patch offsets and Fourier shifts already follow `fftfreq` for odd lengths.
+
+## App options: object amplitude toggle and higher-order probe terms (0.6.0 candidate)
+
+What the mac4DSTEM app passes to its single-slice engine and probe builder (read from `SingleslicePtychographyOptions`,
+`PtychographyProbeAberrations` and `PtychographySettings`) and the kit lacked: two things. Every other app option (iterations, step,
+normalisation, fix probe, pure phase, centre of mass, amplitude top-hat and its radius and width, the memory budget, the rolloff) was already
+in the kit. `tools/ptycho/options_pins.py` writes `Fixtures/options.json` from `ptycho.json`'s data (tolerance `2e-6` max absolute over
+max(1, max|oracle|), as the other ptycho pins).
+
+- **`constrainObjectAmplitude`** (`SingleslicePtychography.reconstruct`, default `true` = py4DSTEM and the old behaviour). `false` skips the
+  `|object| <= 1` cap, as the app's toggle does; `purePhaseObject` still sets unit amplitude (the app's `constrain || pure`). DEVIATION from
+  py4DSTEM, which applies the cap unconditionally to a complex object. The pin is py4DSTEM's own `reconstruct` with only its
+  `_object_threshold_constraint` replaced by "unit amplitude if pure phase, else identity" (the app's behaviour with the toggle off); the data
+  start from an object of amplitude 1.1 so the cap would matter (the pinned run keeps |object| up to 1.1, asserted; the capped kit result
+  differs by more than 1e-3). Cases: toggle off, off with a fixed probe, off with pure phase. Measured 1.8e-7, 1.8e-7, 1.1e-7. Tests also:
+  omitting the argument equals `true` exactly; pure phase gives the same result with either toggle.
+  Single-slice only (the app has no other engine); the mixed-state and multislice engines still always cap.
+- **Higher-order probe aberrations** (`PtychographyAberrationTerm`; `higherOrder:` of `PtychographyProbe.build` and
+  `PtychographyPreparation.initialProbe`, `higherOrderAberrations:` of `PtychographyPreparationOptions`; empty by default, bit-identical to
+  before). A term is `coefficient * alpha^(n+1)/(n+1) * cos(m phi)` or `sin(m phi)` in chi, `phi = atan2(column, row frequency)`, not negated
+  (only the defocus is), which is both py4DSTEM's Cartesian aberration coefficients and the app's `HigherOrderTerm`.
+  `PtychographyAberrationTerm.polar(radialOrder:angularOrder:magnitude:azimuth:)` converts py4DSTEM's `C_nm`, `phi_nm`
+  (`C cos(m(phi - phi0))`) into the cosine and sine terms. Pinned to `ComplexProbe` for every symbol py4DSTEM has: C21, C23, C32, C34, C41,
+  C43, C45, C50, C52, C54, C56 one by one and all together with defocus, C12 and C30, on a 20 x 16 probe with chi up to a few radians;
+  measured 3.2e-8 to 1.2e-7 (ComplexProbe evaluates chi in Float32). The starting probe of py4DSTEM's `_initialize_probe` with the combined
+  terms, through `PtychographyPreparation.initialProbe`: 5.7e-8. Terms py4DSTEM cannot express (other radial or angular orders such as (1,1),
+  (6,0), (6,4), a lone sine component, as the app lets a user enter) are pinned to a float64 NumPy transcription of the app's
+  `PtychographyProbeAberrations.chi` (DEVIATION from py4DSTEM, which stops at order 5 with its parities): 3 cases, 4.5e-10 to 4.8e-10.
+  The app's cartesian astigmatism `C12a, C12b` is the kit's polar `C12 = hypot(a, b)`, `phi12 = atan2(b, a)/2`.
+  A term needs radial order 1 to 64, angular order >= 0, a finite coefficient and no sine component at angular order 0, or `build` throws.
+  The app's `ParallaxAberrationTerm` indexing is its own (radial order m, angular order n, component 0/1); the kit's field names say what they are.
