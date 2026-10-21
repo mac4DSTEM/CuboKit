@@ -4,6 +4,7 @@
 import CuboBragg
 import CuboCore
 import CuboEmbedding
+import CuboParallax
 import CuboPhase
 import CuboPtycho
 import CuboStrain
@@ -539,5 +540,110 @@ check("KMeans.fit and KMeans.fitSeeded isCancelled throw CancellationError", kme
 let kmeansRun = try KMeans.fitSeeded(embeddingData, rows: embeddingRows, columns: embeddingColumns, groups: 2, seed: 3,
                                      isCancelled: { false })
 check("KMeans.fitSeeded runs unchanged with a never-cancelling hook", kmeansRun.labels.count == embeddingRows)
+// CuboParallax 0.6: the plan-reusing shifter, the spectrum-level shift estimate, the transfer function in the correction result,
+// the plane-at-a-time depth sectioner, the application position-correction variant, and cancellation and progress.
+let pRows = 8, pColumns = 9
+let pImage = (0..<(pRows * pColumns)).map { Double(($0 * 37) % 11) + 0.5 }
+let pOther = (0..<(pRows * pColumns)).map { Double(($0 * 53) % 13) + 0.25 }
+let pShift = ParallaxShift(row: 1.5, column: -2)
+let shifter = try ParallaxFourierShifter(rows: pRows, columns: pColumns)
+let oneShot = try ParallaxAlignment.shifted(pImage, rows: pRows, columns: pColumns, by: pShift)
+let reused = try shifter.shifted(pImage, by: pShift)
+check("ParallaxFourierShifter.shifted is bit-identical to ParallaxAlignment.shifted",
+      shifter.rows == pRows && shifter.columns == pColumns && reused == oneShot)
+nonisolated(unsafe) var shiftProgress: [[Int]] = []
+let batch = try shifter.shifted([pImage, pOther], by: [pShift, pShift], isCancelled: { false }, progress: { shiftProgress.append([$0, $1]) })
+let otherOneShot = try ParallaxAlignment.shifted(pOther, rows: pRows, columns: pColumns, by: pShift)
+check("ParallaxFourierShifter.shifted batch with progress", batch.count == 2 && shiftProgress == [[1, 2], [2, 2]] && batch[1] == otherOneShot)
+check("ParallaxFourierShifter.shifted batch: a cancelled call throws CancellationError", {
+    do { _ = try shifter.shifted([pImage], by: [pShift], isCancelled: { true }); return false } catch is CancellationError { return true } catch { return false }
+}())
+let pSpectrum = try shifter.spectrum(of: pImage)
+let viaSpectrum = try shifter.inverse(shifter.shifting(pSpectrum, by: pShift))
+check("ParallaxFourierShifter.spectrum, shifting and inverse equal the one-shot shift",
+      pSpectrum.rows == pRows && pSpectrum.columns == pColumns && pSpectrum.real.count == 72 && pSpectrum.imaginary.count == 72
+      && viaSpectrum == oneShot)
+let pReference = ParallaxSpectrum(rows: pRows, columns: pColumns, real: pSpectrum.real, imaginary: pSpectrum.imaginary)
+let pMoving = try shifter.spectrum(of: try shifter.shifted(pImage, by: ParallaxShift(row: 2, column: -3)))
+let estimate = try shifter.correlationShift(reference: pReference, moving: pMoving)
+check("ParallaxFourierShifter.correlationShift undoes a planted shift (2, -3)",
+      abs(estimate.row + 2) < 1e-6 && abs(estimate.column - 3) < 1e-6)
+let staticEstimate = try ParallaxAlignment.correlationShift(reference: pReference, moving: pMoving)
+let integerEstimate = try ParallaxAlignment.correlationShift(reference: pReference, moving: pMoving, upsampleFactor: 1)
+let imageEstimate = try ParallaxAlignment.shift(reference: pImage, moving: try shifter.shifted(pImage, by: ParallaxShift(row: 2, column: -3)),
+                                                rows: pRows, columns: pColumns)
+check("ParallaxAlignment.correlationShift equals the plan-reusing form and the image-level shift",
+      staticEstimate == estimate && estimate == imageEstimate && integerEstimate == ParallaxShift(row: -2, column: 3))
+let pTerms = [ParallaxAberrationTerm(radialOrder: 1, angularOrder: 0, component: 0), ParallaxAberrationTerm(radialOrder: 2, angularOrder: 1, component: 0)]
+let corrected = try ParallaxAberrationCorrection.correct(pImage, rows: pRows, columns: pColumns, sampling: ParallaxShift(row: 1.25, column: 1.25),
+                                                        wavelength: 0.025, terms: pTerms, coefficients: [80, 4000], lowpass: 0.3)
+check("ParallaxCorrectionResult.transferReal and transferImaginary: one value per pixel, DC suppressed",
+      corrected.transferReal.count == 72 && corrected.transferImaginary.count == 72
+      && corrected.transferReal[0] == 0 && corrected.transferImaginary[0] == 0 && corrected.transferReal.contains { $0 != 0 })
+let pStack = [pImage, pOther, pImage.reversed()]
+let pAngles = [ParallaxShift(row: 0.004, column: -0.002), ParallaxShift(row: -0.003, column: 0.005), ParallaxShift(row: 0.001, column: 0.0015)]
+let sectioner = try ParallaxDepthSectioner(stack: pStack, rows: pRows, columns: pColumns, probeAngles: pAngles,
+                                           sampling: ParallaxShift(row: 1.25, column: 1.25), wavelength: 0.025, ctf: .defocusOnly(c1Angstrom: 80))
+nonisolated(unsafe) var depthProgress: [[Int]] = []
+let sections = try ParallaxDepthSectioning.section(stack: pStack, rows: pRows, columns: pColumns, probeAngles: pAngles,
+    sampling: ParallaxShift(row: 1.25, column: 1.25), wavelength: 0.025, ctf: .defocusOnly(c1Angstrom: 80), depthsAngstrom: [0, 100],
+    isCancelled: { false }, progress: { depthProgress.append([$0, $1]) })
+let singlePlane = try sectioner.plane(atDepth: 100)
+check("ParallaxDepthSectioner.plane(atDepth:) equals section's plane, with progress per plane",
+      sectioner.rows == pRows && sectioner.columns == pColumns && sectioner.imageCount == 3
+      && singlePlane == sections[1] && depthProgress == [[1, 2], [2, 2]])
+check("ParallaxDepthSectioning.section: a cancelled call throws CancellationError", {
+    do {
+        _ = try ParallaxDepthSectioning.section(stack: pStack, rows: pRows, columns: pColumns, probeAngles: pAngles,
+            sampling: ParallaxShift(row: 1.25, column: 1.25), wavelength: 0.025, ctf: .defocusOnly(c1Angstrom: 80), depthsAngstrom: [0],
+            isCancelled: { true })
+        return false
+    } catch is CancellationError { return true } catch { return false }
+}())
+var positions = ParallaxPositionCorrectionOptions(iterations: 2)
+check("ParallaxPositionCorrectionOptions.variant defaults to py4DSTEM", positions.variant == ParallaxPositionCorrectionVariant.py4DSTEM)
+positions.variant = .application
+let kdeImages = [[Double]](repeating: Array(pImage[0..<36]), count: 2)
+nonisolated(unsafe) var positionProgress: [[Int]] = []
+let moved = try ParallaxSubpixel.correctPositions(images: kdeImages, rows: 6, columns: 6,
+    shifts: [ParallaxShift(row: 0.25, column: -0.5), ParallaxShift(row: -0.25, column: 0.5)], window: [Double](repeating: 1, count: 36),
+    scanSampling: ParallaxShift(row: 1, column: 1), factor: 2, options: positions, isCancelled: { false },
+    progress: { positionProgress.append([$0, $1]) })
+check("ParallaxSubpixel.correctPositions with the application variant: scores and progress per iteration",
+      moved.scores.count == 3 && positionProgress == [[1, 2], [2, 2]] && moved.offsets.rows.count == 36)
+check("ParallaxSubpixel.correctPositions: a cancelled call throws CancellationError", {
+    do {
+        _ = try ParallaxSubpixel.correctPositions(images: kdeImages, rows: 6, columns: 6,
+            shifts: [ParallaxShift(row: 0.25, column: -0.5), ParallaxShift(row: -0.25, column: 0.5)], window: [Double](repeating: 1, count: 36),
+            scanSampling: ParallaxShift(row: 1, column: 1), factor: 2, options: positions, isCancelled: { true })
+        return false
+    } catch is CancellationError { return true } catch { return false }
+}())
+nonisolated(unsafe) var alignProgress: [[Int]] = []
+let alignedStack = try ParallaxAlignment.align([pOther, pImage], reference: pImage, rows: pRows, columns: pColumns,
+                                               isCancelled: { false }, progress: { alignProgress.append([$0, $1]) })
+check("ParallaxAlignment.align with progress per image", alignedStack.images.count == 2 && alignProgress == [[1, 2], [2, 2]])
+check("ParallaxAlignment.align: a cancelled call throws CancellationError", {
+    do { _ = try ParallaxAlignment.align([pOther], reference: pImage, rows: pRows, columns: pColumns, isCancelled: { true }); return false }
+    catch is CancellationError { return true } catch { return false }
+}())
+var lcg: UInt64 = 7
+let pCube = (0..<(8 * 8 * 8 * 8)).map { _ -> Double in lcg = lcg &* 6364136223846793005 &+ 1442695040888963407; return 0.5 + 1.5 * Double(lcg >> 11) / Double(1 << 53) }
+let pCubeShape = try CubeShape(scanRows: 8, scanColumns: 8, detectorRows: 8, detectorColumns: 8)
+let prepared = try ParallaxPreprocessing.prepare(pCube, shape: pCubeShape, reciprocalSampling: ParallaxShift(row: 0.1, column: 0.1),
+                                                 energyEV: 200_000, threshold: 0.5, edgeBlend: 2, paddingRows: 4, paddingColumns: 4)
+nonisolated(unsafe) var reconstructProgress: [[Int]] = []
+let reconstruction = try ParallaxReconstruction.reconstruct(prepared, isCancelled: { false }, progress: { reconstructProgress.append([$0, $1]) })
+check("ParallaxReconstruction.reconstruct with progress per bin",
+      !reconstructProgress.isEmpty && reconstructProgress.last == [reconstruction.binValues.count, reconstruction.binValues.count])
+check("ParallaxReconstruction.reconstruct and process: a cancelled call throws CancellationError", {
+    do { _ = try ParallaxReconstruction.reconstruct(prepared, isCancelled: { true }); return false } catch is CancellationError {} catch { return false }
+    do {
+        _ = try ParallaxReconstruction.process(pCube, shape: pCubeShape, reciprocalSampling: ParallaxShift(row: 0.1, column: 0.1),
+                                               scanSampling: ParallaxShift(row: 1, column: 1), energyEV: 200_000, isCancelled: { true },
+                                               progress: { _, _ in })
+        return false
+    } catch is CancellationError { return true } catch { return false }
+}())
 print("consumer-check summary: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

@@ -23,6 +23,7 @@ let package = Package(
             .product(name: "CuboStrain", package: kit),
             .product(name: "CuboPtycho", package: kit),
             .product(name: "CuboEmbedding", package: kit),
+            .product(name: "CuboParallax", package: kit),
         ]),
     ],
     swiftLanguageModes: [.v6]

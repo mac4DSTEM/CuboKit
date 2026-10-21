@@ -10,7 +10,7 @@ public enum ParallaxEmptyScheduleBehavior: Sendable {
     case singlePassAtMinimumBin
 }
 
-/// Options of ``ParallaxReconstruction/reconstruct(_:options:)``, named and defaulted as in py4DSTEM's
+/// Options of ``ParallaxReconstruction/reconstruct(_:options:isCancelled:progress:)``, named and defaulted as in py4DSTEM's
 /// `Parallax.reconstruct`.
 public struct ParallaxReconstructionOptions: Sendable {
     /// Largest alignment bin; `nil` uses the bright-field diameter in detector pixels. Larger values are clipped to it.
@@ -37,7 +37,7 @@ public struct ParallaxReconstructionOptions: Sendable {
     public init() {}
 }
 
-/// Products of ``ParallaxReconstruction/reconstruct(_:options:)``.
+/// Products of ``ParallaxReconstruction/reconstruct(_:options:isCancelled:progress:)``.
 public struct ParallaxReconstructionResult: Sendable {
     /// Padded image rows.
     public let rows: Int
@@ -315,7 +315,7 @@ public struct ParallaxSubpixelOptions: Sendable {
     public init() {}
 }
 
-/// Options of ``ParallaxReconstruction/process(_:shape:reciprocalSampling:scanSampling:energyEV:options:)``.
+/// Options of ``ParallaxReconstruction/process(_:shape:reciprocalSampling:scanSampling:energyEV:options:isCancelled:progress:)``.
 public struct ParallaxProcessingOptions: Sendable {
     /// Bright-field threshold relative to the mean pattern's maximum.
     public var threshold = 0.8
@@ -355,7 +355,7 @@ public struct ParallaxProcessingResult: Sendable {
 
 extension ParallaxReconstruction {
     /// Runs ``ParallaxPreprocessing/prepare(_:shape:reciprocalSampling:energyEV:threshold:edgeBlend:paddingRows:paddingColumns:detectorMask:retention:)``,
-    /// ``reconstruct(_:options:)`` and, if requested, the kernel-density upsampling with its position correction,
+    /// ``reconstruct(_:options:isCancelled:progress:)`` and, if requested, the kernel-density upsampling with its position correction,
     /// chaining the individual public steps unchanged. `reciprocalSampling` is inverse angstroms per detector pixel and
     /// `scanSampling` angstroms per scan pixel; the upsampling limits use the row components as py4DSTEM does.
     /// Aberration fitting and correction and depth sectioning stay separate calls on the returned result.

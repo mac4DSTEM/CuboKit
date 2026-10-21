@@ -171,6 +171,27 @@ control overload "DiffractionFeatures.binnedVector(UnsafeBufferPointer)" $E/Diff
 control library "DiffractionFeatures.Implementation"       $E/DiffractionFeatures.swift "Implementation" 'public enum Implementation'
 control overload "KMeans.fit(isCancelled:)"                $E/KMeans.swift        "fit"           $'public static func fit(_ data: [Double], rows n: Int, columns d: Int, initialCentroids: [Double],\n                           maxIterations: Int = 300, tolerance: Double = 1e-4,\n                           isCancelled'
 control overload "KMeans.fitSeeded(isCancelled:)"          $E/KMeans.swift        "fitSeeded"     $'public static func fitSeeded(_ data: [Double], rows n: Int, columns d: Int, groups: Int, seed: UInt64,\n                                 maxIterations: Int = 50,\n                                 isCancelled'
+# (ParallaxFourierShifter, ParallaxDepthSectioner: package types are not found by the consumer at all: kind overload.)
+# (ViewedCube: a package-level generic actor is not found by the consumer at all, an error in its own main.swift: kind overload.)
+# 0.6.0 candidate: the CuboParallax asks of mac4DSTEM's switch. (The new defaulted `isCancelled:`/`progress:` parameters of existing
+# functions are guarded by the checks above, which pass them: removing one fails the consumer's build.)
+Q=Sources/CuboParallax
+control library "ParallaxSpectrum"                         $Q/ParallaxFourierShifter.swift "ParallaxSpectrum"      'public struct ParallaxSpectrum'
+control overload "ParallaxFourierShifter"                 $Q/ParallaxFourierShifter.swift "ParallaxFourierShifter" 'public struct ParallaxFourierShifter'
+control overload "ParallaxFourierShifter.shifted"         $Q/ParallaxFourierShifter.swift "shifted"               'public func shifted(_ image: [Double]'
+control overload "ParallaxFourierShifter.shifted(batch)"   $Q/ParallaxFourierShifter.swift "shifted"               'public func shifted(_ images: [[Double]]'
+control access  "ParallaxFourierShifter.spectrum"          $Q/ParallaxFourierShifter.swift "spectrum"              'public func spectrum(of image'
+control access  "ParallaxFourierShifter.inverse"           $Q/ParallaxFourierShifter.swift "inverse"               'public func inverse('
+control access  "ParallaxFourierShifter.shifting"          $Q/ParallaxFourierShifter.swift "shifting"              'public func shifting('
+control access  "ParallaxFourierShifter.correlationShift"  $Q/ParallaxFourierShifter.swift "correlationShift"     'public func correlationShift(reference'
+control access  "ParallaxAlignment.correlationShift"       $Q/ParallaxFourierShifter.swift "correlationShift"     'public static func correlationShift(reference'
+control access  "ParallaxCorrectionResult.transferReal"    $Q/ParallaxAberrationCorrection.swift "transferReal"    'public let transferReal'
+control access  "ParallaxCorrectionResult.transferImaginary" $Q/ParallaxAberrationCorrection.swift "transferImaginary" 'public let transferImaginary'
+control overload "ParallaxDepthSectioner"                 $Q/ParallaxDepthSectioning.swift "ParallaxDepthSectioner" 'public struct ParallaxDepthSectioner'
+control access  "ParallaxDepthSectioner.plane"             $Q/ParallaxDepthSectioning.swift "plane"                'public func plane(atDepth'
+control access  "ParallaxDepthSectioner.imageCount"        $Q/ParallaxDepthSectioning.swift "imageCount"           'public var imageCount'
+control library "ParallaxPositionCorrectionVariant"        $Q/ParallaxSubpixelKDE.swift "ParallaxPositionCorrectionVariant" 'public enum ParallaxPositionCorrectionVariant'
+control access  "ParallaxPositionCorrectionOptions.variant" $Q/ParallaxSubpixelKDE.swift "variant"              'public var variant'
 # A slice-1 symbol, to show the earlier checks are guarded too.
 control overload "VirtualImaging.image"             $V/VirtualImaging.swift      "image"             'public static func image(of source'
 

@@ -56,8 +56,8 @@ wrapping: integer inverse shifts within that same tolerance; smooth fractional i
 
 ## The reconstruct call (`ParallaxReconstruction`)
 
-`ParallaxReconstruction.reconstruct(_:options:)` ports py4DSTEM `Parallax.reconstruct` (`process/phase/parallax.py`,
-pin `f050d207`); `ParallaxReconstruction.process(_:shape:reciprocalSampling:scanSampling:energyEV:options:)` chains
+`ParallaxReconstruction.reconstruct(_:options:isCancelled:progress:)` ports py4DSTEM `Parallax.reconstruct` (`process/phase/parallax.py`,
+pin `f050d207`); `ParallaxReconstruction.process(_:shape:reciprocalSampling:scanSampling:energyEV:options:isCancelled:progress:)` chains
 `ParallaxPreprocessing.prepare`, `reconstruct` and, if asked, `ParallaxSubpixel.kernelDensity` or
 `correctPositions` (with the same arguments the single steps take) and returns every product
 (`ParallaxProcessingResult`: the preprocessing, the reconstruction, the wavelength, the upsampling limits, the upsampled
@@ -135,6 +135,53 @@ each pass reduces the offset by about 0.37 (a damped iteration, as in the source
 lose their Nyquist component in the first fractional shift (the effect noted above), which the pinned cases show too.
 `endToEndEqualsChainedSteps` checks that `process` equals the chained single steps exactly (stack, shifts, image,
 errors, limits, upsampled image and probe offsets, with and without position correction and without the subpixel stage).
+
+### The application's asks (round 6, for 0.6.0)
+
+mac4DSTEM's switch to CuboParallax 0.4.0 left six asks; each is an addition whose defaults keep 0.5.0 behaviour.
+`DefaultUnchangedTests` holds the 0.5.0 outputs (fixture `legacy050.json`, written by a throwaway generator run on
+`deb33d9`) for `shifted`, `align`, `correct`, `section`, `correctPositions` and `process` on deterministic inputs and
+compares the new code within 1e-12 of `max(1, max|expected|)`; the measured gap is zero.
+
+- **`ParallaxFourierShifter`** (`Sendable`, immutable): the FFT plan is built once. `shifted(_:by:)`, a batch
+  `shifted(_:by:isCancelled:progress:)`, `spectrum(of:)`, `inverse(_:)`, `shifting(_:by:)` (the phase ramp on a
+  spectrum) and `correlationShift`. It runs the same code as `ParallaxAlignment.shifted`: results are bit-identical
+  (tested with exact equality on four shapes, odd and non-power-of-two, and from 16 concurrent threads).
+- **`ParallaxAlignment.correlationShift(reference:moving:upsampleFactor:)`** takes two `ParallaxSpectrum` values: the
+  estimate of the application's `ParallaxAlignment.correlationShift`, for instance against a running-average
+  reference spectrum of shifted spectra. Cross-power `reference * conj(moving)`, no phase normalisation; factors 3...64
+  as `shift` (parabolic, then matrix-DFT refinement), factors 1 and 2 the integer maximum alone (the application's
+  `upsampleFactor > 2` branch); wrapped into `[-size/2, size/2)`. Pinned to a Float64 NumPy transcription of the
+  application source (`tools/parallax/app_pins.py`: three sizes, odd and even, five factors, a three-spectrum
+  running-average reference, two planted shifts): measured worst gap 3.3e-14 px, written 1e-11 px. It also equals
+  `shift` on the images exactly, and reproduces the py4DSTEM-pinned shifts of `alignment.json` (factor 8) within 1e-10.
+- **`ParallaxCorrectionResult.transferReal` / `transferImaginary`**: the transfer function the correction multiplied
+  into the image spectrum (`sign(sin chiEven) * exp(-i chiOdd) * envelope`, DC zero). Pinned to the NumPy transcription
+  of the application's correction on the three fitted-coefficient cases of `aberrations.json` (lowpass 0.3, highpass 0.12
+  applied): measured 2.6e-15, written 1e-12 (the sign of `sin chiEven` is the one discontinuity; the pins' smallest
+  `|sin|` on active pixels is 0.004). Multiplying the spectrum by the returned transfer reproduces `image` to 1e-13.
+- **Cancellation and progress.** `align`, `ParallaxFourierShifter.shifted` (batch), `ParallaxReconstruction.reconstruct`
+  and `process`, `ParallaxDepthSectioning.section` and `ParallaxSubpixel.correctPositions` take
+  `isCancelled: (() -> Bool)? = nil` and `progress: ((completed, total) -> Void)? = nil`. Cancellation throws
+  `CancellationError`; it is polled before every image, group, plane, deposition or iteration (the longest unpolled
+  stretch is one correlation, one Fourier shift, one KDE or one scoring pass). Progress units: one per image (`align`,
+  batch shift), per alignment bin (`reconstruct`), per plane (`section`), per iteration (`correctPositions`);
+  `process` reports bins followed by position-correction iterations over one total. Results with the closures set and
+  never tripping are identical to those without.
+- **`ParallaxDepthSectioner`**: the sign-CTF filter, envelope and the forward FFT of every image are computed once in
+  the initialiser; `plane(atDepth:)` forms one plane (phase ramp and inverse transform per image only) and may be
+  called from several threads. `section` is now a loop over it, so it returns the same planes (bit-identical, tested),
+  and an app that wants between-plane cancellation or per-plane results no longer repeats the forward FFTs.
+- **`ParallaxPositionCorrectionVariant.application`** (option `variant`; `.py4DSTEM` is the default): the application's
+  loop. Float offsets, steps and scores (the deposition stays Double and is rounded to Float for scoring, the shifts are
+  Float), no regularisation (`gaussianSigma`, `lowpass`, `highpass` must be `nil` or the call is `invalidInput`), the
+  step floor `max(step * factor, minimumStep)` applied to rejected sites only, and a zero or non-finite gradient norm
+  giving a zero move. Differences from `.py4DSTEM` are visible when the minimum step exceeds the initial step (the
+  default loop floors every site) and on flat scores. Pinned to a float32 NumPy transcription (`app_pins.py`, 7 x 6
+  scan, 5 images, 3 iterations; plain, checkerboard, and both with the floor above the initial step; plus a flat stack
+  for the guard): offsets and scores agree exactly, the image differs by 5.5e-8 relative (the transcription rounds
+  it to float32); written tolerances offsets 1e-6 px, scores 1e-6 relative, image 1.2e-7. The `.py4DSTEM` loop on a flat
+  stack now throws `nonfiniteValues` where it used to trap on NaN trial coordinates.
 
 ### Not provided
 
