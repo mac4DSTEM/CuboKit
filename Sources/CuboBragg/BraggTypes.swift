@@ -60,6 +60,19 @@ public enum BraggNonFinitePixels: Sendable, Hashable {
     case neighbourMedian
 }
 
+/// The arithmetic of the correlation and the maxima search.
+public enum BraggPrecision: Sendable, Hashable, CaseIterable {
+    /// Double throughout: the numerical definition of docs/bragg.md, pinned to py4DSTEM at 1e-9 px.
+    case double
+    /// Float32 (Accelerate: vDSP convolution and complex DFT) for the pattern copy, the non-finite fill, both Gaussian
+    /// filters, the 2-D transform, the correlation product and the maxima search; the few accepted peaks are refined in
+    /// Double. Available only for detector sizes vDSP's DFT supports on both axes (f·2ⁿ with f in 1, 3, 5, 15, ...: 64, 128,
+    /// 192, 240, 256, 320, 384, 480, 512, ...; `BraggDetector.supportsSinglePrecision(detectorRows:detectorColumns:)` asks);
+    /// any other size is refused with `CuboBraggError.invalidOption`, never computed another way. Agrees with `.double`
+    /// to about 1e-5 of the correlation maximum, hence peak positions to about 1e-4 px (docs/bragg.md has the measured gaps).
+    case single
+}
+
 /// The options of py4DSTEM's `find_Bragg_disks` with its names made explicit, defaults as in py4DSTEM f050d207
 /// (`minRelativeIntensity` 0.005, `minPeakSpacing` 60, `edgeBoundary` 20, `maxNumPeaks` 70, `subpixel` multicorr), plus
 /// the mac4DSTEM variants, each off by default.
@@ -99,6 +112,9 @@ public struct BraggDiskOptions: Sendable, Equatable {
     public var multicorrOrder: BraggPeakOrder = .refinedIntensity
     /// The order of equal intensities among the maxima; `.rasterOrder` here, `.numpy` for py4DSTEM's exact order.
     public var tieOrder: BraggTieOrder = .rasterOrder
+    /// The arithmetic of `BraggDetector` and `BraggDisks`: `.double` (the default, bit for bit the earlier behaviour) or the
+    /// faster `.single`. `BraggMaxima.find` works on the Double map it is given and ignores it.
+    public var precision: BraggPrecision = .double
 
     public init() {}
 
@@ -130,6 +146,48 @@ public struct BraggDiskOptions: Sendable, Equatable {
         }
         o.edgeBoundary = max(2, Int(qMin / 24))
         return o
+    }
+}
+
+/// How many maxima survived each stage of one pattern's selection, in py4DSTEM's filter order, so an empty or short result
+/// can be explained (a zero-peak preview: nothing above the floor, all within the edge, all too close to a brighter one, ...).
+/// Returned by `BraggDetector.detectWithFunnel`; the peaks beside it are exactly those of `detect`.
+public struct BraggFunnel: Sendable, Equatable {
+    /// 8-neighbour maxima of the smoothed correlation inside the edge boundary.
+    public var localMaximumCount: Int
+    /// After `minimumAbsoluteIntensity` (equal to `localMaximumCount` when that is 0).
+    public var afterAbsoluteCutCount: Int
+    /// After the relative cut (unchanged when `minimumRelativeIntensity` is 0 or no reference maximum exists).
+    public var afterRelativeCutCount: Int
+    /// After `minimumPeakSpacing`.
+    public var afterSpacingCount: Int
+    /// The peaks returned: `afterSpacingCount` capped at `maximumPeaks`.
+    public var acceptedCount: Int
+    /// Whether the cap dropped any (`afterSpacingCount > maximumPeaks`).
+    public var wasCountLimited: Bool
+    /// The intensity the relative cut was measured against; nil when the cut is off or the reference rank does not exist.
+    public var relativeReferenceIntensity: Double?
+    /// True when the relative cut is off, or its reference exists; false when a cut was asked for but fewer than
+    /// `relativeToPeak + 1` maxima remained to give a reference (so the cut did nothing).
+    public var relativeReferenceWasAvailable: Bool
+    /// The largest value of the smoothed correlation, where the maxima were searched (0 for an empty map).
+    public var correlationMaximum: Double
+    /// Non-finite pattern pixels replaced before correlating (`nonFinitePixels == .neighbourMedian`); 0 otherwise.
+    public var nonFinitePixelCount: Int
+
+    public init(localMaximumCount: Int, afterAbsoluteCutCount: Int, afterRelativeCutCount: Int, afterSpacingCount: Int,
+                acceptedCount: Int, wasCountLimited: Bool, relativeReferenceIntensity: Double?,
+                relativeReferenceWasAvailable: Bool, correlationMaximum: Double, nonFinitePixelCount: Int = 0) {
+        self.localMaximumCount = localMaximumCount
+        self.afterAbsoluteCutCount = afterAbsoluteCutCount
+        self.afterRelativeCutCount = afterRelativeCutCount
+        self.afterSpacingCount = afterSpacingCount
+        self.acceptedCount = acceptedCount
+        self.wasCountLimited = wasCountLimited
+        self.relativeReferenceIntensity = relativeReferenceIntensity
+        self.relativeReferenceWasAvailable = relativeReferenceWasAvailable
+        self.correlationMaximum = correlationMaximum
+        self.nonFinitePixelCount = nonFinitePixelCount
     }
 }
 
