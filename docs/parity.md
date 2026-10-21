@@ -8,7 +8,7 @@ lists for strain, Bragg vectors and disk detection, parallax and ptychography. C
 ACOM) is DiffractoKit's; file formats (`read`, `import_file`, `save`) are FormatoKit's; simulation is SimulatoKit's;
 plotting and `show*` are not ported.
 
-Legend: **done** (pinned against py4DSTEM and planted truth, the design notes, archived in the suite's private folder; under the numerical testing policy (D12, `CLAUDE.md`) numerics are held to a written tolerance and readers, I/O, indices and metadata are exact; where a test still asserts bit for bit, the row says "exact today"),
+Legend: **done** (pinned against py4DSTEM and planted truth, the design notes, archived in the suite's private folder; numerics are held to the tolerance the Python package's own tests use; readers, I/O, indices and metadata are exact; where a test still asserts bit for bit, the row says "exact today"),
 **partial** (what is missing says so), **absent** (not in the kit; "planned: ..." names the slice or module where a plan
 exists), **app** (lives in mac4DSTEM, not in a kit), **n/a** (plotting or Python-only). "done (slice 4)" rows are
 described in the slice 4 design note, archived in the suite's private folder.
