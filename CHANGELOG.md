@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.1 (2026-10-21)
+
+Tests and tools only; no source change and no number moves.
+
+- Calibration pins loosened to the package's tolerance (D17). py4DSTEM has no test for these numbers, so they are held to `assert_allclose`'s Float64 default (rtol 1e-7, with atol 1e-12 where a value is zero in one arithmetic): `originMean` (1e-14 before), the axes and grids of `DataCube.calibrate`, `rxx`/`qxx`/`qxxs` and the raw grids (1e-12 relative), `originShift`, the QR rotation in degrees (1e-12) and radians (1e-15), the pixel size after `bin_Q` (1e-15), the detector pixel size from a known distance (1e-15) and the fitted peak positions (1e-14), the scan/detector vector rotations (1e-14), and the pixel size after `resample_Q` (1e-15). Stored values, indices and flags stay exact; the cube edits keep their 0 and 1e-6 pins. The measured gaps are unchanged (1 ulp).
+- The 0.8.0 Migration sentence about `ResidentCube` is rewritten: it named `ResidentCube` as replacing itself.
+- `tools/hot-pixels/pins.py` and `tools/ptycho/options_pins.py` read the py4DSTEM checkout from `References/CuboKit` (they pointed at a stale path); `tools/idpc/pins.py` reads the app source from the sibling `mac4DSTEM` checkout. hot-pixels regenerates its fixture byte for byte; the idpc fixture was not regenerated (only its recorded NumPy version string would change, 2.5.0 to 2.5.4).
+
+### Migration
+None.
+
 ## 0.8.0 (2026-10-21)
 
 The kit audit against py4DSTEM 0.14.19 (`f050d207`): the calibration model, the cube edits, the Metal selected-area kernel with a resident cube, and the first parity count that walks the whole API (`docs/parity.md`: 121 present, 38 partial, 50 missing of 209 counted rows; 25 more not planned, with reasons). Timings against py4DSTEM at three sizes: `docs/benchmarks.md`.
@@ -12,7 +23,7 @@ The kit audit against py4DSTEM 0.14.19 (`f050d207`): the calibration model, the 
 
 ### Migration
 
-Additive. `VirtualDiffraction.pattern` gained `path: ComputePath = .cpu` between `shift:` and `tiling:`; a call that names its arguments compiles unchanged. In mac4DSTEM, to take the kit's versions when the app is switched: `ResidentCube` replaces `ResidentCube`/`FourDArray` residency for the Metal reducers, `VirtualDiffraction.pattern(..., path: .metal)` replaces `MetalEngine.virtualDiffraction`, and `CubeEditing`/`Calibration` replace the app's bin, crop-and-pad helpers and calibration struct where they overlap. `PendingLoad` and `VirtualDetector.tiledDiffraction` stay in the app (load-screen state and tiling policy). The learned detector stays in the app.
+Additive. `VirtualDiffraction.pattern` gained `path: ComputePath = .cpu` between `shift:` and `tiling:`; a call that names its arguments compiles unchanged. In mac4DSTEM, to take the kit's versions when the app is switched: the kit's `CuboVirtual.ResidentCube` replaces the app's own `ResidentCube` (the app type that holds a `FourDArray` in a Metal buffer) for the Metal reducers; qualify the name while both exist, `VirtualDiffraction.pattern(..., path: .metal)` replaces `MetalEngine.virtualDiffraction`, and `CubeEditing`/`Calibration` replace the app's bin, crop-and-pad helpers and calibration struct where they overlap. `PendingLoad` and `VirtualDetector.tiledDiffraction` stay in the app (load-screen state and tiling policy). The learned detector stays in the app.
 
 ## 0.7.1 (2026-10-21)
 

@@ -18,7 +18,7 @@ import py4DSTEM
 from py4DSTEM.process.phase import SingleslicePtychography
 from py4DSTEM.process.phase.utils import ComplexProbe, electron_wavelength_angstrom
 KIT = Path(__file__).resolve().parents[2]
-REF = KIT/'References/py4DSTEM-f050d207'
+REF = KIT.parents[0] / 'References/CuboKit/py4DSTEM-f050d207'
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'], text=True).strip().startswith('f050d207')
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 for name in ('singleslice_ptychography.py','ptychographic_methods.py','utils.py','phase_base_class.py','ptychographic_constraints.py'):

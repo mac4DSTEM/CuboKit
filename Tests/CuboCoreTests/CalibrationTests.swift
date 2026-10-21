@@ -2,6 +2,11 @@ import Foundation
 import Testing
 import CuboCore
 
+/// py4DSTEM has no test for these calibration numbers, so the tolerance is `assert_allclose`'s default for Float64, rtol 1e-7, with
+/// atol 1e-12 so that a value that is zero in one arithmetic and 1e-17 in the other agrees (0.8.1; the pins were 1e-12 to 1e-15 before,
+/// stricter than the package, D17). Stored values and indices stay exact (`==`).
+private func agrees(_ a: Double, _ b: Double) -> Bool { abs(a - b) <= 1e-12 + 1e-7 * abs(b) }
+
 private struct Op: Decodable {
     let name: String, shape: [Int], values: [Double]
     let rPixelSize: Double?, qPixelSize: Double?
@@ -108,7 +113,7 @@ private func gap(_ a: [Float], _ b: [Double]) -> Double {
             let e = try await CubeEditing.resampleDetector(of: c, spec, conserveSums: conserve, calibration: k)
             let o = try op(p, name)
             try await check(e, o, tolerance: 1e-6)
-            #expect(abs(e.calibration.detectorPixelSize - o.qPixelSize!) <= 1e-15, "\(name) pixel size")
+            #expect(agrees(e.calibration.detectorPixelSize, o.qPixelSize!), "\(name) pixel size")
         }
     }
 
@@ -129,10 +134,10 @@ private func gap(_ a: [Float], _ b: [Double]) -> Double {
         cal.detectorPixelSize = k.qPixelSize; cal.detectorUnits = DetectorUnits(rawValue: k.qPixelUnits)!
         cal.scanPixelSize = k.rPixelSize; cal.scanUnits = k.rPixelUnits
         try cal.setOrigin(row: ScanField(scanRows: 4, scanColumns: 6, values: k.qx0), column: ScanField(scanRows: 4, scanColumns: 6, values: k.qy0))
-        #expect(abs(cal.originMean!.row - k.qx0Mean) < 1e-14 && abs(cal.originMean!.column - k.qy0Mean) < 1e-14)
+        #expect(agrees(cal.originMean!.row, k.qx0Mean) && agrees(cal.originMean!.column, k.qy0Mean))
         func close(_ a: [Double], _ b: [Double], _ what: String) {
             #expect(a.count == b.count, "\(what)")
-            #expect(zip(a, b).allSatisfy { abs($0 - $1) <= 1e-12 * max(1, abs($1)) }, "\(what)")
+            #expect(zip(a, b).allSatisfy { agrees($0, $1) }, "\(what)")
         }
         let qr = cal.detectorRowGrid(shape: shape), qc = cal.detectorColumnGrid(shape: shape)
         close(qr.values, transposed(k.qxx, rows: 7, columns: 9), "qxx")
@@ -149,7 +154,7 @@ private func gap(_ a: [Float], _ b: [Double]) -> Double {
         }
         close(try ScanField(scanRows: 4, scanColumns: 6, values: k.qx0).shift.values, k.qx0Shift, "qx0 shift")
         let s = try cal.originShift(row: 2, column: 3)!
-        #expect(abs(s.row - k.qx0Shift[2 * 6 + 3]) < 1e-14 && abs(s.column - k.qy0Shift[2 * 6 + 3]) < 1e-14)
+        #expect(agrees(s.row, k.qx0Shift[2 * 6 + 3]) && agrees(s.column, k.qy0Shift[2 * 6 + 3]))
         // no origin: the axes start at 0 and the shifted grids are refused
         var bare = Calibration(); bare.detectorPixelSize = 0.1
         close(bare.detectorRowGrid(shape: shape).values, transposed(k.noOriginQxx, rows: 7, columns: 9), "no-origin qxx")
@@ -162,13 +167,13 @@ private func gap(_ a: [Float], _ b: [Double]) -> Double {
         var cal = Calibration()
         #expect(cal.detectorPixelSize == 1 && cal.detectorUnits == .pixels && cal.scanUnits == "pixels" && !cal.qrFlip)
         cal.setQRRotationAndFlip(degrees: -12.5, flip: true)
-        #expect(abs(cal.qrRotationDegrees! - k.qrRotationDegrees) < 1e-12 && cal.qrFlip == k.qrFlip)
+        #expect(agrees(cal.qrRotationDegrees!, k.qrRotationDegrees) && cal.qrFlip == k.qrFlip)
         cal.setQRRotation(degrees: 30)
-        #expect(abs(cal.qrRotationRadians! - k.qrRotation30Radians) < 1e-15)
+        #expect(agrees(cal.qrRotationRadians!, k.qrRotation30Radians))
         // bin_Q: the pixel size multiplies and the origin is left alone
         var b = Calibration(); b.detectorPixelSize = 0.05; b.setOrigin(row: 3, column: 4)
         let binned = try b.afterBinningDetector(by: 2)
-        #expect(abs(binned.detectorPixelSize - k.afterBinQ.qPixelSize) < 1e-15)
+        #expect(agrees(binned.detectorPixelSize, k.afterBinQ.qPixelSize))
         #expect(binned.originMean!.row == k.afterBinQ.originMean[0] && binned.originMean!.column == k.afterBinQ.originMean[1])
         #expect(throws: CalibrationError.self) { _ = try b.afterBinningDetector(by: 0) }
         // set_probe_param sets the semiangle and the MEAN origin only
@@ -188,20 +193,20 @@ private func gap(_ a: [Float], _ b: [Double]) -> Double {
     }
 
     // process.calibration.qpixelsize / rotation. leastsq stops at its 1.5e-8 tolerance, the closed form is the exact
-    // minimum: relative 1e-7. The rotations are closed-form trigonometry: 1e-14.
+    // minimum: relative 1e-7. The rotations and positions are closed-form arithmetic: `agrees` (assert_allclose default).
     @Test func pixelSizeAndRotationProcesses() throws {
         let k = try pin().processes
         let s = try CalibrationMeasurement.detectorPixelSize(measuredPixels: 25, knownDistance: 3.905)
-        #expect(abs(s.size - k.pixelSize) <= 1e-15 * k.pixelSize && s.units == k.pixelSizeUnits)
+        #expect(agrees(s.size, k.pixelSize) && s.units == k.pixelSizeUnits)
         let f = try CalibrationMeasurement.detectorPixelSize(peakPositions: k.qs, indices: k.hkl.map { ($0[0], $0[1], $0[2]) }, cellSize: k.a)
         #expect(abs(f.size - k.dq) <= 1e-7 * k.dq, "dq \(f.size) against \(k.dq)")
-        #expect(f.fittedPositions.count == k.qsFit.count && zip(f.fittedPositions, k.qsFit).allSatisfy { abs($0 - $1) <= 1e-14 })
+        #expect(f.fittedPositions.count == k.qsFit.count && zip(f.fittedPositions, k.qsFit).allSatisfy { agrees($0, $1) })
         #expect(f.indices.map { [$0.0, $0.1, $0.2] } == k.hklFit)
         for v in k.rotation {
             let q = CalibrationMeasurement.detectorVector(fromScanVector: v.vx, v.vy, rotationDegrees: v.rotation)
-            #expect([q.scan.row, q.scan.column, q.detector.row, q.detector.column].enumerated().allSatisfy { abs($1 - v.q[$0]) <= 1e-14 })
+            #expect([q.scan.row, q.scan.column, q.detector.row, q.detector.column].enumerated().allSatisfy { agrees($1, v.q[$0]) })
             let r = CalibrationMeasurement.scanVector(fromDetectorVector: v.vx, v.vy, rotationDegrees: v.rotation)
-            #expect([r.scan.row, r.scan.column, r.detector.row, r.detector.column].enumerated().allSatisfy { abs($1 - v.r[$0]) <= 1e-14 })
+            #expect([r.scan.row, r.scan.column, r.detector.row, r.detector.column].enumerated().allSatisfy { agrees($1, v.r[$0]) })
         }
         #expect(throws: CalibrationError.self) { _ = try CalibrationMeasurement.detectorPixelSize(measuredPixels: 0, knownDistance: 1) }
         #expect(throws: CalibrationError.self) {
