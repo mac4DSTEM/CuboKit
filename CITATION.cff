@@ -3,7 +3,9 @@ message: "If you use CuboKit in published work, please cite it, and please also 
 title: "CuboKit"
 type: software
 authors:
-  - name: "mac4DSTEM contributors"
+  - family-names: Lobpreis
+    given-names: Paul
+    # TODO(Paul): add orcid: "https://orcid.org/…" and affiliation: "…" here
 license: GPL-3.0
 repository-code: "https://github.com/mac4DSTEM/CuboKit"
 abstract: "A Swift package for 4D-STEM data on Apple platforms: the cube of diffraction patterns, virtual imaging, centre of mass, DPC, parallax alignment, strain, Bragg disk detection, embedding and ptychography, checked against py4DSTEM."
