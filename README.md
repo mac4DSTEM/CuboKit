@@ -138,6 +138,9 @@ Double reference chain. Numbers are held to the Python reference within its own 
 - Tiles larger than Metal's maximum buffer length, and Float32 overflow in Metal sums of huge finite values: not tested.
 - `.npy` files with an unaligned data offset are refused.
 - Friedel origins with upsampling factors of 1e4 and above, or on detectors of 1024 pixels and more: not refuted.
+- `ResidentCube` holds the cube in one Metal buffer and refuses a cube larger than the device's maximum buffer length (`ResidentCube.fits`).
+- `Calibration` follows py4DSTEM: the edits change pixel sizes, not the origin in detector pixels.
+- `resample_Q` is the bilinear method only; the Fourier method, the ellipse fits and the radial background (needs a polar cube) are missing (`docs/open-items.md`).
 - Nothing here is validated on a microscope.
 
 ## Platform

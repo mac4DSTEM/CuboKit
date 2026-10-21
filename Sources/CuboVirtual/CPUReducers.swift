@@ -39,8 +39,10 @@ enum CPUReducers {
     }
 
     /// Mean and maximum pattern: per position in scan order, each pixel widened to Double and added with Neumaier
-    /// compensation; the maximum in Float32 (exact), seeded at −∞.
-    static func meanAndMax(of source: some CubeSource, tiling: ScanTiling,
+    /// compensation; the maximum in Float32 (exact), seeded at −∞. The detector pixels are split into blocks that run on
+    /// every core; each pixel is still added in scan order, so the result is bit for bit the single-thread one. `wantMean`
+    /// and `wantMax` skip the statistic that is not asked for (its result is then empty values of the right length).
+    static func meanAndMax(of source: some CubeSource, tiling: ScanTiling, wantMean: Bool = true, wantMax: Bool = true,
                            progress: (@Sendable (Double) -> Void)?) async throws -> (DetectorImage, DetectorImage) {
         let shape = source.shape
         let n = shape.detectorCount
@@ -48,28 +50,41 @@ enum CPUReducers {
         var sum = [Double](repeating: -0.0, count: n)
         var correction = [Double](repeating: -0.0, count: n)
         var maximum = [Float](repeating: -.infinity, count: n)
+        let blockSize = Swift.max(2048, (n + 4 * ProcessInfo.processInfo.activeProcessorCount - 1) / (4 * ProcessInfo.processInfo.activeProcessorCount))
+        let blocks = (n + blockSize - 1) / blockSize
         for range in try tiling.ranges(for: shape) {
             try Task.checkCancellation()
             let tile = try await source.readScanTile(rows: range)
+            let positions = tile.positionCount
             tile.values.withUnsafeBufferPointer { values in
                 sum.withUnsafeMutableBufferPointer { s in
                     correction.withUnsafeMutableBufferPointer { c in
                         maximum.withUnsafeMutableBufferPointer { mx in
-                            for k in 0..<tile.positionCount {
-                                let p = values.baseAddress! + k * n
-                                for i in 0..<n {
-                                    let x = Double(p[i])
-                                    let a = s[i]
-                                    let t = a + x
-                                    // Only a finite step carries a correction (∞ − ∞ is NaN), and only a non-zero one is
-                                    // added, so a correction of +0 never turns a −0 column positive.
-                                    if t.isFinite {
-                                        let e = abs(a) >= abs(x) ? (a - t) + x : (x - t) + a
-                                        if e != 0 { c[i] += e }
+                            let vp = SharedBuffer(base: UnsafeMutablePointer(mutating: values.baseAddress!))
+                            let sp = SharedBuffer(base: s.baseAddress!), cp = SharedBuffer(base: c.baseAddress!)
+                            let mp = SharedBuffer(base: mx.baseAddress!)
+                            DispatchQueue.concurrentPerform(iterations: blocks) { b in
+                                let lo = b * blockSize, hi = Swift.min(n, lo + blockSize)
+                                for k in 0..<positions {
+                                    let p = vp.base + k * n
+                                    if wantMean {
+                                        for i in lo..<hi {
+                                            let x = Double(p[i])
+                                            let a = sp.base[i]
+                                            let t = a + x
+                                            // Only a finite step carries a correction (∞ − ∞ is NaN), and only a non-zero one is
+                                            // added, so a correction of +0 never turns a −0 column positive.
+                                            if t.isFinite {
+                                                let e = abs(a) >= abs(x) ? (a - t) + x : (x - t) + a
+                                                if e != 0 { cp.base[i] += e }
+                                            }
+                                            sp.base[i] = t
+                                        }
                                     }
-                                    s[i] = t
+                                    if wantMax {
+                                        vDSP_vmax(mp.base + lo, 1, p + lo, 1, mp.base + lo, 1, vDSP_Length(hi - lo))
+                                    }
                                 }
-                                vDSP_vmax(mx.baseAddress!, 1, p, 1, mx.baseAddress!, 1, vDSP_Length(n))
                             }
                         }
                     }

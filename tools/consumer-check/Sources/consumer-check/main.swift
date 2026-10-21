@@ -708,5 +708,48 @@ do {
     check("BraggDiskOptions.validate, BraggFailurePolicy and BraggScanResult",
           validated && BraggFailurePolicy.recordEmpty != BraggFailurePolicy.throwOnFirst && BraggScanResult.self == BraggScanResult.self)
 }
+
+// 0.8.0: the calibration model, the cube edits, the selected-area Metal path and the resident cube, the Bragg masks
+do {
+    var cal = Calibration()
+    cal.detectorPixelSize = 0.05; cal.detectorUnits = .inverseAngstroms
+    cal.setOrigin(row: 3, column: 4)
+    let grid = cal.detectorRowGrid(shape: shape)
+    let moved = try cal.afterBinningDetector(by: 2)
+    let axisOK = abs(cal.detectorRowAxis(count: 8)[3]) < 1e-15 && grid.rows == 8 && grid.columns == 9 && moved.detectorPixelSize == 0.1
+    var refused = false
+    do { _ = try Calibration().shiftedDetectorRowGrid(shape: shape, scanRow: 0, scanColumn: 0) } catch is CalibrationError { refused = true }
+    let fieldMean = try ScanField(scanRows: 1, scanColumns: 2, values: [1, 3]).mean
+    check("Calibration, ScanField, CoordinateGrid, CalibrationError", axisOK && refused && fieldMean == 2)
+    let size = try CalibrationMeasurement.detectorPixelSize(measuredPixels: 10, knownDistance: 2)
+    let vec = CalibrationMeasurement.detectorVector(fromScanVector: 1, 0, rotationDegrees: 90)
+    check("CalibrationMeasurement", size.size == 0.05 && size.units == "A^-1" && abs(vec.detector.column + 1) < 1e-12)
+    let binned = try await CubeEditing.binScan(of: eager, by: 3)
+    let thinned = try await CubeEditing.thinScan(of: eager, by: 2)
+    let padded = try await CubeEditing.padDetector(of: eager, .outputSize(rows: 10, columns: 11))
+    let resampled = try await CubeEditing.resampleDetector(of: eager, .factor(rows: 0.5, columns: 0.5), conserveSums: true, calibration: cal)
+    let reshaped = try await CubeEditing.setScanShape(of: eager, rows: 4, columns: 3)
+    let swapped = try await CubeEditing.swapDetectorAxes(of: eager)
+    let filtered = try await CubeEditing.medianFilterMaskedPixels(of: eager, mask: [Bool](repeating: false, count: 72), kernelWidth: 3)
+    check("CubeEditing (bin, thin, pad, resample, reshape, swap, masked median)",
+          binned.cube.shape.extents == [1, 1, 8, 9] && thinned.cube.shape.extents == [1, 2, 8, 9] && padded.cube.shape.detectorRows == 10
+          && resampled.cube.shape.detectorColumns == 4 && abs(resampled.calibration.detectorPixelSize - 0.1) < 1e-15
+          && reshaped.cube.shape.scanRows == 4 && swapped.cube.shape.detectorRows == 9 && filtered.cube.values == eager.values)
+    if VirtualDiffraction.metalIsAvailable {
+        let resident = try await ResidentCube(loading: eager)
+        let weights = (0..<shape.scanCount).map { Double($0 + 1) }
+        let cpu = try await VirtualDiffraction.pattern(of: eager, statistic: .mean, scan: .weights(weights), path: .cpu)
+        let gpu = try await VirtualDiffraction.pattern(of: resident, statistic: .mean, scan: .weights(weights), path: .metal)
+        let worst = zip(cpu.values, gpu.values).map { abs($0 - $1) }.max() ?? 1
+        check("ResidentCube and the Metal selected-area pattern", gpu.path == .metal && worst <= 1e-5 * (cpu.values.map(abs).max() ?? 1) && resident.byteCount == shape.elementCount * 4 && ResidentCube.fits(shape))
+    } else {
+        check("ResidentCube.fits without a Metal device", !ResidentCube.fits(shape))
+    }
+    let vectors = BraggVectors(scanRows: 3, scanColumns: 4, peaks: (0..<12).map { _ in [BraggPeak(row: 2, column: 2, intensity: 1)] })
+    let braggMask = try BraggMasking.mask(vectors: vectors, scanRow: 0, scanColumn: 0, detectorRows: 8, detectorColumns: 9, radius: 1)
+    let average = try await BraggMasking.localAverage(of: eager, scanRow: 1, scanColumn: 1, braggMask: (vectors, 1))
+    let lattice = try BraggMasking.latticeMask(detectorRows: 8, detectorColumns: 9, g1: (3, 0), g2: (0, 3), radius: 0.6, origin: (4, 4), maximumDistance: 4)
+    check("BraggMasking (mask, localAverage, latticeMask)", braggMask[2 * 9 + 2] == false && braggMask[0] == true && average.valid[0] && lattice[4 * 9 + 4] == 1)
+}
 print("consumer-check summary: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

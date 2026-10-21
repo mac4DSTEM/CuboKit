@@ -8,270 +8,271 @@ lists for strain, Bragg vectors and disk detection, parallax and ptychography. C
 ACOM) is DiffractoKit's; file formats (`read`, `import_file`, `save`) are FormatoKit's; simulation is SimulatoKit's;
 plotting and `show*` are not ported.
 
-Legend: **done** (pinned against py4DSTEM and planted truth, the design notes, archived in the suite's private folder; numerics are held to the tolerance the Python package's own tests use; readers, I/O, indices and metadata are exact; where a test still asserts bit for bit, the row says "exact today"),
-**partial** (what is missing says so), **absent** (not in the kit; "planned: ..." names the slice or module where a plan
-exists), **app** (lives in mac4DSTEM, not in a kit), **n/a** (plotting or Python-only). "done (slice 4)" rows are
-described in the slice 4 design note, archived in the suite's private folder.
-
 Where py4DSTEM takes a Python-only argument (`verbose`, `progress_bar`, `returncalc`, `name`, `plot`, `device="gpu"` for
 CuPy, `dask`), the row says n/a once per method, not per argument.
 
+## Totals (0.8.0)
+
+**121 present, 38 partial, 50 missing** of 209 counted rows (study 52, useful 157); 25 more rows are not planned, with the reason in the row. The count table is near the end.
+
+States: **present** (pinned against py4DSTEM or planted truth; numerics held to the tolerance in the last column, never stricter; readers, I/O, indices and metadata exact), **partial** (what is missing says so), **missing**, **not planned** (the reason is in the Mark column). Marks: **study** (on the path of the TEM study and the two apps' open kit asks), **useful**, **not planned**. The tolerance column names the py4DSTEM test that states it; py4DSTEM's `test/` asserts almost no values, so most rows use `np.allclose`/`assert_allclose` defaults for the dtype (suite rule D17). The legend of the earlier versions ("done", "absent", "app", "n/a") maps to present, missing and not planned.
+
 ## `DataCube`: container and shape (datacube/datacube.py)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `DataCube(data)`, `.data` | `MemoryCube(shape:values:)`, `MappedCube(npy:)` (lazy, memory-mapped), `CubeSource` | done (Float32 on read; ten element types) |
-| `R_Nx`, `R_Ny`, `Q_Nx`, `Q_Ny` | `CubeShape.scanRows`, `scanColumns`, `detectorRows`, `detectorColumns` | done |
-| `Rshape`, `Qshape`, `R_N` | `CubeShape`, `scanCount`, `detectorCount` | done |
-| `datacube[rx, ry]` | `readPattern(row:column:)` | done |
-| `bin_Q_mmap`, dask-backed lazy data | `MappedCube` | partial: lazy and memory-mapped; crop and bin on read through `ViewedCube` (0.5.0) |
-| `DataCube(calibration=..., slicelabels=...)` | — | absent (planned: a calibration model, below) |
-| `copy`, `add`, the emdfile tree and `metadata` | — | n/a (value types; emdfile is FormatoKit's) |
-| `.polar` (polar-transformed datacube) | — | n/a (DiffractoKit: polar elliptical transforms) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `DataCube(data)`, `.data` | `MemoryCube(shape:values:)`, `MappedCube(npy:)` (lazy, memory-mapped), `CubeSource` | present (Float32 on read; ten element types) | useful | exact (shapes, indices, values read) |
+| `R_Nx`, `R_Ny`, `Q_Nx`, `Q_Ny` | `CubeShape.scanRows`, `scanColumns`, `detectorRows`, `detectorColumns` | present | useful | exact (shapes, indices, values read) |
+| `Rshape`, `Qshape`, `R_N` | `CubeShape`, `scanCount`, `detectorCount` | present | useful | exact (shapes, indices, values read) |
+| `datacube[rx, ry]` | `readPattern(row:column:)` | present | useful | exact (shapes, indices, values read) |
+| `bin_Q_mmap`, dask-backed lazy data | `MappedCube` | partial: lazy and memory-mapped; crop and bin on read through `ViewedCube` (0.5.0) | study | exact (shapes, indices, values read) |
+| `DataCube(calibration=..., slicelabels=...)` | — | missing (planned: a calibration model, below) | study | exact (shapes, indices, values read) |
+| `copy`, `add`, the emdfile tree and `metadata` | — | not planned (value types; emdfile is FormatoKit's) | not planned: value types; emdfile is FormatoKit's | — |
+| `.polar` (polar-transformed datacube) | — | not planned (DiffractoKit: polar elliptical transforms) | not planned: DiffractoKit: polar elliptical transforms | — |
 
 ## `DataCube`: virtual images (datacube/virtualimage.py)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `get_virtual_image(mode, geometry)`: `point`, `circle`, `annulus`, `rectangle` | `VirtualImaging.image(of:geometry:)` | done (CPU and Metal) |
-| `get_virtual_image(mode="mask", geometry=array)` | `VirtualImaging.image(of:geometry:)` with a mask geometry | done (CPU and Metal) |
-| `get_virtual_image(return_mask=True)`, `make_detector` | `DetectorMask.make` | done |
-| `get_virtual_image(centered=True)` | `VirtualImaging.image(of:geometry:centeredOn:)` | done (slice 3) |
-| `get_virtual_image(calibrated=True)` | `VirtualImaging.image(of:geometry:pixelSize:)` | done (slice 3; centred and calibrated together refused) |
-| `get_virtual_image(shift_center=True, subpixel=False)` | `shift: .rounded` | done (slice 3; CPU) |
-| `get_virtual_image(shift_center=True, subpixel=True)` | `shift: .bilinear` | done (slice 3; CPU) |
-| `get_calibrated_detector_geometry` | applied inside `VirtualImaging.image` | partial: not exposed as a function |
-| `make_bragg_mask` | — | absent (planned: with `get_braggmask`, the Bragg-disk module) |
-| `get_virtual_image(dask=True)`, `test_config` | — | n/a (Python-only; the lazy cube tiles instead) |
-| `position_detector`, `show` | — | n/a (plotting) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `get_virtual_image(mode, geometry)`: `point`, `circle`, `annulus`, `rectangle` | `VirtualImaging.image(of:geometry:)` | present (CPU and Metal) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(mode="mask", geometry=array)` | `VirtualImaging.image(of:geometry:)` with a mask geometry | present (CPU and Metal) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(return_mask=True)`, `make_detector` | `DetectorMask.make` | present | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(centered=True)` | `VirtualImaging.image(of:geometry:centeredOn:)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(calibrated=True)` | `VirtualImaging.image(of:geometry:pixelSize:)` | present (slice 3; centred and calibrated together refused) | study | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(shift_center=True, subpixel=False)` | `shift: .rounded` | present (slice 3; CPU) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(shift_center=True, subpixel=True)` | `shift: .bilinear` | present (slice 3; CPU) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_calibrated_detector_geometry` | applied inside `VirtualImaging.image` | partial: not exposed as a function | study | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `make_bragg_mask` | `BraggMasking.latticeMask(...)` | present (0.8.0; exact counts; `return_sum=False` is the loop over the lattice points) | study | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(dask=True)`, `test_config` | — | not planned (Python-only; the lazy cube tiles instead) | not planned: Python-only; the lazy cube tiles instead | — |
+| `position_detector`, `show` | — | not planned (plotting) | not planned: plotting | — |
 
 ## `DataCube`: virtual diffraction (datacube/virtualdiffraction.py)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `get_dp_mean` | `VirtualDiffraction.mean` | done |
-| `get_dp_max` | `VirtualDiffraction.max` | done |
-| `get_dp_median` | `VirtualDiffraction.median(of:)` | done (slice 4; CPU) |
-| `get_virtual_diffraction(method="mean")`, `"max"` | `VirtualDiffraction.mean`, `max`, `meanAndMax` | done |
-| `get_virtual_diffraction(method="median")` | `VirtualDiffraction.pattern(of:statistic: .median, scan:)` | done (slice 4; CPU) |
-| `get_virtual_diffraction(mask=)`, boolean or float real-space mask | `pattern(of:statistic:scan: .mask / .weights)` | done (slice 4; CPU) |
-| `get_virtual_diffraction(mask=)`, complex mask | — | absent (not ported) |
-| `get_virtual_diffraction(shift_center=True, subpixel=False)` (mean, max) | `VirtualDiffraction.meanAndMax(of:shift: .rounded)` | done (slice 3; CPU) |
-| `get_virtual_diffraction(shift_center=True, subpixel=True)` (mean, max) | `shift: .fourier` | done (slice 3; CPU) |
-| `get_virtual_diffraction(shift_center=True, mask=)` (mean, max) | `pattern(of:statistic:scan:shift:)` | done (slice 4; CPU) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `get_dp_mean` | `VirtualDiffraction.mean` | present | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_dp_max` | `VirtualDiffraction.max` | present | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_dp_median` | `VirtualDiffraction.median(of:)` | present (slice 4; CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(method="mean")`, `"max"` | `VirtualDiffraction.mean`, `max`, `meanAndMax` | present | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(method="median")` | `VirtualDiffraction.pattern(of:statistic: .median, scan:)` | present (slice 4; CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(mask=)`, boolean or float real-space mask | `VirtualDiffraction.pattern(of:statistic:scan: .mask / .weights, path:)` | present (CPU compensated Double; Metal `cubo_weighted_pattern` for mean and max, 0.8.0, held to the CPU at 1e-5; `ResidentCube` reads in place) | study | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(mask=)`, complex mask | — | missing (not ported) | not planned: absent (not ported) | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(shift_center=True, subpixel=False)` (mean, max) | `VirtualDiffraction.meanAndMax(of:shift: .rounded)` | present (slice 3; CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(shift_center=True, subpixel=True)` (mean, max) | `shift: .fourier` | present (slice 3; CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(shift_center=True, mask=)` (mean, max) | `pattern(of:statistic:scan:shift:)` | present (slice 4; CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
 
 ## `DataCube`: calibration-bound properties and coordinates (datacube/datacube.py)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `calibrate()` (rebuild the coordinate vectors from the calibration) | — | absent (planned: a calibration model) |
-| `rxx`, `ryy`, `qxx`, `qyy` (calibrated meshgrids) | — | absent (planned: a calibration model) |
-| `rxx_raw`, `ryy_raw`, `qxx_raw`, `qyy_raw` (pixel meshgrids) | — | absent (planned: a calibration model) |
-| `qxxs(rx, ry)`, `qyys(rx, ry)` (per-position shifted Q axes) | — | absent (planned: a calibration model) |
-| `Q_pixel_size`, `Q_pixel_units`, `R_pixel_size`, `R_pixel_units` | `pixelSize:` argument of calibrated imaging | partial: Q size as an argument, not stored; no R size, no units |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `calibrate()` (rebuild the coordinate vectors from the calibration) | `Calibration` (axes and grids are derived from the value) | present (0.8.0; a value type: no target registration) | study | values equal to the Double arithmetic of `DataCube.calibrate` (1e-12 relative); no upstream test |
+| `rxx`, `ryy`, `qxx`, `qyy` (calibrated meshgrids) | `Calibration.scanRowGrid/scanColumnGrid/detectorRowGrid/detectorColumnGrid`, `*Axis` | present (0.8.0; rows x columns, the transpose of py4DSTEM's (Ny, Nx) array, values equal) | study | values equal to the Double arithmetic of `DataCube.calibrate` (1e-12 relative); no upstream test |
+| `rxx_raw`, `ryy_raw`, `qxx_raw`, `qyy_raw` (pixel meshgrids) | `Calibration.rawScanRowGrid` ... `rawDetectorColumnGrid` | present (0.8.0) | study | values equal to the Double arithmetic of `DataCube.calibrate` (1e-12 relative); no upstream test |
+| `qxxs(rx, ry)`, `qyys(rx, ry)` (per-position shifted Q axes) | `Calibration.shiftedDetectorRowGrid/ColumnGrid(scanRow:scanColumn:)` | present (0.8.0; throws `CalibrationError.notSet` without an origin, as py4DSTEM raises) | study | values equal to the Double arithmetic of `DataCube.calibrate` (1e-12 relative); no upstream test |
+| `Q_pixel_size`, `Q_pixel_units`, `R_pixel_size`, `R_pixel_units` | `Calibration.detectorPixelSize/detectorUnits/scanPixelSize/scanUnits` | present (0.8.0) | study | values equal to the Double arithmetic of `DataCube.calibrate` (1e-12 relative); no upstream test |
 
 ## `DataCube`: reshaping and pre-processing (datacube/datacube.py)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `set_scan_shape` | — | absent (planned: reshape slice) |
-| `swap_RQ` | — | absent (planned: reshape slice) |
-| `swap_Rxy` | — | absent (planned: reshape slice) |
-| `swap_Qxy` | — | absent (planned: reshape slice) |
-| `crop_Q` | `ViewedCube` with `CubeViewSpecification.detectorCrop` | done (0.5.0; a read-time view of any `CubeSource`; shapes exact, `tools/cubeview/pins.py`) |
-| `crop_R` | `ViewedCube` with `.scanCrop` | done (0.5.0; exact) |
-| `bin_Q` | `ViewedCube` with `.detectorBin` | done (0.5.0; py4DSTEM's rule: crop first, trim the remainder off the end, sum `bin x bin` blocks; Double sums rounded once to Float32, measured 1.2e-7 relative; any positive factor, the app's 2, 4, 8 is its own policy) |
-| `bin_R` | — | absent (planned: reshape slice) |
-| `thin_R` | — | absent (planned: reshape slice) |
-| `pad_Q` | — | absent (planned: reshape slice) |
-| `resample_Q` (bilinear, `conserve_array_sums`) | — | absent (planned: reshape slice) |
-| `filter_hot_pixels` (`thresh`, `ind_compare`, `return_mask`) | `HotPixelFilter.filter`, `.mask`, `.replacing` | done: eager Float32 cube, means/masks/pixels pinned exact today (D12); wrapped classification and clipped sequential replacement |
-| `median_filter_masked_pixels` | — | absent (planned: with `filter_hot_pixels`) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `set_scan_shape` | `CubeEditing.setScanShape` | present (0.8.0; throws where py4DSTEM prints and returns the cube) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `swap_RQ` | `CubeEditing.swapScanAndDetector` | present (0.8.0; exact) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `swap_Rxy` | `CubeEditing.swapScanAxes` | present (0.8.0; exact) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `swap_Qxy` | `CubeEditing.swapDetectorAxes` | present (0.8.0; exact) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `crop_Q` | `ViewedCube` with `CubeViewSpecification.detectorCrop` | present (0.5.0; a read-time view of any `CubeSource`; shapes exact, `tools/cubeview/pins.py`) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `crop_R` | `ViewedCube` with `.scanCrop` | present (0.5.0; exact) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `bin_Q` | `ViewedCube` with `.detectorBin` | present (0.5.0; py4DSTEM's rule: crop first, trim the remainder off the end, sum `bin x bin` blocks; Double sums rounded once to Float32, measured 1.2e-7 relative; any positive factor, the app's 2, 4, 8 is its own policy) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `bin_R` | `CubeEditing.binScan` | present (0.8.0; 1e-6 relative; R pixel size updated) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `thin_R` | `CubeEditing.thinScan` | present (0.8.0; exact) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `pad_Q` | `CubeEditing.padDetector` | present (0.8.0; exact; factor and output size) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `resample_Q` (bilinear, `conserve_array_sums`) | `CubeEditing.resampleDetector` | present (0.8.0; bilinear = scipy `zoom(order=1, mode="nearest", grid_mode=True)`, `conserveSums`; method="fourier" is missing) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `filter_hot_pixels` (`thresh`, `ind_compare`, `return_mask`) | `HotPixelFilter.filter`, `.mask`, `.replacing` | present: eager Float32 cube, means/masks/pixels pinned exact today (D12); wrapped classification and clipped sequential replacement | useful | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `median_filter_masked_pixels` | `CubeEditing.medianFilterMaskedPixels` | present (0.8.0; exact for odd kernels, in place and row-major as upstream) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
 
 ## `DataCube`: probe, beam stop and background methods (datacube/datacube.py)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `get_probe_size` (`thresh_lower`, `thresh_upper`, `N`) | `ProbeSize.estimate` | done (slice 2; exact today, D12) |
-| `get_vacuum_probe(ROI=boolean array)` | `VacuumProbe.measure(of:scanMask:)` | done (slice 4) |
-| `get_vacuum_probe(ROI=4-tuple)` | — | absent (not ported: pass the equivalent boolean ROI) |
-| `get_vacuum_probe(align, zero_vacuum, mask)` | `VacuumProbe.measure(of:scanMask:align:zeroVacuum:detectorMask:)` | done (slice 4) |
-| `get_beamstop_mask` (`threshold`, `distance_edge`, `include_edges`, `sigma`, `scale_radial`) | `BeamstopMask.make(from:threshold:distanceEdge:includeEdges:sigma:scaleRadial:)` | done (slice 4) |
-| `get_beamstop_mask(use_max_dp=True)` | the caller passes the max pattern | done (slice 4; via the caller's pattern) |
-| `get_radial_bkgrnd` | — | absent (planned: Bragg-disk module) |
-| `get_radial_bksb_dp` | — | absent (planned: Bragg-disk module) |
-| `get_local_ave_dp` (`radial_bksb`, `sigma`, `braggmask`) | — | absent (planned: Bragg-disk module) |
-| `get_braggmask` | — | absent (planned: Bragg-disk module) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `get_probe_size` (`thresh_lower`, `thresh_upper`, `N`) | `ProbeSize.estimate` | present (slice 2; exact today, D12) | useful | no upstream test; np.allclose defaults |
+| `get_vacuum_probe(ROI=boolean array)` | `VacuumProbe.measure(of:scanMask:)` | present (slice 4) | useful | no upstream test; np.allclose defaults |
+| `get_vacuum_probe(ROI=4-tuple)` | — | missing (not ported: pass the equivalent boolean ROI) | not planned: absent (not ported: pass the equivalent boolean ROI) | no upstream test; np.allclose defaults |
+| `get_vacuum_probe(align, zero_vacuum, mask)` | `VacuumProbe.measure(of:scanMask:align:zeroVacuum:detectorMask:)` | present (slice 4) | useful | no upstream test; np.allclose defaults |
+| `get_beamstop_mask` (`threshold`, `distance_edge`, `include_edges`, `sigma`, `scale_radial`) | `BeamstopMask.make(from:threshold:distanceEdge:includeEdges:sigma:scaleRadial:)` | present (slice 4) | useful | no upstream test; np.allclose defaults |
+| `get_beamstop_mask(use_max_dp=True)` | the caller passes the max pattern | present (slice 4; via the caller's pattern) | useful | no upstream test; np.allclose defaults |
+| `get_radial_bkgrnd` | — | missing: needs the polar data cube and its radial bins (DiffractoKit `PolarDatacube`) | study | no upstream test; np.allclose defaults |
+| `get_radial_bksb_dp` | — | missing: needs `get_radial_bkgrnd` | study | no upstream test; np.allclose defaults |
+| `get_local_ave_dp` (`radial_bksb`, `sigma`, `braggmask`) | `BraggMasking.localAverage(of:scanRow:scanColumn:braggMask:)` | partial (0.8.0): plain and Bragg-masked averages pinned; `radial_bksb=True` needs the polar data cube (DiffractoKit) | study | no upstream test; np.allclose defaults |
+| `get_braggmask` | `BraggMasking.mask(vectors:scanRow:scanColumn:detectorRows:detectorColumns:radius:)` | present (0.8.0; exact) | study | no upstream test; np.allclose defaults |
 
 ## Calibration entries (data/calibration.py)
 
 CuboKit has no stateful `Calibration` object yet; its measurements return plain values (`OriginMap`, `OriginFit`,
 `RotationSolution`, `ProbeEstimate`) that the caller stores.
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `Calibration` container: `attach`, `root`, `register_target`, `targets`, `calibrate`, `copy` | — | absent (planned: a calibration model) |
-| `Calibration.to_h5`, `from_h5` | — | n/a (FormatoKit) |
-| `Q_pixel_size` (`set_`, `get_`, `qpixsize`) | `pixelSize:` argument | partial: a number passed in; not stored |
-| `Q_pixel_units` (`set_`, `get_`, `qpixunits`) | — | absent (planned: a calibration model) |
-| `R_pixel_size` (`set_`, `get_`, `rpixsize`) | — | absent (planned: a calibration model) |
-| `R_pixel_units` (`set_`, `get_`, `rpixunits`) | — | absent (planned: a calibration model) |
-| `qx0`, `qy0` (per-position origin, `set_`, `get_`) | `OriginFit.fit` result | partial: the fitted map is returned, not stored |
-| `qx0_mean`, `qy0_mean`, `get_origin_mean` | `OriginMap.meanRow`, `meanColumn` | partial: values only |
-| `qx0shift`, `qy0_shift`, `get_origin_shift`, `origin_shift` | — | absent (planned: with the calibration model; the shift is the origin minus its mean) |
-| `origin`, `set_origin`, `get_origin(rx, ry)` | `OriginFit` maps | partial: maps are returned; no `(rx, ry)` lookup or store |
-| `qx0_meas`, `qy0_meas`, `origin_meas`, `set_origin_meas`, `get_origin_meas` | `OriginMap.row`, `column` | partial: values only |
-| `origin_meas_mask`, `set_origin_meas_mask`, `get_origin_meas_mask` | `scanMask` of `OriginMeasurement.measure` | partial (slice 4): the mask is an argument; not stored |
-| `a`, `b`, `theta`, `set_a`/`get_a`, `set_b`/`get_b`, `set_theta`/`get_theta` | — | absent (planned: a calibration model; the fit itself may be DiffractoKit's geometry) |
-| `ellipse`, `set_ellipse`, `get_ellipse` (a, b, theta) | — | absent (planned: a calibration model) |
-| `p_ellipse`, `set_p_ellipse`, `get_p_ellipse` | — | absent (planned: a calibration model) |
-| `QR_rotation_degrees`, `set_QR_rotation`, `get_QR_rotation`, `..._degrees` | `RotationSolution.degrees`, `radians` | partial: solved, not stored |
-| `QR_flip`, `set_QR_flip`, `get_QR_flip` | `RotationSolution.transposed` | partial: solved, not stored |
-| `QR_rotflip`, `set_QR_rotflip`, `get_QR_rotflip`, `..._degrees` | `RotationSolution` | partial: the pair is returned, not stored |
-| `probe_semiangle`, `probe_param`, `set_probe_param`, `get_probe_param` | `ProbeEstimate.radius` | partial: radius in pixels only |
-| `probe_center`, `set_probe_center`, `get_probe_center` | `ProbeEstimate.centerRow`, `centerColumn` | partial: values only |
-| `probe_convergence_semiangle_pixels`, `set_`, `get_` | `ProbeEstimate.radius` | partial: values only |
-| `probe_convergence_semiangle_mrad`, `set_`, `get_` | — | absent (planned: a calibration model; needs the Q pixel size and units) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `Calibration` container: `attach`, `root`, `register_target`, `targets`, `calibrate`, `copy` | `Calibration` (value type) | present (0.8.0; `attach`, `root`, `register_target`, `copy` have no meaning for a value: the caller owns the value) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `Calibration.to_h5`, `from_h5` | — | not planned (FormatoKit) | not planned: FormatoKit | — |
+| `Q_pixel_size` (`set_`, `get_`, `qpixsize`) | `Calibration.detectorPixelSize` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `Q_pixel_units` (`set_`, `get_`, `qpixunits`) | `Calibration.detectorUnits` | present (0.8.0; `DetectorUnits`: pixels, A^-1, mrad) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `R_pixel_size` (`set_`, `get_`, `rpixsize`) | `Calibration.scanPixelSize` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `R_pixel_units` (`set_`, `get_`, `rpixunits`) | `Calibration.scanUnits` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `qx0`, `qy0` (per-position origin, `set_`, `get_`) | `Calibration.setOrigin`, `origin(row:column:)`, `ScanField` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `qx0_mean`, `qy0_mean`, `get_origin_mean` | `Calibration.originMean` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `qx0shift`, `qy0_shift`, `get_origin_shift`, `origin_shift` | `Calibration.originShift(row:column:)`, `ScanField.shift` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `origin`, `set_origin`, `get_origin(rx, ry)` | `Calibration.setOrigin`, `origin(row:column:)` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `qx0_meas`, `qy0_meas`, `origin_meas`, `set_origin_meas`, `get_origin_meas` | `Calibration.measuredOriginRow/Column` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `origin_meas_mask`, `set_origin_meas_mask`, `get_origin_meas_mask` | `Calibration.measuredOriginMask` | present (0.8.0) | useful | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `a`, `b`, `theta`, `set_a`/`get_a`, `set_b`/`get_b`, `set_theta`/`get_theta` | `Calibration.ellipse` (`EllipseCalibration`) | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `ellipse`, `set_ellipse`, `get_ellipse` (a, b, theta) | `Calibration.ellipse` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `p_ellipse`, `set_p_ellipse`, `get_p_ellipse` | `Calibration.ellipse` with `originMean`/`origin(row:column:)` | present (0.8.0; like upstream the setter does not move the origin) | useful | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `QR_rotation_degrees`, `set_QR_rotation`, `get_QR_rotation`, `..._degrees` | `Calibration.qrRotationRadians/qrRotationDegrees`, `setQRRotation` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `QR_flip`, `set_QR_flip`, `get_QR_flip` | `Calibration.qrFlip` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `QR_rotflip`, `set_QR_rotflip`, `get_QR_rotflip`, `..._degrees` | `Calibration.setQRRotationAndFlip(degrees:flip:)` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `probe_semiangle`, `probe_param`, `set_probe_param`, `get_probe_param` | `Calibration.probeSemiangle`, `setProbeParameters` | present (0.8.0; the set writes the MEAN origin only, as upstream) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `probe_center`, `set_probe_center`, `get_probe_center` | `Calibration.probeCenter` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `probe_convergence_semiangle_pixels`, `set_`, `get_` | `Calibration.convergenceSemiangleInPixels` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
+| `probe_convergence_semiangle_mrad`, `set_`, `get_` | `Calibration.convergenceSemiangleInMilliradians` | present (0.8.0) | study | exact (stored values; `test/test_calibration.py` asserts `get_Q_pixel_size() == 10` after a bin) |
 
 ## Calibration processes (process/calibration/)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `get_origin_single_dp` | the per-pattern step of `OriginMeasurement.measure` | partial: no single-pattern entry point |
-| `get_origin(r, rscale)` | `OriginMeasurement.measure(radius:radiusScale:)` | done (slice 3; CPU) |
-| `get_origin(dp_max=)` | the max pattern is computed internally | partial: no argument to pass it |
-| `get_origin(mask=)` | `OriginMeasurement.measure(of:scanMask:)` | done (slice 4; NaN outside the mask) |
-| `get_origin(fast_center=True)` | `OriginMeasurement.measure(of:scanMask:fastCenter:)` | done (slice 4) |
-| `get_origin(remove_NaN=True)` | `OriginMap.replacingNaNWithMean()` | done (slice 4) |
-| `get_origin_friedel(mask, upsample_factor)` | `FriedelOrigin.measure(of:mask:upsampleFactor:)`, `.origin(of:)` | done (slice 4; CPU only) |
-| `get_origin_friedel(device="gpu")` | — | absent (planned: a Metal path, later lane) |
-| `fit_origin(fitfunction="constant")` | `OriginFit.fit(model: .constant)` | done (slice 3) |
-| `fit_origin(fitfunction="plane")` | `OriginFit.fit(model: .plane)` | done (slice 3) |
-| `fit_origin(fitfunction="parabola")` | `OriginFit.fit(model: .parabola)` | done (slice 3) |
-| `fit_origin(fitfunction="bezier_two")` | `OriginFit.fit(model: .bezierTwo)` | done (slice 3) |
-| `fit_origin(robust, robust_steps, robust_thresh)` | `OriginFit.fit(robust:robustSteps:robustThreshold:)` | done (slice 3) |
-| `fit_origin(mask=)` | `OriginFit.fit` | partial: NaN entries are left out of the fit; no boolean mask argument |
-| mac4DSTEM trimmed fit (`fitOriginTrimmed`, MAD cut, up to three rounds) | `OriginFit.fitTrimmed` | named option beside `fit(robust:)`; mask and surfaces pinned to a Float32 transcription of the app source, the final fit also to `fit_origin(mask=kept)` (not counted twice) |
-| `fit_origin(returnfitp=True)` | — | absent (the fit coefficients are not returned) |
-| `get_probe_size` (`process/calibration/probe.py`) | `ProbeSize.estimate` | done (slice 2; exact today, D12) |
-| `fit_ellipse_1D` | — | absent (planned: a calibration model; the fit may be DiffractoKit's geometry) |
-| `fit_ellipse_amorphous_ring` | — | absent (planned: with `fit_ellipse_1D`) |
-| `ellipse_err`, `double_sided_gaussian`, `double_sided_gaussian_fiterr` | — | absent (planned: with `fit_ellipse_1D`) |
-| `constrain_degenerate_ellipse` | — | absent (planned: with `fit_ellipse_1D`) |
-| `get_Q_pixel_size(q_meas, q_known, units)` | — | absent (planned: a calibration model) |
-| `get_dq_from_indexed_peaks` | — | absent (planned: a calibration model; needs indexed peaks) |
-| `get_Qvector_from_Rvector`, `get_Rvector_from_Qvector` | — | absent (planned: a calibration model; needs the QR rotation) |
-| `compare_QR_rotation` | — | n/a (plotting) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `get_origin_single_dp` | the per-pattern step of `OriginMeasurement.measure` | partial: no single-pattern entry point | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin(r, rscale)` | `OriginMeasurement.measure(radius:radiusScale:)` | present (slice 3; CPU) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin(dp_max=)` | the max pattern is computed internally | partial: no argument to pass it | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin(mask=)` | `OriginMeasurement.measure(of:scanMask:)` | present (slice 4; NaN outside the mask) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin(fast_center=True)` | `OriginMeasurement.measure(of:scanMask:fastCenter:)` | present (slice 4) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin(remove_NaN=True)` | `OriginMap.replacingNaNWithMean()` | present (slice 4) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin_friedel(mask, upsample_factor)` | `FriedelOrigin.measure(of:mask:upsampleFactor:)`, `.origin(of:)` | present (slice 4; CPU only) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin_friedel(device="gpu")` | — | missing (planned: a Metal path, later lane) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(fitfunction="constant")` | `OriginFit.fit(model: .constant)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(fitfunction="plane")` | `OriginFit.fit(model: .plane)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(fitfunction="parabola")` | `OriginFit.fit(model: .parabola)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(fitfunction="bezier_two")` | `OriginFit.fit(model: .bezierTwo)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(robust, robust_steps, robust_thresh)` | `OriginFit.fit(robust:robustSteps:robustThreshold:)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(mask=)` | `OriginFit.fit` | partial: NaN entries are left out of the fit; no boolean mask argument | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| mac4DSTEM trimmed fit (`fitOriginTrimmed`, MAD cut, up to three rounds) | `OriginFit.fitTrimmed` | named option beside `fit(robust:)`; mask and surfaces pinned to a Float32 transcription of the app source, the final fit also to `fit_origin(mask=kept)` (not counted twice) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(returnfitp=True)` | — | missing (the fit coefficients are not returned) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_probe_size` (`process/calibration/probe.py`) | `ProbeSize.estimate` | present (slice 2; exact today, D12) | study | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_ellipse_1D` | — | missing (planned: a calibration model; the fit may be DiffractoKit's geometry) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_ellipse_amorphous_ring` | — | missing (planned: with `fit_ellipse_1D`) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `ellipse_err`, `double_sided_gaussian`, `double_sided_gaussian_fiterr` | — | missing (planned: with `fit_ellipse_1D`) | study | no upstream test; np.allclose defaults on the Float64 reference |
+| `constrain_degenerate_ellipse` | — | missing (planned: with `fit_ellipse_1D`) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_Q_pixel_size(q_meas, q_known, units)` | `CalibrationMeasurement.detectorPixelSize(measuredPixels:knownDistance:units:)` | present (0.8.0; exact) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_dq_from_indexed_peaks` | `CalibrationMeasurement.detectorPixelSize(peakPositions:indices:cellSize:)` | present (0.8.0; closed-form least squares, 1e-7 relative against `leastsq`) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_Qvector_from_Rvector`, `get_Rvector_from_Qvector` | `CalibrationMeasurement.detectorVector(fromScanVector:rotationDegrees:)`, `scanVector(fromDetectorVector:rotationDegrees:)` | present (0.8.0; 1e-14) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `compare_QR_rotation` | — | not planned (plotting) | not planned: plotting | — |
 
 ## `Probe` (braggvectors/probe.py)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `Probe(data)` with `probe`, `kernel`, `alpha`, `origin` | functions on a detector image | partial (slice 4): no stateful `Probe` object |
-| `Probe.from_vacuum_data` (`mask`, `threshold`, `expansion`, `opening`) | — | absent (planned: the Bragg-disk module) |
-| `Probe.generate_synthetic_probe(radius, width, Qshape)` | `SyntheticProbe.make(radius:width:detectorRows:detectorColumns:)` | done (slice 4) |
-| `Probe.measure_disk` (`thresh_lower`, `thresh_upper`, `N`, `zero_vacuum`, `alpha_max`) | `ProbeSize.estimate` (the same algorithm), then `VacuumProbe.zeroVacuum` | done (slice 4) |
-| `Probe.measure_disk(plot=True)` | — | n/a (plotting) |
-| `Probe.zero_vacuum` | `VacuumProbe.zeroVacuum(_:center:alpha:alphaMax:)` | done (slice 4) |
-| `Probe.zero_vacuum_sinusoid` (`s`, `w`, `p`) | `VacuumProbe.dampVacuum(_:center:alpha:start:width:power:)` | done (slice 4) |
-| `Probe.get_kernel(mode="flat")` | `ProbeKernel.flat` | done (slice 4) |
-| `Probe.get_kernel(mode="gaussian", sigma)` | `ProbeKernel.gaussian` | done (slice 4) |
-| `Probe.get_kernel(mode="sigmoid", radii)` | `ProbeKernel.sigmoid(profile: .sineSquared)` | done (slice 4) |
-| `Probe.get_kernel(mode="sigmoid_log", radii)` | `ProbeKernel.sigmoid(profile: .sineSquared)` (py4DSTEM dispatches this mode to the sine² trench; `.logistic` is `type="logistic"`) | done (slice 4) |
-| `Probe.get_probe_kernel_flat(origin, bilinear)` | `ProbeKernel.flat(_:origin:bilinear:)` | done (slice 4) |
-| `Probe.get_probe_kernel_edge_gaussian(sigma, origin, bilinear)` | `ProbeKernel.gaussian(_:sigma:origin:bilinear:)` | done (slice 4) |
-| `Probe.get_probe_kernel_edge_sigmoid(type="sine_squared")` | `ProbeKernel.sigmoid(_:innerRadius:outerRadius:profile: .sineSquared)` | done (slice 4) |
-| `Probe.get_probe_kernel_edge_sigmoid(type="logistic")` | `ProbeKernel.sigmoid(..., profile: .logistic)` | done (slice 4) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `Probe(data)` with `probe`, `kernel`, `alpha`, `origin` | functions on a detector image | partial (slice 4): no stateful `Probe` object | study | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.from_vacuum_data` (`mask`, `threshold`, `expansion`, `opening`) | — | missing (planned: the Bragg-disk module) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.generate_synthetic_probe(radius, width, Qshape)` | `SyntheticProbe.make(radius:width:detectorRows:detectorColumns:)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.measure_disk` (`thresh_lower`, `thresh_upper`, `N`, `zero_vacuum`, `alpha_max`) | `ProbeSize.estimate` (the same algorithm), then `VacuumProbe.zeroVacuum` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.measure_disk(plot=True)` | — | not planned (plotting) | not planned: plotting | — |
+| `Probe.zero_vacuum` | `VacuumProbe.zeroVacuum(_:center:alpha:alphaMax:)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.zero_vacuum_sinusoid` (`s`, `w`, `p`) | `VacuumProbe.dampVacuum(_:center:alpha:start:width:power:)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_kernel(mode="flat")` | `ProbeKernel.flat` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_kernel(mode="gaussian", sigma)` | `ProbeKernel.gaussian` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_kernel(mode="sigmoid", radii)` | `ProbeKernel.sigmoid(profile: .sineSquared)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_kernel(mode="sigmoid_log", radii)` | `ProbeKernel.sigmoid(profile: .sineSquared)` (py4DSTEM dispatches this mode to the sine² trench; `.logistic` is `type="logistic"`) | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_probe_kernel_flat(origin, bilinear)` | `ProbeKernel.flat(_:origin:bilinear:)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_probe_kernel_edge_gaussian(sigma, origin, bilinear)` | `ProbeKernel.gaussian(_:sigma:origin:bilinear:)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_probe_kernel_edge_sigmoid(type="sine_squared")` | `ProbeKernel.sigmoid(_:innerRadius:outerRadius:profile: .sineSquared)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_probe_kernel_edge_sigmoid(type="logistic")` | `ProbeKernel.sigmoid(..., profile: .logistic)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
 
 ## DPC and the phase base class's preprocessing (process/phase/dpc.py, phase_base_class.py)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `DPC(datacube, energy, ...)` | `CenterOfMass`, `CenterOfMassReference`, `RotationSolver`, `DPC` | partial: functions, no stateful reconstruction object |
-| `_calculate_intensities_center_of_mass` | `CenterOfMass.measure` | done (slice 2; CPU and Metal) |
-| `_extract_intensities_and_calibrations_from_datacube` (reciprocal sampling, mask) | `CenterOfMass.measure(mask:)`, `reciprocalSampling:` | partial: the calibration is passed in, not read from a cube |
-| `DPC.preprocess(dp_mask)` | `CenterOfMass.measure(mask:)` | done (slice 2) |
-| `DPC.preprocess(fit_function="plane")`, `"constant"` | `CenterOfMassReference.planeFit`, `.constant` | done (slice 2) |
-| `DPC.preprocess(fit_function="parabola")`, `"bezier_two"` | `OriginFit` has them | partial: not wired into `CenterOfMassReference` |
-| `DPC.preprocess(force_com_shifts)` | `CenterOfMassReference.given` | done (slice 2) |
-| `DPC.preprocess(force_com_measured)` | the measured `ScanVectorField` is an input | done (slice 2) |
-| `DPC.preprocess(rotation_angles_deg)` | `RotationSolver.solve(anglesDegrees:)` | done (slice 2) |
-| `DPC.preprocess(maximize_divergence=False)`: curl | `RotationCriterion.minimizeCurl` | done (slice 2) |
-| `DPC.preprocess(maximize_divergence=True)`: divergence | `RotationCriterion.maximizeDivergence` | done (slice 2) |
-| `DPC.preprocess(force_com_rotation, force_com_transpose)` | `forceRotationDegrees:`, `forceTranspose:` | done (slice 2) |
-| `DPC.preprocess(padding_factor)` | `DPC.reconstruct(paddingFactor:)` | done (slice 2) |
-| the rotation search curves (`plot_rotation` data) | `RotationSolution.curve`, `curveTransposed` | done (slice 2; the plot itself n/a) |
-| `DPC.preprocess(vectorized_com_calculation, plot_*, device, clear_fft_cache)` | — | n/a (Python memory strategy, plotting, CuPy) |
-| `DPC.reconstruct(max_iter, step_size, stopping_criterion, backtrack)` | `DPC.reconstruct(maxIterations:stepSize:stoppingCriterion:backtrack:)` | done (slice 2; CPU, Double) |
-| `DPC.reconstruct(gaussian_filter_sigma, gaussian_filter)` | — | absent (planned: DPC filters, later lane) |
-| `DPC.reconstruct(q_lowpass, q_highpass, butterworth_order, butterworth_filter)` | — | absent (planned: DPC filters, later lane) |
-| `DPC.reconstruct(store_iterations=True)` | `DPCReconstruction.errors`, `accepted` | partial: the error history is kept; the per-iteration objects are not |
-| `DPC.reconstruct(device="gpu")` | — | absent (planned: a Metal DPC, later lane) |
-| `DPC.reconstruct(reset, progress_bar)` | — | n/a (Python state and progress bar) |
-| result: `object_phase`, `error`, `sampling`, rotation and transpose | `DPCReconstruction.phase`, `errors`, `RotationSolution` | done (slice 2) |
-| `DPC.visualize`, `show_complex_CoM`, `to_h5` | — | n/a (plotting; FormatoKit) |
-| complex CoM magnitude and angle (`show_complex_CoM` data) | `DPCViews.magnitude`, `.angle` | not counted (derived views): py4DSTEM's `row + i column` direction or the image-frame `atan2(row, column)`, wrapped to [0, 2 pi); NumPy-pinned (`tools/dpcviews/pins.py`), `RotationConvention` states the sign flip between conventions |
-| `set_device`, `set_storage`, `clear_device_mem`, `attach_datacube`, `reinitialize_parameters`, `set_save_defaults` | — | n/a (Python object plumbing) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `DPC(datacube, energy, ...)` | `CenterOfMass`, `CenterOfMassReference`, `RotationSolver`, `DPC` | partial: functions, no stateful reconstruction object | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `_calculate_intensities_center_of_mass` | `CenterOfMass.measure` | present (slice 2; CPU and Metal) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `_extract_intensities_and_calibrations_from_datacube` (reciprocal sampling, mask) | `CenterOfMass.measure(mask:)`, `reciprocalSampling:` | partial: the calibration is passed in, not read from a cube | study | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(dp_mask)` | `CenterOfMass.measure(mask:)` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(fit_function="plane")`, `"constant"` | `CenterOfMassReference.planeFit`, `.constant` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(fit_function="parabola")`, `"bezier_two"` | `OriginFit` has them | partial: not wired into `CenterOfMassReference` | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(force_com_shifts)` | `CenterOfMassReference.given` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(force_com_measured)` | the measured `ScanVectorField` is an input | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(rotation_angles_deg)` | `RotationSolver.solve(anglesDegrees:)` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(maximize_divergence=False)`: curl | `RotationCriterion.minimizeCurl` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(maximize_divergence=True)`: divergence | `RotationCriterion.maximizeDivergence` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(force_com_rotation, force_com_transpose)` | `forceRotationDegrees:`, `forceTranspose:` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(padding_factor)` | `DPC.reconstruct(paddingFactor:)` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| the rotation search curves (`plot_rotation` data) | `RotationSolution.curve`, `curveTransposed` | present (slice 2; the plot itself n/a) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(vectorized_com_calculation, plot_*, device, clear_fft_cache)` | — | not planned (Python memory strategy, plotting, CuPy) | not planned: Python memory strategy, plotting, CuPy | — |
+| `DPC.reconstruct(max_iter, step_size, stopping_criterion, backtrack)` | `DPC.reconstruct(maxIterations:stepSize:stoppingCriterion:backtrack:)` | present (slice 2; CPU, Double) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.reconstruct(gaussian_filter_sigma, gaussian_filter)` | — | missing (planned: DPC filters, later lane) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.reconstruct(q_lowpass, q_highpass, butterworth_order, butterworth_filter)` | — | missing (planned: DPC filters, later lane) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.reconstruct(store_iterations=True)` | `DPCReconstruction.errors`, `accepted` | partial: the error history is kept; the per-iteration objects are not | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.reconstruct(device="gpu")` | — | missing (planned: a Metal DPC, later lane) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.reconstruct(reset, progress_bar)` | — | not planned (Python state and progress bar) | not planned: Python state and progress bar | — |
+| result: `object_phase`, `error`, `sampling`, rotation and transpose | `DPCReconstruction.phase`, `errors`, `RotationSolution` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.visualize`, `show_complex_CoM`, `to_h5` | — | not planned (plotting; FormatoKit) | not planned: plotting; FormatoKit | — |
+| complex CoM magnitude and angle (`show_complex_CoM` data) | `DPCViews.magnitude`, `.angle` | not counted (derived views): py4DSTEM's `row + i column` direction or the image-frame `atan2(row, column)`, wrapped to [0, 2 pi); NumPy-pinned (`tools/dpcviews/pins.py`), `RotationConvention` states the sign flip between conventions | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `set_device`, `set_storage`, `clear_device_mem`, `attach_datacube`, `reinitialize_parameters`, `set_save_defaults` | — | not planned (Python object plumbing) | not planned: Python object plumbing | — |
 
 ## Strain (process/strain/)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `StrainMap(braggvectors)`, state properties, `reset_calstate` | `StrainMapping` | partial: the scan-level steps are stateless calls on centred peaks; no calibration-state object |
-| `choose_basis_vectors` | `StrainMapping.chooseBasisVectors`, `LatticeStrain.chooseBasis` | done: histogram, maxima (multicorr, parabolic, pixel), `index_origin/g1/g2`; pinned (`docs/strain.md`) |
-| `set_hkl` | — | absent |
-| `set_max_peak_spacing` | `index(...maximumSpacing:)` | partial: stateless argument, no visualization/state |
-| `fit_basis_vectors` (`mask`, `max_peak_spacing`) | `StrainMapping.compute` | done: scan mask, maximum spacing, per-position fits |
-| `get_strain` (`gvects`, `coordinate_rotation`) | `StrainMapping.compute` | done: reference region or median, rotation |
-| `get_reference_g1g2` | `LatticeStrain.reference` | done for caller-selected bases |
-| `latticevectors.index_bragg_directions` | `LatticeStrain.index(directions:basis:)` | done: minimum-norm SVD and ties-to-even |
-| `latticevectors.add_indices_to_braggvectors` | `LatticeStrain.index(peaks:directions:maximumSpacing:)` | partial: caller handles scan mask/coordinate shifts |
-| `latticevectors.fit_lattice_vectors` | `LatticeStrain.fit` | done |
-| `latticevectors.fit_lattice_vectors_all_DPs` | per-pattern `fit` | partial: caller maps scan positions |
-| `latticevectors.get_reference_g1g2`, `get_strain_from_reference_g1g2` | `reference`, `strain` | done |
-| `latticevectors.get_rotated_strain_map` | `strain(...coordinateRotation:)` | done |
-| `BraggVectors.to_strainmap` | `StrainMapping.centredPeaks(_:origin:)` | partial: converts a `CuboBragg` result; calibrations (ellipse, pixel size, R–Q rotation) are the caller's |
-| `show_strain`, `show_reference_directions`, `show_lattice_vectors`, `show_bragg_indexing` | — | n/a (plotting) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `StrainMap(braggvectors)`, state properties, `reset_calstate` | `StrainMapping` | partial: the scan-level steps are stateless calls on centred peaks; no calibration-state object | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `choose_basis_vectors` | `StrainMapping.chooseBasisVectors`, `LatticeStrain.chooseBasis` | present: histogram, maxima (multicorr, parabolic, pixel), `index_origin/g1/g2`; pinned (`docs/strain.md`) | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `set_hkl` | — | missing | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `set_max_peak_spacing` | `index(...maximumSpacing:)` | partial: stateless argument, no visualization/state | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `fit_basis_vectors` (`mask`, `max_peak_spacing`) | `StrainMapping.compute` | present: scan mask, maximum spacing, per-position fits | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `get_strain` (`gvects`, `coordinate_rotation`) | `StrainMapping.compute` | present: reference region or median, rotation | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `get_reference_g1g2` | `LatticeStrain.reference` | present for caller-selected bases | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `latticevectors.index_bragg_directions` | `LatticeStrain.index(directions:basis:)` | present: minimum-norm SVD and ties-to-even | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `latticevectors.add_indices_to_braggvectors` | `LatticeStrain.index(peaks:directions:maximumSpacing:)` | partial: caller handles scan mask/coordinate shifts | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `latticevectors.fit_lattice_vectors` | `LatticeStrain.fit` | present | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `latticevectors.fit_lattice_vectors_all_DPs` | per-pattern `fit` | partial: caller maps scan positions | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `latticevectors.get_reference_g1g2`, `get_strain_from_reference_g1g2` | `reference`, `strain` | present | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `latticevectors.get_rotated_strain_map` | `strain(...coordinateRotation:)` | present | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `BraggVectors.to_strainmap` | `StrainMapping.centredPeaks(_:origin:)` | partial: converts a `CuboBragg` result; calibrations (ellipse, pixel size, R–Q rotation) are the caller's | useful | `test_strain.py` (runs the workflow, no value assert); np.allclose defaults |
+| `show_strain`, `show_reference_directions`, `show_lattice_vectors`, `show_bragg_indexing` | — | not planned (plotting) | not planned: plotting | — |
 
 ## Bragg vectors and disk detection (braggvectors/)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `find_Bragg_disks(DataCube, template)` | `BraggDisks.detectAll(in:kernel:options:tiling:)` | done: per-position `BraggDisks.detect`, tiled, patterns on every core; pins on the per-pattern path (`docs/bragg.md`) |
-| `find_Bragg_disks` on a 2D array, a 3D stack, or `(DataCube, rx, ry)` | `BraggDisks.detect(_:kernel:options:)`, `detect(patterns:kernel:options:)` | partial: one pattern and a stack; no `(DataCube, rx, ry)` tuple (the caller reads the patterns) |
-| `find_Bragg_disks(corrPower, sigma, sigma_dp, sigma_cc, filter_function)` | `BraggDiskOptions.correlationPower`, `correlationSigma`, `patternSigma` | partial: all but `filter_function` (the caller filters the pattern) |
-| `find_Bragg_disks(radial_bksb)` | — | absent (planned: with `get_radial_bksb_dp`) |
-| `find_Bragg_disks(subpixel="none"/"poly"/"multicorr", upsample_factor)` | `BraggDiskOptions.subpixel` (`.pixel`, `.parabolic`, `.multicorr`), `upsampleFactor` | done: pinned, factors 3, 8, 16; a factor of 2 or less for multicorr is refused (py4DSTEM asserts) |
-| `find_Bragg_disks(minAbsoluteIntensity, minRelativeIntensity, relativeToPeak, minPeakSpacing, edgeBoundary, maxNumPeaks)` | the same six options | done: pinned; `BraggMaxima.find` is `get_maxima_2D` |
-| `find_Bragg_disks(CUDA, CUDA_batched)` | — | absent (planned: a Metal path, later lane) |
-| `find_Bragg_disks(distributed, ML, ml_*)`, the `diskdetection_parallel`, `_aiml`, `_cuda` variants | — | n/a (Python parallel tooling, TensorFlow) |
-| `BraggVectors` (`raw`, `cal`, `setcal`, `calibrate`, `get_vectors`, `shape`, `qx`, `qy`, `I`) | `BraggVectors` (peaks per scan position) | partial: the raw value container only; no calibration state |
-| `BraggVectors.get_virtual_image` | — | absent (planned: with `BraggVectors`) |
-| `BraggVectors.histogram` | — | absent (planned: with `BraggVectors`) |
-| `BraggVectors.measure_origin` | — | absent (planned: with `BraggVectors`) |
-| `BraggVectors.measure_origin_beamstop` | — | absent (planned: with `BraggVectors`) |
-| `BraggVectors.fit_origin` | — | absent (planned: with `BraggVectors`) |
-| `BraggVectors.fit_p_ellipse` | — | absent (planned: with `BraggVectors`) |
-| `BraggVectors.mask_in_Q`, `get_masked_peaks`, `mask_in_R` | — | absent (planned: with `BraggVectors`) |
-| `BraggVectorMap` | — | absent (planned: with `BraggVectors`) |
-| `threshold_Braggpeaks`, `universal_threshold`, `get_pointlistarray_intensities` | — | absent (planned: with `BraggVectors`) |
-| `BraggVectors.plot`, `copy`, `to_h5` | — | n/a (plotting; value types; FormatoKit) |
-| `Crystal`, `orientation_plan`, `match_orientations` | — | DiffractoKit |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `find_Bragg_disks(DataCube, template)` | `BraggDisks.detectAll(in:kernel:options:tiling:)` | present: per-position `BraggDisks.detect`, tiled, patterns on every core; pins on the per-pattern path (`docs/bragg.md`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `find_Bragg_disks` on a 2D array, a 3D stack, or `(DataCube, rx, ry)` | `BraggDisks.detect(_:kernel:options:)`, `detect(patterns:kernel:options:)` | partial: one pattern and a stack; no `(DataCube, rx, ry)` tuple (the caller reads the patterns) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `find_Bragg_disks(corrPower, sigma, sigma_dp, sigma_cc, filter_function)` | `BraggDiskOptions.correlationPower`, `correlationSigma`, `patternSigma` | partial: all but `filter_function` (the caller filters the pattern) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `find_Bragg_disks(radial_bksb)` | — | missing (planned: with `get_radial_bksb_dp`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `find_Bragg_disks(subpixel="none"/"poly"/"multicorr", upsample_factor)` | `BraggDiskOptions.subpixel` (`.pixel`, `.parabolic`, `.multicorr`), `upsampleFactor` | present: pinned, factors 3, 8, 16; a factor of 2 or less for multicorr is refused (py4DSTEM asserts) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `find_Bragg_disks(minAbsoluteIntensity, minRelativeIntensity, relativeToPeak, minPeakSpacing, edgeBoundary, maxNumPeaks)` | the same six options | present: pinned; `BraggMaxima.find` is `get_maxima_2D` | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `find_Bragg_disks(CUDA, CUDA_batched)` | — | missing (planned: a Metal path, later lane) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `find_Bragg_disks(distributed, ML, ml_*)`, the `diskdetection_parallel`, `_aiml`, `_cuda` variants | — | not planned (Python parallel tooling, TensorFlow) | not planned: Python parallel tooling, TensorFlow | — |
+| `BraggVectors` (`raw`, `cal`, `setcal`, `calibrate`, `get_vectors`, `shape`, `qx`, `qy`, `I`) | `BraggVectors` (peaks per scan position) | partial: the raw value container only; no calibration state | study | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `BraggVectors.get_virtual_image` | — | missing (planned: with `BraggVectors`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `BraggVectors.histogram` | — | missing (planned: with `BraggVectors`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `BraggVectors.measure_origin` | — | missing (planned: with `BraggVectors`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `BraggVectors.measure_origin_beamstop` | — | missing (planned: with `BraggVectors`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `BraggVectors.fit_origin` | — | missing (planned: with `BraggVectors`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `BraggVectors.fit_p_ellipse` | — | missing (planned: with `BraggVectors`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `BraggVectors.mask_in_Q`, `get_masked_peaks`, `mask_in_R` | — | missing (planned: with `BraggVectors`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `BraggVectorMap` | — | missing (planned: with `BraggVectors`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `threshold_Braggpeaks`, `universal_threshold`, `get_pointlistarray_intensities` | — | missing (planned: with `BraggVectors`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `BraggVectors.plot`, `copy`, `to_h5` | — | not planned (plotting; value types; FormatoKit) | not planned: plotting; value types; FormatoKit | — |
+| `Crystal`, `orientation_plan`, `match_orientations` | — | DiffractoKit | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
 
 ## Parallax (process/phase/parallax.py)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `Parallax(datacube, energy, ...)` | `CuboPtycho` | absent (planned: `CuboPtycho`, placeholder) |
-| `Parallax.preprocess` (`edge_blend`, `dp_mask`, `threshold_intensity`, descan correction, `realspace_mask`) | `ParallaxPreprocessing.prepare` | partial: constant normalization, selection/mask, edge window and padding; no descan/polynomial normalization/real-space mask. Default windowed retention follows reference; `.unwindowed` follows app (independent source transcription pin). |
-| `Parallax.reconstruct` (alignment bins, upsampling, regularisation) | `CuboParallax.ParallaxReconstruction.reconstruct`, `.process` (end to end with KDE) | partial: bin schedule, running reference, Bernstein regularisation, centring, per-bin error, pinned (1e-7 to 9e-7); no initial aberration shifts, real-space mask, continue/reset, batching (`docs/parallax-alignment.md`) |
-| `Parallax.guess_common_aberrations` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `Parallax.subpixel_alignment` | `CuboParallax.ParallaxSubpixel` | partial: factor heuristic, bilinear/Lanczos KDE, Gaussian, low-pass; position correction (`correctPositions`, reference semantics incl. regularisation); no `virtual_detector_mask` or integer-pixel rolling |
-| `Parallax.aberration_fit` | `CuboParallax.ParallaxAberrationFitter` | done: low order (C1, C12a/b, rotation, transpose) and higher-order global/recursive fits; reference basis default, app basis (`.selectedCentroid`) as option; tolerances in `AberrationTests` |
-| `Parallax.aberration_correct` | `CuboParallax.ParallaxAberrationCorrection` | done: CTF sign/phase correction; reference ignores `q_highpass` (default), `.apply` is the app behaviour |
-| `Parallax.depth_section` | `CuboParallax.ParallaxDepthSectioning` | done: CPU Double; `.defocusOnly` pinned to py4DSTEM (`use_CTF_fit=False`); `.fullFit` pinned to the app transcription because the reference's `use_CTF_fit=True` crashes at 0.14.19; plotting not ported |
-| `Parallax.object_cropped` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `show_shifts`, `show_probe_position_shifts`, `visualize` | — | n/a (plotting) |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `Parallax(datacube, energy, ...)` | `CuboPtycho` | missing (planned: `CuboPtycho`, placeholder) | useful | none upstream; np.allclose defaults |
+| `Parallax.preprocess` (`edge_blend`, `dp_mask`, `threshold_intensity`, descan correction, `realspace_mask`) | `ParallaxPreprocessing.prepare` | partial: constant normalization, selection/mask, edge window and padding; no descan/polynomial normalization/real-space mask. Default windowed retention follows reference; `.unwindowed` follows app (independent source transcription pin). | useful | none upstream; np.allclose defaults |
+| `Parallax.reconstruct` (alignment bins, upsampling, regularisation) | `CuboParallax.ParallaxReconstruction.reconstruct`, `.process` (end to end with KDE) | partial: bin schedule, running reference, Bernstein regularisation, centring, per-bin error, pinned (1e-7 to 9e-7); no initial aberration shifts, real-space mask, continue/reset, batching (`docs/parallax-alignment.md`) | useful | none upstream; np.allclose defaults |
+| `Parallax.guess_common_aberrations` | `CuboPtycho` | missing (planned: `CuboPtycho`) | useful | none upstream; np.allclose defaults |
+| `Parallax.subpixel_alignment` | `CuboParallax.ParallaxSubpixel` | partial: factor heuristic, bilinear/Lanczos KDE, Gaussian, low-pass; position correction (`correctPositions`, reference semantics incl. regularisation); no `virtual_detector_mask` or integer-pixel rolling | useful | none upstream; np.allclose defaults |
+| `Parallax.aberration_fit` | `CuboParallax.ParallaxAberrationFitter` | present: low order (C1, C12a/b, rotation, transpose) and higher-order global/recursive fits; reference basis default, app basis (`.selectedCentroid`) as option; tolerances in `AberrationTests` | useful | none upstream; np.allclose defaults |
+| `Parallax.aberration_correct` | `CuboParallax.ParallaxAberrationCorrection` | present: CTF sign/phase correction; reference ignores `q_highpass` (default), `.apply` is the app behaviour | useful | none upstream; np.allclose defaults |
+| `Parallax.depth_section` | `CuboParallax.ParallaxDepthSectioning` | present: CPU Double; `.defocusOnly` pinned to py4DSTEM (`use_CTF_fit=False`); `.fullFit` pinned to the app transcription because the reference's `use_CTF_fit=True` crashes at 0.14.19; plotting not ported | not planned: done: CPU Double; `.defocusOnly` pinned to py4DSTEM (`use_CTF_fit=False`); `.fullFit` pinned to the app transcription because the reference's `use_CTF_fit=True` crashes at 0.14.19; plotting not ported | none upstream; np.allclose defaults |
+| `Parallax.object_cropped` | `CuboPtycho` | missing (planned: `CuboPtycho`) | useful | none upstream; np.allclose defaults |
+| `show_shifts`, `show_probe_position_shifts`, `visualize` | — | not planned (plotting) | not planned: plotting | — |
 
 `CuboParallax` also exposes the alignment utilities used within the partial reconstruction row:
 
@@ -282,46 +283,88 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 
 ## Ptychography (process/phase/)
 
-| py4DSTEM | CuboKit | State |
-|---|---|---|
-| `SingleslicePtychography` (`preprocess`, `reconstruct`) | `CuboPtycho` | partial: CPU single-slice gradient descent from preprocessed amplitudes; scope below |
-| `MultislicePtychography` (`preprocess`, `reconstruct`) | `MultislicePtychography`, `PtychographyPreparation` | partial (0.5.0): CPU Double gradient descent through slices with Fresnel propagators, identical-slices option; tilted propagators, z-regularisation, TV and `middle_focus` absent; scope in the ptychography details below |
-| `MixedstatePtychography` (`preprocess`, `reconstruct`) | `MixedstatePtychography`, `PtychographyPreparation` | partial (0.5.0): CPU Double gradient descent with several probe states, orthogonalisation, seeded NumPy-compatible initial states, probe constraints; scope in the ptychography details below |
-| `MixedstateMultislicePtychography` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `DirectPtychography`: `SSB` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `DirectPtychography`: `OBF` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `DirectPtychography`: `WDD` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `MagneticPtychography` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `PtychographicTomography`, `MagneticPtychographicTomography` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `XRayMagneticPtychography` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| `PtychographyOptimizer`, `OptimizationParameter` | `CuboPtycho` | absent (planned: `CuboPtycho`) |
-| the constraint and method mixins (`ObjectNDConstraintsMixin`, `ProbeMethodsMixin`, ...), `ComplexProbe`, `AffineTransform` | — | n/a (internals; their features count under the classes above) |
-
-## Count (0.5.0)
-
-Rows in CuboKit's scope only (the n/a, app, DiffractoKit and FormatoKit rows excluded). One row is one method or option group.
-
-| Area | Rows | done | partial | absent |
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
 |---|---|---|---|---|
-| DataCube: container and shape | 6 | 4 | 1 | 1 |
-| DataCube: virtual images | 9 | 7 | 1 | 1 |
-| DataCube: virtual diffraction | 10 | 9 | 0 | 1 |
-| DataCube: calibration-bound properties and coordinates | 5 | 0 | 1 | 4 |
-| DataCube: reshaping and pre-processing | 13 | 4 | 0 | 9 |
-| DataCube: probe, beam stop and background methods | 10 | 5 | 0 | 5 |
-| Calibration entries | 21 | 0 | 12 | 9 |
-| Calibration processes | 23 | 11 | 3 | 9 |
-| Probe | 14 | 12 | 1 | 1 |
-| DPC and the phase base class's preprocessing | 20 | 13 | 4 | 3 |
-| Strain | 14 | 8 | 5 | 1 |
-| Bragg vectors and disk detection | 17 | 3 | 3 | 11 |
-| Parallax | 9 | 3 | 3 | 3 |
-| Ptychography | 11 | 0 | 3 | 8 |
-| **Total** | **182** | **79** | **37** | **66** |
+| `SingleslicePtychography` (`preprocess`, `reconstruct`) | `CuboPtycho` | partial: CPU single-slice gradient descent from preprocessed amplitudes; scope below | useful | none upstream; np.allclose defaults |
+| `MultislicePtychography` (`preprocess`, `reconstruct`) | `MultislicePtychography`, `PtychographyPreparation` | partial (0.5.0): CPU Double gradient descent through slices with Fresnel propagators, identical-slices option; tilted propagators, z-regularisation, TV and `middle_focus` absent; scope in the ptychography details below | useful | none upstream; np.allclose defaults |
+| `MixedstatePtychography` (`preprocess`, `reconstruct`) | `MixedstatePtychography`, `PtychographyPreparation` | partial (0.5.0): CPU Double gradient descent with several probe states, orthogonalisation, seeded NumPy-compatible initial states, probe constraints; scope in the ptychography details below | useful | none upstream; np.allclose defaults |
+| `MixedstateMultislicePtychography` | `CuboPtycho` | missing (planned: `CuboPtycho`) | useful | none upstream; np.allclose defaults |
+| `DirectPtychography`: `SSB` | `CuboPtycho` | missing (planned: `CuboPtycho`) | useful | none upstream; np.allclose defaults |
+| `DirectPtychography`: `OBF` | `CuboPtycho` | missing (planned: `CuboPtycho`) | useful | none upstream; np.allclose defaults |
+| `DirectPtychography`: `WDD` | `CuboPtycho` | missing (planned: `CuboPtycho`) | useful | none upstream; np.allclose defaults |
+| `MagneticPtychography` | `CuboPtycho` | missing (planned: `CuboPtycho`) | useful | none upstream; np.allclose defaults |
+| `PtychographicTomography`, `MagneticPtychographicTomography` | `CuboPtycho` | missing (planned: `CuboPtycho`) | useful | none upstream; np.allclose defaults |
+| `XRayMagneticPtychography` | `CuboPtycho` | missing (planned: `CuboPtycho`) | useful | none upstream; np.allclose defaults |
+| `PtychographyOptimizer`, `OptimizationParameter` | `CuboPtycho` | missing (planned: `CuboPtycho`) | useful | none upstream; np.allclose defaults |
+| the constraint and method mixins (`ObjectNDConstraintsMixin`, `ProbeMethodsMixin`, ...), `ComplexProbe`, `AffineTransform` | — | not planned (internals; their features count under the classes above) | not planned: internals; their features count under the classes above | — |
 
-Of the 182 rows in scope: done 79, partial 37, absent 66 (0.6.0 adds app options and speed, no py4DSTEM row changes status: the object-amplitude toggle and higher-order probe terms refine the single-slice ptychography row; 0.4.0 candidate: 76, 35, 71; 0.3.0: 73, 36, 73; 0.1.0: 61, 23, 98). 0.5.0 adds crop_Q, crop_R and bin_Q as done, and the mixed-state and multislice classes as partial; position correction and the error normalisation refine the single-slice row (still partial). The 0.3.0 breakdown of the done rows (slice 4, slices 1 to 3, hot pixels, strain, Bragg, parallax) was not redone for 0.4.0 and 0.5.0. The parallax alignment, preprocessing and subpixel
-rows and the ptychography rows stay partial; the details tables below refine them and are not counted twice.
+## Further API audited 2026-10-21 (modules the tables above did not reach)
 
+Source: an AST walk of the public functions and methods of `datacube`, `preprocess`, `process/{calibration,phase,strain,utils,fit,rdf,polar,diffraction,classification,wholepatternfit}`, `braggvectors`, `data`, `io`, `visualize` and `utils` at f050d207, checked against the names in the tables above.
+
+| py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
+|---|---|---|---|---|
+| `preprocess.electron_count`, `electron_count_GPU`, `calculate_thresholds`, `torch_bin`, `counted_datacube_to_pointlistarray`, `counted_pointlistarray_to_datacube` | — | missing | useful | none upstream; counted events exact |
+| `preprocess.get_darkreference`, `get_bksbtr_DP` | — | missing | useful | none upstream; allclose defaults |
+| `preprocess.get_background_streaks`, `_x`, `_y` | — | missing | useful | none upstream; allclose defaults |
+| `preprocess.get_1D_polar_background`, `get_2D_polar_background` | — | missing | useful (with the radial background) | none upstream; allclose defaults |
+| `preprocess.datacube_diffraction_shift` (Fourier and bilinear, per-pattern shifts) | `VirtualDiffraction.pattern(shift:)` shifts patterns inside the reducers | partial: no function that returns the shifted cube | useful | none upstream; allclose defaults |
+| `preprocess.bin_data_mmap` (`DataCube.bin_Q_mmap`) | `ViewedCube` with `.detectorBin` | present (0.5.0; lazy) | useful | 1.2e-7 relative measured |
+| `preprocess.median_filter_masked_pixels_2D` | — | missing | useful | exact for odd kernels |
+| `preprocess.utils.bin2D` | `ViewedCube` / `CubeEditing.binScan` on cubes; no 2-D entry point | partial | useful | exact for integers |
+| `preprocess.utils.make_Fourier_coords2D` | `FFT2D` frequencies are internal | missing | useful | exact |
+| `process.utils.get_CoM` (2-D array centre of mass) | `CenterOfMass.measure` (per pattern in the cube) | partial: no single-array entry point | useful | none upstream; allclose defaults |
+| `process.utils.radial_reduction`, `radial_integral`, `radial_elliptical_integral` | — | missing | useful (radial integration of patterns; DiffractoKit owns the polar transform) | none upstream |
+| `process.utils.sector_mask`, `masks.make_circular_mask` | `DetectorMask.make` (circle, annulus, rectangle) | partial: no sector | useful | exact masks |
+| `process.utils.get_qx_qy_1d` | `Calibration.detectorRowAxis` / `detectorColumnAxis` | present (0.8.0) | useful | exact to the Double arithmetic |
+| `process.utils.get_maxima_1D`, `linear_interpolation_1D`, `add_to_2D_array_from_floats` | `BraggMaxima` (2-D); no 1-D | partial | useful | none upstream |
+| `process.utils.fourier_resample`, `resample_data_diffraction(method="fourier")` | — | missing | study | none upstream; scipy-free FFT, allclose defaults |
+| `process.utils.get_voronoi_vertices`, `get_ewpc_filter_function`, `electron_wavelength_angstrom`, `electron_interaction_parameter` | wavelength lives in `PtychographyProbe`; the rest absent | partial | useful | none upstream |
+| `process.utils.multicorr.upsampleFFT`, `cross_correlate.align_and_shift_images` | `MatrixDFTCorrelation`, `ParallaxAlignment` (the same DFT upsampling) | partial: not exposed as py4DSTEM's function | useful | none upstream; allclose defaults |
+| `process.utils.single_atom_scatter`, `elliptical_coords.*` (`cartesian_to_polarelliptical_transform`, `elliptical_resample`) | — | not planned | not planned: DiffractoKit (polar and scattering factors) and SimulatoKit | — |
+| `process.utils.cluster.Cluster` | — | not planned | not planned: ACOM-adjacent clustering is DiffractoKit | — |
+| `process.phase.utils.ComplexProbe` (`evaluate_aperture`, `evaluate_chi`, envelopes, `get_scattering_angles`, `get_spatial_frequencies`) | `PtychographyProbe.build` | partial: no coherence envelopes (see the ptychography details) | useful | none upstream |
+| `process.phase.utils.AffineTransform`, `estimate_global_transformation`, `estimate_global_transformation_ransac` | — | missing | useful (scan-to-detector affine for ptycho) | none upstream |
+| `process.phase.utils.fourier_ring_correlation`, `return_1D_profile`, `fourier_rotate_real_volume`, `fft_shift`, `fourier_translation_operator`, `spatial_frequencies`, `generate_batches`, `subdivide_into_batches`, `array_slice` | `FFT2D`, `ParallaxFourierShifter` cover `fft_shift`; the rest missing | partial | useful | none upstream |
+| `process.phase.utils` periodic gradients, divergence and the 3-D Poisson/Nesterov helpers (`compute_gradient_periodic`, `compute_divergence_periodic`, `preconditioned_poisson_solver_periodic_3D`, `nesterov_*`) | `IDPC` (2-D Poisson only) | missing | not planned: 3-D tomography is outside the kit until multislice ptychography is registered | — |
+| `process.phase.parameter_optimize.PtychographyOptimizer` (`grid_search`, `optimize`) | — | missing | useful | none upstream |
+| `braggvectors.find_Bragg_disks_aiml*`, `_CUDA`, `_ipp`, `_dask`, `beta_parallel_disk_detection` | the learned detector stays in the app (D13, ADR 071); `BraggDisks.detectAll` tiles in process | not planned | not planned: ML, CUDA and cluster backends | — |
+| `BraggVectors.set_raw_vectors`, `BraggVectorMap.pixelsize/pixelunits` | `BraggScanResult`, no map object | partial | useful | exact |
+| `process.classification.*` (`BraggVectorClassification`, `Featurization`, `get_class_DP`, `get_braggpeak_labels_by_scan_position`) | `CuboEmbedding` (PCA, k-means); no NMF classes | missing | useful (the NMF/class-by-Bragg-peak workflow) | none upstream |
+| `process.rdf.*` (`get_radial_intensity`, `get_rdf`, `fit_scattering_factor`, `amorph.*`) | — | not planned | not planned: DiffractoKit (amorphous and polar analysis) | — |
+| `process.polar.*` (`PolarDatacube`, `calculate_radial_statistics`, `calculate_FEM_local`, `calculate_annular_symmetry`, `calculate_pair_dist_function`) | — | not planned | not planned: DiffractoKit (polar elliptical transforms) | — |
+| `process.wholepatternfit.*` (`WholePatternFit`, models) | — | not planned | not planned: DiffractoKit/SimulatoKit (whole-pattern forward fits) | — |
+| `process.diffraction.*` (`Crystal`, orientation, ACOM, digital dark field, moire) | — | not planned | not planned: DiffractoKit | — |
+| `io.filereaders.*` (`read_empad`, `load_mib`, `read_gatan_K2_bin`, `read_arina`, `read_dm`, `read_abTEM`) | `MappedCube(npy:)` only | not planned | not planned: FormatoKit | — |
+| `visualize.*` (`show*`, overlays, `vis_RQ`, `vis_grid`), `utils.configuration_checker` | — | not planned | not planned: plotting and Python environment checks | — |
+
+## Count (0.8.0, audited 2026-10-21)
+
+One row is one method or option group. Counted: the rows marked study or useful. Not planned rows (plotting, Python-only,
+other kits' territory, the learned detector) are listed with their reason and not counted. Earlier counts: 0.7.1 "79 done,
+37 partial, 66 absent of 182" (the same tables without the audit of `preprocess`, `process.utils`, `process.phase.utils`,
+`braggvectors` backends and the other modules; rows added by the audit are marked below).
+
+| Area | present | partial | missing | not planned |
+|---|---|---|---|---|
+| DataCube: container and shape | 4 | 1 | 1 | 2 |
+| DataCube: virtual images | 8 | 1 | 0 | 2 |
+| DataCube: virtual diffraction | 9 | 0 | 1 | 0 |
+| DataCube: calibration-bound properties and coordinates | 5 | 0 | 0 | 0 |
+| DataCube: reshaping and pre-processing | 13 | 0 | 0 | 0 |
+| DataCube: probe, beam stop and background methods | 6 | 1 | 3 | 0 |
+| Calibration entries | 21 | 0 | 0 | 1 |
+| Calibration processes | 14 | 4 | 6 | 1 |
+| Probe | 12 | 1 | 1 | 1 |
+| DPC and the phase base class's preprocessing | 13 | 5 | 3 | 4 |
+| Strain | 8 | 5 | 1 | 1 |
+| Bragg vectors and disk detection | 3 | 4 | 11 | 2 |
+| Parallax | 3 | 3 | 3 | 1 |
+| Ptychography | 0 | 3 | 8 | 1 |
+| Further API audited 2026-10-21 (modules the tables above did not reach) | 2 | 10 | 12 | 9 |
+| **Total** | **121** | **38** | **50** | **25** |
+
+Study rows: 52, of which 41 present, 6 partial, 5 missing.
 ## 0.2.0 notes (2026-10-15)
 
 - `RotationSolver` gains `curve(_:anglesDegrees:criterion:transpose:isCancelled:)` (py4DSTEM computes the same curve inside

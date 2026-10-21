@@ -27,13 +27,15 @@ public enum VirtualDiffraction {
     /// The mean pattern over every scan position (py4DSTEM's `get_dp_mean`).
     public static func mean(of source: some CubeSource, path: ComputePath = .cpu, tiling: ScanTiling = .automatic,
                             progress: (@Sendable (Double) -> Void)? = nil) async throws -> DetectorImage {
-        try await meanAndMax(of: source, path: path, tiling: tiling, progress: progress).mean
+        if path == .cpu { return try await CPUReducers.meanAndMax(of: source, tiling: tiling, wantMax: false, progress: progress).0 }
+        return try await meanAndMax(of: source, path: path, tiling: tiling, progress: progress).mean
     }
 
     /// The maximum pattern over every scan position (py4DSTEM's `get_dp_max`); exact on every path.
     public static func max(of source: some CubeSource, path: ComputePath = .cpu, tiling: ScanTiling = .automatic,
                            progress: (@Sendable (Double) -> Void)? = nil) async throws -> DetectorImage {
-        try await meanAndMax(of: source, path: path, tiling: tiling, progress: progress).max
+        if path == .cpu { return try await CPUReducers.meanAndMax(of: source, tiling: tiling, wantMean: false, progress: progress).1 }
+        return try await meanAndMax(of: source, path: path, tiling: tiling, progress: progress).max
     }
 
     /// Both patterns in one pass over the cube.

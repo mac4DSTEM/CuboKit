@@ -25,6 +25,7 @@ final class MetalContext: @unchecked Sendable {
     let sumAndMax: MTLComputePipelineState
     let centerOfMass: MTLComputePipelineState
     let measureOrigin: MTLComputePipelineState
+    let weightedPattern: MTLComputePipelineState
 
     static let shared: Result<MetalContext, CuboVirtualError> = {
         guard let device = MTLCreateSystemDefaultDevice() else { return .failure(.noMetalDevice) }
@@ -53,6 +54,7 @@ final class MetalContext: @unchecked Sendable {
         self.sumAndMax = try pipeline("cubo_sum_and_max")
         self.centerOfMass = try pipeline("cubo_center_of_mass")
         self.measureOrigin = try pipeline("cubo_measure_origin")
+        self.weightedPattern = try pipeline("cubo_weighted_pattern")
     }
 
     /// Mirrors `struct CuboDims` in the source: four 4-byte fields.
@@ -251,6 +253,42 @@ final class MetalContext: @unchecked Sendable {
         }
         out[gid] = float2(cr, cc);
     }
+
+    struct CuboWeightedDims { uint positions; uint detectorRows; uint detectorColumns; uint weighted; };
+
+    // One thread per detector pixel over the tile's positions in scan order (selected-area diffraction, py4DSTEM's
+    // get_virtual_diffraction with a real-space mask). weights[k] is the position's weight; with weighted == 0 it is a mask
+    // (0 = not selected, skipped; anything else = selected, weight 1). The weighted sum is compensated with the fma
+    // TwoProduct, as cubo_virtual_image; the maximum is of v * w, seeded at -infinity, NaN-propagating, as the CPU path.
+    kernel void cubo_weighted_pattern(const device float *data [[buffer(0)]],
+                                      const device float *weights [[buffer(1)]],
+                                      device float2 *sums [[buffer(2)]],
+                                      device float *maxima [[buffer(3)]],
+                                      constant CuboWeightedDims &d [[buffer(4)]],
+                                      uint gid [[thread_position_in_grid]])
+    {
+        const ulong n = (ulong)d.detectorRows * d.detectorColumns;
+        if ((ulong)gid >= n) { return; }
+        float s = 0.0f, c = 0.0f;
+        float vmax = -INFINITY;
+        for (uint k = 0; k < d.positions; ++k) {
+            const float w = weights[k];
+            const float x = data[(ulong)k * n + gid];
+            float product = x;
+            if (d.weighted != 0) {
+                product = x * w;
+                const float error = fma(x, w, -product);
+                two_sum(s, c, product);
+                c += error;
+            } else {
+                if (w == 0.0f) { continue; }
+                two_sum(s, c, x);
+            }
+            vmax = (isnan(vmax) || isnan(product)) ? NAN : max(vmax, product);
+        }
+        sums[gid] = float2(s, c);
+        maxima[gid] = vmax;
+    }
     """
 
     func buffer(_ values: [Float], label: String) throws -> MTLBuffer {
@@ -271,8 +309,9 @@ final class MetalContext: @unchecked Sendable {
     }
 
     /// Encodes one dispatch of `threads` threads and waits for it without blocking a cooperative thread.
-    func run(_ pipeline: MTLComputePipelineState, threads: Int, buffers: [MTLBuffer], dims: Dims) async throws {
-        try await run(pipeline, threads: threads, buffers: buffers, constants: dims)
+    func run(_ pipeline: MTLComputePipelineState, threads: Int, buffers: [MTLBuffer], offsets: [Int] = [],
+             dims: Dims) async throws {
+        try await run(pipeline, threads: threads, buffers: buffers, offsets: offsets, constants: dims)
     }
 
     /// Mirrors `struct CuboOriginParams` in the source: eight 4-byte fields.
@@ -289,12 +328,12 @@ final class MetalContext: @unchecked Sendable {
 
     /// The same dispatch with any plain-old-data constants block after the buffers.
     func run<Constants: BitwiseCopyable>(_ pipeline: MTLComputePipelineState, threads: Int, buffers: [MTLBuffer],
-                        constants: Constants) async throws {
+                        offsets: [Int] = [], constants: Constants) async throws {
         guard let commands = queue.makeCommandBuffer(), let encoder = commands.makeComputeCommandEncoder() else {
             throw CuboVirtualError.metal("no command buffer")
         }
         encoder.setComputePipelineState(pipeline)
-        for (index, b) in buffers.enumerated() { encoder.setBuffer(b, offset: 0, index: index) }
+        for (index, b) in buffers.enumerated() { encoder.setBuffer(b, offset: index < offsets.count ? offsets[index] : 0, index: index) }
         var d = constants
         encoder.setBytes(&d, length: MemoryLayout<Constants>.stride, index: buffers.count)
         let width = min(pipeline.maxTotalThreadsPerThreadgroup, max(1, pipeline.threadExecutionWidth * 4))
@@ -344,11 +383,10 @@ enum MetalReducers {
         var r = s, c = s
         for range in try tiling.ranges(for: shape) {
             try Task.checkCancellation()
-            let tile = try await source.readScanTile(rows: range)
-            let positions = tile.positionCount
-            let data = try metal.buffer(tile.values, label: "CuboKit tile rows \(range.lowerBound)..<\(range.upperBound)")
+            let (data, offset, positions) = try await tileBuffer(metal, source, range)
             let out = try metal.buffer(floats: 6 * positions, label: "CuboKit CoM sums")
             try await metal.run(metal.centerOfMass, threads: positions, buffers: [data, wBuffer, wiBuffer, wjBuffer, out],
+                                offsets: [offset],
                                 dims: .init(positions: UInt32(positions), detectorRows: UInt32(shape.detectorRows),
                                             detectorColumns: UInt32(shape.detectorColumns)))
             let v = MetalContext.floats(out, count: 6 * positions)
@@ -385,11 +423,9 @@ enum MetalReducers {
         var out = [Double](repeating: 0, count: shape.scanCount)
         for range in try tiling.ranges(for: shape) {
             try Task.checkCancellation()
-            let tile = try await source.readScanTile(rows: range)
-            let positions = tile.positionCount
-            let data = try metal.buffer(tile.values, label: "CuboKit tile rows \(range.lowerBound)..<\(range.upperBound)")
+            let (data, offset, positions) = try await tileBuffer(metal, source, range)
             let image = try metal.buffer(floats: 2 * positions, label: "CuboKit virtual image tile (sum, correction)")
-            try await metal.run(metal.virtualImage, threads: positions, buffers: [data, maskBuffer, image],
+            try await metal.run(metal.virtualImage, threads: positions, buffers: [data, maskBuffer, image], offsets: [offset],
                                 dims: .init(positions: UInt32(positions), detectorRows: UInt32(shape.detectorRows),
                                             detectorColumns: UInt32(shape.detectorColumns)))
             let first = range.lowerBound * shape.scanColumns
@@ -411,10 +447,9 @@ enum MetalReducers {
         let maxima = try metal.buffer(floats: n, label: "CuboKit tile maxima")
         for range in try tiling.ranges(for: shape) {
             try Task.checkCancellation()
-            let tile = try await source.readScanTile(rows: range)
-            let data = try metal.buffer(tile.values, label: "CuboKit tile rows \(range.lowerBound)..<\(range.upperBound)")
-            try await metal.run(metal.sumAndMax, threads: n, buffers: [data, sums, maxima],
-                                dims: .init(positions: UInt32(tile.positionCount),
+            let (data, offset, positions) = try await tileBuffer(metal, source, range)
+            try await metal.run(metal.sumAndMax, threads: n, buffers: [data, sums, maxima], offsets: [offset],
+                                dims: .init(positions: UInt32(positions),
                                             detectorRows: UInt32(shape.detectorRows),
                                             detectorColumns: UInt32(shape.detectorColumns)))
             let s = MetalContext.floats(sums, count: 2 * n), m = MetalContext.floats(maxima, count: n)
@@ -429,5 +464,65 @@ enum MetalReducers {
                               values: sum.map { $0 / count }, path: .metal),
                 DetectorImage(detectorRows: shape.detectorRows, detectorColumns: shape.detectorColumns,
                               values: maximum.map(Double.init), path: .metal))
+    }
+
+    /// The Float32 values of the scan rows `range` as a Metal buffer: the cube's own buffer at an offset when it is a
+    /// ``ResidentCube`` (no copy), else a buffer filled from the source's tile.
+    static func tileBuffer(_ metal: MetalContext, _ source: some CubeSource, _ range: Range<Int>) async throws
+        -> (buffer: MTLBuffer, offset: Int, positions: Int) {
+        let shape = source.shape
+        if let resident = source as? ResidentCube {
+            return (resident.storage.buffer, range.lowerBound * shape.elementsPerScanRow * MemoryLayout<Float>.stride,
+                    range.count * shape.scanColumns)
+        }
+        let tile = try await source.readScanTile(rows: range)
+        return (try metal.buffer(tile.values, label: "CuboKit tile rows \(range.lowerBound)..<\(range.upperBound)"), 0,
+                tile.positionCount)
+    }
+
+    /// Mean or maximum of the patterns at the positions in `take` (`weights` multiplies each pattern when given): one
+    /// thread per detector pixel, compensated Float32 sums per tile combined in Double.
+    static func weightedPattern(of source: some CubeSource, statistic: DiffractionStatistic, take: [Bool], weights: [Double]?,
+                                count: Double, tiling: ScanTiling, progress: (@Sendable (Double) -> Void)?) async throws
+        -> DetectorImage {
+        let metal = try context()
+        let shape = source.shape
+        let n = shape.detectorCount
+        var sum = [Double](repeating: 0, count: n)
+        var maximum = [Float](repeating: -.infinity, count: n)
+        let sums = try metal.buffer(floats: 2 * n, label: "CuboKit selected-area sums (sum, correction)")
+        let maxima = try metal.buffer(floats: n, label: "CuboKit selected-area maxima")
+        for range in try tiling.ranges(for: shape) {
+            try Task.checkCancellation()
+            let first = range.lowerBound * shape.scanColumns
+            let positions = range.count * shape.scanColumns
+            guard (0..<positions).contains(where: { take[first + $0] }) else { continue }
+            let w: [Float] = (0..<positions).map { k in
+                take[first + k] ? (weights.map { Float($0[first + k]) } ?? 1) : 0
+            }
+            let weightBuffer = try metal.buffer(w, label: "CuboKit selection weights")
+            let (data, offset, _) = try await tileBuffer(metal, source, range)
+            try await metal.run(metal.weightedPattern, threads: n, buffers: [data, weightBuffer, sums, maxima],
+                                offsets: [offset],
+                                constants: WeightedDims(positions: UInt32(positions), detectorRows: UInt32(shape.detectorRows),
+                                                        detectorColumns: UInt32(shape.detectorColumns),
+                                                        weighted: weights == nil ? 0 : 1))
+            let s = MetalContext.floats(sums, count: 2 * n), m = MetalContext.floats(maxima, count: n)
+            for i in 0..<n {
+                sum[i] += Double(s[2 * i]) + Double(s[2 * i + 1])
+                maximum[i] = (maximum[i].isNaN || m[i].isNaN) ? .nan : Swift.max(maximum[i], m[i])
+            }
+            progress?(Double(range.upperBound) / Double(shape.scanRows))
+        }
+        return DetectorImage(detectorRows: shape.detectorRows, detectorColumns: shape.detectorColumns,
+                             values: statistic == .mean ? sum.map { $0 / count } : maximum.map(Double.init), path: .metal)
+    }
+
+    /// Mirrors `struct CuboWeightedDims` in the source.
+    struct WeightedDims: BitwiseCopyable {
+        var positions: UInt32
+        var detectorRows: UInt32
+        var detectorColumns: UInt32
+        var weighted: UInt32
     }
 }

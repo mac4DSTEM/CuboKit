@@ -36,8 +36,11 @@ extension VirtualDiffraction {
     /// A virtual diffraction pattern over a selection of positions, optionally centre-shifted (mean and max only).
     /// `.mean` and `.max` over `.all` without a shift are slice 1's `mean` and `max` on the CPU, bit for bit.
     /// `medianWorkingBytes` bounds the median's gathered block (256 MiB by default; it changes the passes, not the result).
+    /// `path: .metal` runs the mean and the max over `.all`, `.mask` and `.weights` on the GPU (compensated Float32 sums
+    /// combined in Double, held to the CPU path within relative 1e-5); the median and a centre shift are CPU only and
+    /// throw with `.metal`. A ``ResidentCube`` is read in place.
     public static func pattern(of source: some CubeSource, statistic: DiffractionStatistic, scan: ScanSelection = .all,
-                               shift: PatternShift? = nil, tiling: ScanTiling = .automatic,
+                               shift: PatternShift? = nil, path: ComputePath = .cpu, tiling: ScanTiling = .automatic,
                                medianWorkingBytes: Int = 256 << 20) async throws -> DetectorImage {
         guard medianWorkingBytes > 0 else { throw CuboVirtualError.invalidInput("the median's working memory must be positive") }
         let shape = source.shape
@@ -59,6 +62,9 @@ extension VirtualDiffraction {
             weights = w; selected = Array(0..<shape.scanCount)
         }
         guard !selected.isEmpty else { throw CuboVirtualError.invalidInput("the selection holds no scan position") }
+        if path == .metal, shift != nil || statistic == .median {
+            throw CuboVirtualError.invalidInput("the Metal path covers the mean and the max over a selection without a centre shift")
+        }
         if let shift {
             guard statistic != .median else {
                 throw CuboVirtualError.invalidInput("a centre-shifted median is not defined (py4DSTEM: mean and max only)")
@@ -66,9 +72,23 @@ extension VirtualDiffraction {
             return try await shifted(source, statistic, selected, weights, shift, tiling)
         }
         if case .all = scan, statistic != .median {
-            return statistic == .mean ? try await mean(of: source, tiling: tiling) : try await max(of: source, tiling: tiling)
+            return statistic == .mean ? try await mean(of: source, path: path, tiling: tiling)
+                : try await max(of: source, path: path, tiling: tiling)
         }
         if statistic == .median { return try await median(source, selected, weights, tiling, medianWorkingBytes) }
+        if path == .metal {
+            var take = [Bool](repeating: false, count: shape.scanCount)
+            for k in selected { take[k] = true }
+            var count = Double(selected.count)
+            if let weights, statistic == .mean {
+                var total = Neumaier()
+                for k in selected { total.add(weights[k]) }
+                count = total.value
+                guard count != 0 else { throw CuboVirtualError.invalidInput("the weights sum to zero") }
+            }
+            return try await MetalReducers.weightedPattern(of: source, statistic: statistic, take: take, weights: weights,
+                                                           count: count, tiling: tiling, progress: nil)
+        }
         return try await reduce(source, statistic, selected, weights, tiling)
     }
 
