@@ -163,7 +163,7 @@ tools/build-docs.sh .docs-site  # the DocC site for every module (Xcode 16+); CI
 
 The tests need nothing outside the package: the synthetic pins are committed. To regenerate pins, install the reference
 py4DSTEM at the pinned commit (`pip install "py4DSTEM @ git+https://github.com/py4dstem/py4DSTEM@f050d207"` in a fresh
-Python 3.12 environment, as the gitignored `References/py4dstem-venv` the scripts call). Then the
+Python 3.12 environment, as the gitignored `../References/python/py4dstem` the scripts call). Then the
 `pins.py` script under `tools/` for the module in question (`synthetic`) rewrites the committed pins and `real` writes exports of your own cubes outside the
 repository, in `$CUBOKIT_REAL_DATA`. The real-data tests skip by name when their exports are absent,
 so `tools/test.sh` runs everywhere; with the data present it runs more.

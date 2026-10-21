@@ -1,7 +1,7 @@
 """CuboKit slice 3: the pin generator (docs/registration-slice-3.md).
 
-    References/py4dstem-venv/bin/python -I -B tools/slice-3/pins.py synthetic
-    References/py4dstem-venv/bin/python -I -B tools/slice-3/pins.py real [name ...]
+    ../References/python/py4dstem/bin/python -I -B tools/slice-3/pins.py synthetic
+    ../References/python/py4dstem/bin/python -I -B tools/slice-3/pins.py real [name ...]
 
 synthetic -> Tests/CuboVirtualTests/Fixtures/slice-3-pins.json (+ planted cubes as .npy), before any Swift;
 real -> $CUBOKIT_REAL_DATA/<name>-s3-pins.json and <name>-s3-<quantity>.npy beside slice 1's exports.

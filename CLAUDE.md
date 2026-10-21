@@ -4,7 +4,7 @@ The 4D-STEM library: mac4DSTEM's processing core, checked against py4DSTEM. Pure
 `docs/parity.md` and the task.
 
 ## Reference
-py4DSTEM `f050d207` (0.14.19) in `References/py4dstem-venv` (`tools/slice-1/provision-py4dstem.sh`; NumPy 2.5.0, h5py 3.11.0, Python 3.12.4). Real cubes come from `$MACEM_DATA`; their `.npy` exports live in `$CUBOKIT_REAL_DATA` (default `~/Library/Caches/CuboKit/real-data`), never in the repo. Fixtures are generated from it (`tools/*/pins.py`) and committed under `Tests/*/Fixtures/`; a difference inside
+py4DSTEM `f050d207` (0.14.19) in `../References/python/py4dstem` (macEM-suite `tools/setup-python-refs.sh py4dstem`; NumPy 2.5.4, h5py 3.16.0, Python 3.12.14). Real cubes come from `$MACEM_DATA`; their `.npy` exports live in `$CUBOKIT_REAL_DATA` (default `~/Library/Caches/CuboKit/real-data`), never in the repo. Fixtures are generated from it (`tools/*/pins.py`) and committed under `Tests/*/Fixtures/`; a difference inside
 the reference's own tolerance is agreement, outside it a bug. Readers, I/O, indices and metadata exact.
 
 ## Build and test

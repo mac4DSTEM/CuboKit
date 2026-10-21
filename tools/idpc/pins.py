@@ -6,7 +6,7 @@ Run with the pinned venv under ../../tools/memcap.sh, from this worktree.
 from pathlib import Path
 import json, platform, hashlib, subprocess
 import numpy as np
-assert np.__version__ == '2.5.0' and platform.python_version() == '3.12.4'
+assert np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 KIT = Path(__file__).resolve().parents[2]
 app_commit = 'c809679c8ee23a355da6af4f63665aaf64f90d0d'
 source = subprocess.check_output(['git','-C',str(KIT.parents[1]/'mac4DSTEM'),'show',

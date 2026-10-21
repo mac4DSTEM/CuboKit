@@ -1,4 +1,5 @@
-"""Generate CuboEmbedding pins. Run with memcap and the pinned venv:
+"""Generate CuboEmbedding pins. Run with memcap and the OLD pinned venv (scikit-learn 1.4.2; References/python/py4dstem has 1.9.1,
+whose PCA fixtures differ, so a regeneration there is a fixture move of its own):
 
     ../../tools/memcap.sh -- ../../References/CuboKit/py4dstem-venv/bin/python -I -B tools/embedding/pins.py
 
@@ -19,7 +20,7 @@ SUITE = next(p for p in ROOT.parents if (p / 'References/CuboKit').is_dir())
 OUT = ROOT / 'Tests/CuboEmbeddingTests/Fixtures'
 APP = 'c809679c8ee23a355da6af4f63665aaf64f90d0d'
 APPFILE = 'mac4DSTEM/Core/Analysis/DiffractionEmbedding.swift'
-assert np.__version__ == '2.5.0' and platform.python_version() == '3.12.4'
+assert np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 assert sklearn.__version__ == '1.4.2'
 
 def sha(path): return hashlib.sha256(Path(path).read_bytes()).hexdigest()

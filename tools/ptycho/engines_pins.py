@@ -1,6 +1,6 @@
 """Pinned py4DSTEM oracle for the mixed-state and multislice CPU engines (CuboPtycho).
 Run from the kit root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../tools/memcap.sh -- ../References/CuboKit/py4dstem-venv/bin/python -I -B tools/ptycho/engines_pins.py
+  MPLCONFIGDIR="$PWD/.build/matplotlib" ../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/ptycho/engines_pins.py
 The real MixedstatePtychography / MultislicePtychography classes run `reconstruct` on numerically injected preprocessing state
 (the same method as tools/ptycho/pins.py); orthogonalisation, probe initialisation (seeded NumPy RNG) and the propagator
 arrays are also called directly. Output: Tests/CuboPtychoTests/Fixtures/engines.json
@@ -14,7 +14,7 @@ from py4DSTEM.process.phase.utils import ComplexProbe, electron_wavelength_angst
 KIT = Path(__file__).resolve().parents[2]
 REF = KIT.parents[0] / 'References/CuboKit/py4DSTEM-f050d207'
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'], text=True).strip().startswith('f050d207')
-assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.0' and platform.python_version() == '3.12.4'
+assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 for name in ('mixedstate_ptychography.py','multislice_ptychography.py','ptychographic_methods.py','ptychographic_constraints.py','utils.py','phase_base_class.py'):
     installed = Path(py4DSTEM.__file__).parent/'process/phase'/name
     assert installed.read_bytes() == subprocess.check_output(['git','-C',str(REF),'show',f'HEAD:py4DSTEM/process/phase/{name}'])

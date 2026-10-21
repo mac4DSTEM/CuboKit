@@ -1,5 +1,5 @@
 """Generate CuboBragg pins. Run with memcap and the pinned venv, from the package root:
-../../tools/memcap.sh -- ../../References/CuboKit/py4dstem-venv/bin/python -I -B tools/bragg/pins.py
+../../tools/memcap.sh -- ../../References/python/py4dstem/bin/python -I -B tools/bragg/pins.py
 
 Two independent oracles, neither is Swift written for the kit:
   1. py4DSTEM 0.14.19 (f050d207) `find_Bragg_disks`, called as a public function, is the primary reference.
@@ -22,8 +22,8 @@ SUITE = next(p for p in ROOT.parents if (p / 'References/CuboKit').is_dir())
 REF = SUITE / 'References/CuboKit'
 PIN = 'f050d207851f8accd3aa550365baaf1f38230428'
 assert subprocess.check_output(['git', '-C', str(REF / 'py4DSTEM-f050d207'), 'rev-parse', 'HEAD'], text=True).strip() == PIN
-assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.0'
-assert platform.python_version() == '3.12.4' and scipy.__version__ == '1.18.0'
+assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4'
+assert platform.python_version() == '3.12.14' and scipy.__version__ == '1.18.1'
 for rel in ['braggvectors/diskdetection.py', 'preprocess/utils.py', 'process/utils/cross_correlate.py',
             'process/utils/multicorr.py', 'braggvectors/probe.py', 'process/calibration/probe.py']:
     assert (Path(py4DSTEM.__file__).parent / rel).read_bytes() == (REF / 'py4DSTEM-f050d207/py4DSTEM' / rel).read_bytes(), rel

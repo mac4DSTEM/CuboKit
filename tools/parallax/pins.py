@@ -1,5 +1,5 @@
 """Regenerate with the pinned venv, from the package root:
-../tools/memcap.sh -- ../References/CuboKit/py4dstem-venv/bin/python -I -B tools/parallax/pins.py
+../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/parallax/pins.py
 
 Only public py4DSTEM test data is cropped; no owner's dataset is copied.
 """
@@ -24,9 +24,9 @@ for source in ['process/utils/cross_correlate.py', 'process/utils/multicorr.py',
     pinned = REF / 'py4DSTEM-f050d207/py4DSTEM' / source
     assert installed.read_bytes() == pinned.read_bytes(), source
 assert py4DSTEM.__version__ == '0.14.19'
-assert np.__version__ == '2.5.0'
-assert platform.python_version() == '3.12.4'
-assert scipy.__version__ == '1.18.0'
+assert np.__version__ == '2.5.4'
+assert platform.python_version() == '3.12.14'
+assert scipy.__version__ == '1.18.1'
 
 rng = np.random.default_rng(20261016)
 

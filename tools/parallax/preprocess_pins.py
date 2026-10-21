@@ -10,7 +10,7 @@ REF = SUITE/'References/CuboKit/py4DSTEM-f050d207'
 PIN = 'f050d207851f8accd3aa550365baaf1f38230428'
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'],text=True).strip() == PIN
 assert (Path(py4DSTEM.__file__).parent/'process/phase/parallax.py').read_bytes() == (REF/'py4DSTEM/process/phase/parallax.py').read_bytes()
-assert (platform.python_version(),np.__version__,scipy.__version__,py4DSTEM.__version__) == ('3.12.4','2.5.0','1.18.0','0.14.19')
+assert (platform.python_version(),np.__version__,scipy.__version__,py4DSTEM.__version__) == ('3.12.14','2.5.4','1.18.1','0.14.19')
 APP_PIN = 'c809679c8ee23a355da6af4f63665aaf64f90d0d'
 APP_SOURCE = subprocess.check_output(['git','--no-optional-locks','-C',str(SUITE/'mac4DSTEM'),'show',APP_PIN+':mac4DSTEM/Core/Analysis/ParallaxPreprocessing.swift'])
 VERSIONS = dict(python=platform.python_version(),numpy=np.__version__,scipy=scipy.__version__,py4dstem=py4DSTEM.__version__,commit=PIN)

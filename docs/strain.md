@@ -66,7 +66,7 @@ minimal value shims. It never imports or executes CuboStrain to generate pins.
 Regenerate from a suite worktree:
 
 ```sh
-../../tools/memcap.sh -- ../../References/CuboKit/py4dstem-venv/bin/python -I -B tools/strain/pins.py
+../../tools/memcap.sh -- ../../References/python/py4dstem/bin/python -I -B tools/strain/pins.py
 ```
 
 The generator checks Python 3.12.4, NumPy 2.5.0, py4DSTEM 0.14.19, the reference

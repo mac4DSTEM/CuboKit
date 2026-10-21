@@ -25,7 +25,7 @@ input/intermediate mean, nonfinite/unrepresentable threshold or rank outside
 Regenerate from this worktree:
 
 ```sh
-MPLCONFIGDIR="$PWD/.build/matplotlib" ../../tools/memcap.sh -- ../../References/CuboKit/py4dstem-venv/bin/python -I -B tools/hot-pixels/pins.py
+MPLCONFIGDIR="$PWD/.build/matplotlib" ../../tools/memcap.sh -- ../../References/python/py4dstem/bin/python -I -B tools/hot-pixels/pins.py
 ```
 
 The generator verifies the pinned commit, installed oracle source bytes, Python

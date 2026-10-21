@@ -14,8 +14,8 @@ SUITE = next(p for p in ROOT.parents if (p/'References/CuboKit').is_dir())
 REF = SUITE/'References/CuboKit'
 PIN='f050d207851f8accd3aa550365baaf1f38230428'
 assert subprocess.check_output(['git','-C',str(REF/'py4DSTEM-f050d207'),'rev-parse','HEAD'],text=True).strip()==PIN
-assert py4DSTEM.__version__=='0.14.19' and np.__version__=='2.5.0'
-assert platform.python_version()=='3.12.4'
+assert py4DSTEM.__version__=='0.14.19' and np.__version__=='2.5.4'
+assert platform.python_version()=='3.12.14'
 for rel in ['process/strain/latticevectors.py','process/strain/strain.py']:
     assert (Path(py4DSTEM.__file__).parent/rel).read_bytes()==(REF/'py4DSTEM-f050d207/py4DSTEM'/rel).read_bytes()
 def flat(a): return np.asarray(a,dtype=float).ravel().tolist()

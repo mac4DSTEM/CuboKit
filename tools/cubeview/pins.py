@@ -1,6 +1,6 @@
 """Pinned py4DSTEM crop and bin: preprocess.crop_data_real, crop_data_diffraction, bin_data_diffraction on a Float32 DataCube.
 Run from the kit root:
-  ../tools/memcap.sh -- ../References/CuboKit/py4dstem-venv/bin/python -I -B tools/cubeview/pins.py
+  ../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/cubeview/pins.py
 Output: Tests/CuboCoreTests/Fixtures/cubeview.json
 """
 from pathlib import Path
@@ -12,7 +12,7 @@ from py4DSTEM.preprocess.preprocess import crop_data_real, crop_data_diffraction
 KIT = Path(__file__).resolve().parents[2]
 REF = KIT.parents[0]/'References/CuboKit/py4DSTEM-f050d207'
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'],text=True).strip().startswith('f050d207')
-assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.0' and platform.python_version() == '3.12.4'
+assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 assert (Path(py4DSTEM.__file__).parent/'preprocess/preprocess.py').read_bytes() == subprocess.check_output(['git','-C',str(REF),'show','HEAD:py4DSTEM/preprocess/preprocess.py'])
 rng = np.random.default_rng(20261020)
 shape = (5, 6, 9, 11)

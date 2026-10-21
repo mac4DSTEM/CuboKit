@@ -9,7 +9,7 @@ from py4DSTEM import DataCube
 KIT = Path(__file__).resolve().parents[2]
 REF = KIT.parents[1]/'References/CuboKit/py4DSTEM-f050d207'
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'],text=True).strip().startswith('f050d207')
-assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.0' and platform.python_version() == '3.12.4'
+assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 for file in ('preprocess/preprocess.py','datacube/datacube.py'):
     assert (Path(py4DSTEM.__file__).parent/file).read_bytes() == subprocess.check_output(['git','-C',str(REF),'show',f'HEAD:py4DSTEM/{file}'])
 rng = np.random.default_rng(501)

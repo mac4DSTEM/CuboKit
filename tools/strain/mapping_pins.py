@@ -3,7 +3,7 @@ StrainMap (choose_basis_vectors, fit_basis_vectors, get_strain) run on planted l
 public simulated Au dataset. Sibling of pins.py (which is untouched); writes only `map_*.f64` and `strain_mapping.json`
 under Tests/CuboStrainTests/Fixtures. Run from the clone root:
 
-  ../../tools/memcap.sh -- References/py4dstem-venv/bin/python -I -B tools/strain/mapping_pins.py
+  ../../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/strain/mapping_pins.py
 
 Peaks are stored as py4DSTEM sees them (centred, calibrated vectors from `get_vectors(center=True)`), so the Swift side
 starts from the same doubles. Rows are py4DSTEM x, columns y.
@@ -26,7 +26,7 @@ SUITE = next(p for p in ROOT.parents if (p/'References/CuboKit').is_dir())
 REF = SUITE/'References/CuboKit'
 PIN = 'f050d207851f8accd3aa550365baaf1f38230428'
 assert subprocess.check_output(['git','-C',str(REF/'py4DSTEM-f050d207'),'rev-parse','HEAD'],text=True).strip() == PIN
-assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.0' and platform.python_version() == '3.12.4'
+assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 for rel in ['process/strain/latticevectors.py','process/strain/strain.py','braggvectors/braggvector_methods.py','preprocess/utils.py']:
     assert (Path(py4DSTEM.__file__).parent/rel).read_bytes() == (REF/'py4DSTEM-f050d207/py4DSTEM'/rel).read_bytes()
 

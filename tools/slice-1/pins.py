@@ -2,8 +2,8 @@
 
 Run with the pinned oracle, from any directory:
 
-    References/py4dstem-venv/bin/python -I -B tools/slice-1/pins.py synthetic
-    References/py4dstem-venv/bin/python -I -B tools/slice-1/pins.py real [name ...]
+    ../References/python/py4dstem/bin/python -I -B tools/slice-1/pins.py synthetic
+    ../References/python/py4dstem/bin/python -I -B tools/slice-1/pins.py real [name ...]
 
 `synthetic` writes Tests/CuboVirtualTests/Fixtures/<cube>.npy and slice-1-pins.json (committed) BEFORE any Swift exists.
 `real` exports the owner's cubes (section 5.4) and py4DSTEM's test datacube (5.3) as .npy into the real-data

@@ -1,9 +1,9 @@
 """py4DSTEM side of the CuboKit benchmark, and the merge into docs/benchmarks.md.
 Run from the suite folder (one benchmark at a time machine-wide, under memcap):
-  tools/memcap.sh -- refs/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py make   <dir>    # writes <dir>/{small,mid,typical}.npy
-  tools/memcap.sh -- refs/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py python <dir>    # writes <dir>/python.json
+  tools/memcap.sh -- References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py make   <dir>    # writes <dir>/{small,mid,typical}.npy
+  tools/memcap.sh -- References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py python <dir>    # writes <dir>/python.json
   CUBOKIT_BENCH_DIR=<dir> swift test -c release --filter BenchmarkHarness                            # writes <dir>/swift.json
-  refs/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py merge <dir>                       # prints the markdown table
+  References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py merge <dir>                       # prints the markdown table
 Sizes (scan rows x columns x detector rows x columns, Float32): small 32x32x32x32, mid 64x64x32x32, typical 100x100x64x64; the large size
 (330x330x64x64) is the nightly review's. Best of five after one warm-up; the table reports best, median and spread.
 """
