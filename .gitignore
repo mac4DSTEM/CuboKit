@@ -4,3 +4,4 @@
 .swiftpm/
 *.xcresult
 __pycache__/
+.docs-site/

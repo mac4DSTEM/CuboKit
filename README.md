@@ -158,6 +158,7 @@ swift build                         # no setup, no dependency; the Metal kernels
 swift test -c release               # the gate (tools/test.sh does the same and reports skipped real-data tests)
 tools/consumer-check/run.sh         # a separate package using the public API only
 tools/readme-consumer/run.sh    # the README's own code, compiled and run
+tools/build-docs.sh .docs-site  # the DocC site for every module (Xcode 16+); CI publishes it on a tag
 ```
 
 The tests need nothing outside the package: the synthetic pins are committed. To regenerate pins, install the reference
