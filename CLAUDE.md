@@ -10,7 +10,8 @@ the reference's own tolerance is agreement, outside it a bug. Readers, I/O, indi
 ## Build and test
 ```sh
 swift build
-swift test -c release          # the gate; Debug is many times slower on the numeric loops
+swift test -c release --parallel --skip CuboKitParityTests   # per-session gate: the fast unit target
+swift test -c release --parallel   # full suite with CuboKitParityTests (the real-data comparisons): before a tag and in the nightly; CI runs it on push (Debug is many times slower)
 tools/consumer-check/run.sh    # a separate package that compiles against the public API
 ```
 Never `swift build --build-tests -c release` (fails on this toolchain). Real-data tests skip when the data is absent.
@@ -25,6 +26,6 @@ Never `swift build --build-tests -c release` (fails on this toolchain). Real-dat
 - No package dependencies. Metal kernels in `Sources/CuboVirtual/Metal/`; the caller asks for `.metal`, the result records it.
 
 ## Closeout
-`swift test -c release` green; `CHANGELOG.md` entry with a Migration paragraph where a consumer must change something;
+`swift test -c release --parallel --skip CuboKitParityTests` green (the full suite before a tag); `CHANGELOG.md` entry with a Migration paragraph where a consumer must change something;
 version bumped in the entry; one commit on `main` whose last paragraph is the hand-off. Paul tags with
 `../macEM-suite/tools/ship.sh` (tag = CHANGELOG top version).

@@ -59,10 +59,18 @@ let package = Package(
         // The "first ten minutes" example: CuboCore and CuboVirtual only, ImageIO for the PNGs.
         .executableTarget(name: "CuboFirstLook", dependencies: ["CuboCore", "CuboVirtual"],
                           path: "Examples/CuboFirstLook", swiftSettings: settings),
-        .testTarget(name: "CuboCoreTests", dependencies: ["CuboCore"], exclude: ["Fixtures"], swiftSettings: settings),
-        .testTarget(name: "CuboVirtualTests", dependencies: ["CuboCore", "CuboVirtual"], exclude: ["Fixtures"],
+        // Helpers, pins and fixture loaders the fast tests and the real-data parity suites share (package access; fixtures stay
+        // beside the target that owns them, see FixtureDirs).
+        .target(name: "CuboKitTestSupport", dependencies: ["CuboCore", "CuboVirtual", "CuboPhase"],
+                path: "Tests/CuboKitTestSupport", swiftSettings: settings),
+        // The real-data comparisons against the pinned float64 / py4DSTEM exports in $CUBOKIT_REAL_DATA (skipped by name when absent):
+        // `swift test -c release --parallel --skip CuboKitParityTests` is the per-session gate, the plain run is the full suite.
+        .testTarget(name: "CuboKitParityTests", dependencies: ["CuboCore", "CuboVirtual", "CuboPhase", "CuboKitTestSupport"],
                     swiftSettings: settings),
-        .testTarget(name: "CuboPhaseTests", dependencies: ["CuboCore", "CuboPhase", "CuboVirtual"],
+        .testTarget(name: "CuboCoreTests", dependencies: ["CuboCore"], exclude: ["Fixtures"], swiftSettings: settings),
+        .testTarget(name: "CuboVirtualTests", dependencies: ["CuboCore", "CuboVirtual", "CuboKitTestSupport"], exclude: ["Fixtures"],
+                    swiftSettings: settings),
+        .testTarget(name: "CuboPhaseTests", dependencies: ["CuboCore", "CuboPhase", "CuboVirtual", "CuboKitTestSupport"],
                     exclude: ["Fixtures"], swiftSettings: settings),
         .testTarget(name: "CuboParallaxTests", dependencies: ["CuboCore", "CuboParallax"],
                     resources: [.copy("Fixtures")], swiftSettings: settings),

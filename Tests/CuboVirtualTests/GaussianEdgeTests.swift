@@ -1,4 +1,5 @@
 import Testing
+import CuboKitTestSupport
 @testable import CuboVirtual
 
 /// scipy 1.18.0 `gaussian_filter(a, 1.7, mode=...)` on a 3 × 4 image whose kernel radius (7) exceeds both extents, so the

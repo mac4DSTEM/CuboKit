@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import CuboKitTestSupport
 import CuboCore
 import CuboVirtual
 
