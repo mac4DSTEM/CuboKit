@@ -120,6 +120,8 @@ control overload "ViewedCube"                              Sources/CuboCore/Cube
 control library "CubeViewSpecification"                   Sources/CuboCore/CubeView.swift "CubeViewSpecification" 'public struct CubeViewSpecification'
 control access  "DPCViews.magnitude"                       Sources/CuboPhase/DPCViews.swift "magnitude"           'public static func magnitude('
 control access  "RotationConvention.kit"                   Sources/CuboPhase/DPCViews.swift "kit"                 'public static func kit('
+control access  "HotPixelFilter.Replacer"                  Sources/CuboCore/HotPixelFilter.swift "Replacer"        'public struct Replacer'
+control overload "HotPixelFilter.Replacer.apply"            Sources/CuboCore/HotPixelFilter.swift "apply"           'public func apply(to pixels: UnsafeMutableBufferPointer<Float>'
 # (ViewedCube: a package-level generic actor is not found by the consumer at all, an error in its own main.swift: kind overload.)
 # CuboBragg 0.6.0: the Float32 path, the funnel, the public fill.
 B=Sources/CuboBragg

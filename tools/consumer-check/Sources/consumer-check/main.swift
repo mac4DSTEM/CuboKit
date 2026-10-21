@@ -466,5 +466,20 @@ check("SyntheticProbe.make: a zero width is invalidInput",
 check("CuboVirtualError.invalidInput", CuboVirtualError.invalidInput("x") == .invalidInput("x")
       && CuboVirtualError.invalidInput("x") != .invalidInput("y")
       && CuboVirtualError.invalidInput("why").errorDescription == "Invalid input: why.")
+// HotPixelFilter.Replacer: the reusable in-place replacement plan (equals the one-frame `replacing`).
+do {
+    let hpMask = (0..<20).map { $0 % 7 == 3 }
+    let hpFrame = (0..<20).map { Float(($0 * 37) % 11) + (($0 == 3) ? 50 : 0) }
+    var hpPlanned = hpFrame
+    let replacer = try HotPixelFilter.Replacer(rows: 4, columns: 5, mask: hpMask)
+    replacer.apply(to: &hpPlanned)
+    let hpWant = try HotPixelFilter.replacing(hpFrame, rows: 4, columns: 5, mask: hpMask)
+    var hpPadded = [Float(-1)] + hpFrame
+    hpPadded.withUnsafeMutableBufferPointer { replacer.apply(to: $0, base: 1) }
+    check("HotPixelFilter.Replacer equals replacing", hpPlanned == hpWant && Array(hpPadded.dropFirst()) == hpWant
+          && hpPadded[0] == -1 && replacer.rows == 4 && replacer.columns == 5)
+    do { _ = try HotPixelFilter.Replacer(rows: 2, columns: 2, mask: [true]); check("HotPixelFilter.Replacer mask size", false) }
+    catch { check("HotPixelFilter.Replacer mask size", error as? HotPixelFilterError == .invalidInput) }
+}
 print("consumer-check summary: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

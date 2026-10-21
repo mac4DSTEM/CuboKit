@@ -49,3 +49,30 @@ Two further actual-oracle fixtures pin negative-zero input medians on 1×1 and
 mean of the middle one/two samples using a +0 reduction accumulator. The
 pre-fix median retained -0 and these fixtures failed at four bit-pattern checks;
 the matching +0 accumulation fixes both odd/even windows. Tolerance remains zero.
+
+## Reusable replacement (`HotPixelFilter.Replacer`)
+
+`Replacer(rows:columns:mask:)` precomputes, once per mask, the clipped 3×3 neighbour
+indices of every masked pixel (flat arrays, row-major target order). `apply(to:base:)`
+then replaces the masked pixels of one frame in place on an `UnsafeMutableBufferPointer<Float>`
+(or an `inout [Float]`), with a stack-allocated 9-sample window and an insertion sort, so
+nothing is allocated per frame. `filter` uses it for every scan position; `replacing`
+keeps its copy-and-validate contract and uses the same allocation-free loop.
+Results are bit-identical to the previous implementation (the existing py4DSTEM pins stay
+exact, and a test compares `Replacer` and `replacing` with a verbatim copy of the old
+loop on random masks, including -0 samples and a frame at an offset in a larger buffer).
+
+Measured 2026-10-21, release build, one thread, 256×256 Float32, 40 random masked pixels,
+2000 patterns (`CUBO_BENCH=1 swift test -c release --filter CuboCoreTests.HotPixelTests`,
+test `replacementTiming`; the mac4DSTEM app now calls this kit, so there is no separate app loop):
+
+| path | ms per pattern |
+| --- | --- |
+| before: `replacing` (validate, copy, array window per masked pixel) | 0.054 |
+| after: `replacing` (same contract, allocation-free loop; validation and the 256 KB copy dominate) | 0.054 |
+| after: `Replacer.apply` in place (includes re-copying the 256 KB pattern for the benchmark) | 0.005 |
+
+`Replacer.apply` is about 10x faster than the earlier per-frame path; one-frame `replacing`
+is unchanged in cost because finite-validation and the copy dominate it. Callers with many
+patterns should build one `Replacer` per mask and reuse it.
+
