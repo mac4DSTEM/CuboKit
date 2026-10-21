@@ -19,3 +19,7 @@ int cubo_embedding_symmetric_eigen(int n_, double *a, double *w) {
 void cubo_embedding_syrk_upper(int n, int k, double alpha, const double *a, double beta, double *c) {
     cblas_dsyrk(CblasRowMajor, CblasUpper, CblasTrans, n, k, alpha, a, n, beta, c, n);
 }
+
+void cubo_embedding_gemm_nt(int m, int n, int k, const double *a, const double *b, double *c) {
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, m, n, k, 1, a, k, b, k, 0, c, n);
+}

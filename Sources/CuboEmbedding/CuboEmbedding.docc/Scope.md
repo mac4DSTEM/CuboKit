@@ -1,7 +1,7 @@
 # Scope
 
 ``PCA`` and ``KMeans`` operate on row-major Double matrices supplied by the caller. Feature extraction from a cube,
-streaming, settings and progress are not part of this module; ``DiffractionFeatures`` only turns one pattern into one
+settings and progress are not part of this module (the covariance can be streamed with ``PCACovarianceAccumulator``); ``DiffractionFeatures`` only turns one pattern into one
 vector.
 
 Primary behaviour is pinned to scikit-learn 1.4.2: the covariance route to PCA with its `svd_flip` sign convention, and

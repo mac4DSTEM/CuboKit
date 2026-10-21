@@ -3,11 +3,16 @@
 // both paths.
 import CuboBragg
 import CuboCore
+import CuboEmbedding
 import CuboPhase
 import CuboPtycho
 import CuboStrain
 import CuboVirtual
 import Foundation
+
+func isEmbeddingError(_ body: () throws -> Void) async -> Bool {
+    do { try body(); return false } catch is EmbeddingError { return true } catch { return false }
+}
 
 var checks = 0
 var failures = 0
@@ -481,5 +486,58 @@ do {
     do { _ = try HotPixelFilter.Replacer(rows: 2, columns: 2, mask: [true]); check("HotPixelFilter.Replacer mask size", false) }
     catch { check("HotPixelFilter.Replacer mask size", error as? HotPixelFilterError == .invalidInput) }
 }
+
+// CuboEmbedding 0.6.0: the streamed PCA, the vDSP binning and the cancellation hook.
+let embeddingRows = 40, embeddingColumns = 5
+let embeddingData = (0..<(embeddingRows * embeddingColumns)).map { i -> Double in
+    let r = Double(i / embeddingColumns), c = Double(i % embeddingColumns)
+    return sin(r * 0.7 + c) * (c + 1) + cos(r * 1.3 * (c + 1)) + 0.1 * r
+}
+var embeddingAccumulator = try PCACovarianceAccumulator(columns: embeddingColumns)
+var embeddingHalf = try PCACovarianceAccumulator(columns: embeddingColumns)
+try embeddingAccumulator.add(Array(embeddingData[0..<(25 * embeddingColumns)]), rows: 25)
+try embeddingHalf.add(Array(embeddingData[(25 * embeddingColumns)...]).map { Float($0) }, rows: 15)
+try embeddingAccumulator.merge(embeddingHalf)
+check("PCACovarianceAccumulator count, columns, mean", embeddingAccumulator.count == 40 && embeddingAccumulator.columns == 5
+      && embeddingAccumulator.mean.count == 5)
+let streamedCovariance = try embeddingAccumulator.covariance()
+let streamedFit = try PCA.fit(covariance: streamedCovariance, count: embeddingAccumulator.count,
+                              mean: embeddingAccumulator.mean, components: 2)
+let accumulatorFit = try PCA.fit(embeddingAccumulator, components: 2)
+check("PCA.fit(covariance:count:mean:components:) and PCA.fit(_:components:) agree, scores are empty",
+      streamedFit == accumulatorFit && streamedFit.scores.isEmpty && streamedFit.rows == 40 && streamedFit.componentCount == 2)
+let memoryFit = try PCA.fit(embeddingData, rows: embeddingRows, columns: embeddingColumns, components: 2)
+var embeddingResolver = PCASignResolver(result: streamedFit)
+var embeddingResolverTail = PCASignResolver(result: streamedFit)
+try embeddingResolver.add(Array(embeddingData[0..<(10 * embeddingColumns)]), rows: 10, firstRow: 0)
+try embeddingResolverTail.add(Array(embeddingData[(10 * embeddingColumns)...]).map { Float($0) }, rows: 30, firstRow: 10)
+try embeddingResolver.merge(embeddingResolverTail)
+let resolvedFit = embeddingResolver.resolved()
+check("PCASignResolver gives scikit-learn's signs (components equal the in-memory fit)",
+      zip(resolvedFit.components, memoryFit.components).allSatisfy { abs($0 - $1) < 1e-4 }
+      && zip(resolvedFit.explainedVariance, memoryFit.explainedVariance).allSatisfy { abs($0 - $1) < 1e-4 })
+check("PCACovarianceAccumulator refuses a ragged block", await isEmbeddingError {
+    var a = try PCACovarianceAccumulator(columns: 2); try a.add([1, 2, 3] as [Double], rows: 2) })
+let binPattern = (0..<64).map { Float(($0 * 37) % 101) }
+let binScalar = try DiffractionFeatures.binnedVector(pattern: binPattern, rows: 8, columns: 8, binnedSize: 4)
+let binAccelerated = try DiffractionFeatures.binnedVector(pattern: binPattern, rows: 8, columns: 8, binnedSize: 4,
+                                                           implementation: .accelerate)
+let binPointer = try binPattern.withUnsafeBufferPointer {
+    try DiffractionFeatures.binnedVector(pattern: $0, rows: 8, columns: 8, binnedSize: 4, implementation: .accelerate)
+}
+check("DiffractionFeatures.binnedVector(implementation:) .accelerate agrees with .scalar",
+      DiffractionFeatures.Implementation.scalar != .accelerate && binAccelerated == binPointer
+      && zip(binScalar, binAccelerated).allSatisfy { abs($0 - $1) < 1e-5 })
+let kmeansCentroids = Array(embeddingData[0..<(2 * embeddingColumns)])
+let kmeansCancelled: Bool
+do { _ = try KMeans.fit(embeddingData, rows: embeddingRows, columns: embeddingColumns, initialCentroids: kmeansCentroids,
+                        isCancelled: { true }); kmeansCancelled = false } catch is CancellationError { kmeansCancelled = true }
+let seededCancelled: Bool
+do { _ = try KMeans.fitSeeded(embeddingData, rows: embeddingRows, columns: embeddingColumns, groups: 2, seed: 3,
+                              isCancelled: { true }); seededCancelled = false } catch is CancellationError { seededCancelled = true }
+check("KMeans.fit and KMeans.fitSeeded isCancelled throw CancellationError", kmeansCancelled && seededCancelled)
+let kmeansRun = try KMeans.fitSeeded(embeddingData, rows: embeddingRows, columns: embeddingColumns, groups: 2, seed: 3,
+                                     isCancelled: { false })
+check("KMeans.fitSeeded runs unchanged with a never-cancelling hook", kmeansRun.labels.count == embeddingRows)
 print("consumer-check summary: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)

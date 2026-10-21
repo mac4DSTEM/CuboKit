@@ -152,6 +152,25 @@ control access  "LatticeStrain.referenceMADResult"          $S/LatticeStrain.swi
 control library "LatticeStrain.ConsensusBasis"              $S/LatticeStrain.swift "ConsensusBasis"              'public struct ConsensusBasis'
 control library "LatticeStrain.ReferenceMAD"                $S/LatticeStrain.swift "ReferenceMAD"                'public struct ReferenceMAD'
 control access  "StrainMapResult.referenceInlierCount"      $S/StrainMapping.swift   "referenceInlierCount"      'public let referenceInlierCount'
+# CuboEmbedding 0.6.0: the streamed PCA, the vDSP binning, the cancellation hook.
+E=Sources/CuboEmbedding
+control overload "PCACovarianceAccumulator.init"            $E/PCAStreaming.swift  "PCACovarianceAccumulator' initializer"          'public init(columns: Int) throws'
+control overload "PCACovarianceAccumulator.add"             $E/PCAStreaming.swift  "add"           'public mutating func add(_ block: [Double], rows: Int) throws'
+control access  "PCACovarianceAccumulator.merge"           $E/PCAStreaming.swift  "merge"         'public mutating func merge(_ other: PCACovarianceAccumulator'
+control access  "PCACovarianceAccumulator.covariance"      $E/PCAStreaming.swift  "covariance"    'public func covariance()'
+control access  "PCACovarianceAccumulator.count"           $E/PCAStreaming.swift  "count"         'public private(set) var count: Int'
+control access  "PCACovarianceAccumulator.mean"            $E/PCAStreaming.swift  "mean"          'public private(set) var mean: [Double]'
+control library "PCACovarianceAccumulator"                 $E/PCAStreaming.swift  "PCACovarianceAccumulator" 'public struct PCACovarianceAccumulator'
+control overload "PCA.fit(covariance:count:mean:components:)" $E/PCAStreaming.swift "fit"        'public static func fit(covariance: [Double]'
+control overload "PCA.fit(_:accumulator)"                  $E/PCAStreaming.swift  "fit"           'public static func fit(_ accumulator: PCACovarianceAccumulator'
+control overload "PCASignResolver"                         $E/PCAStreaming.swift  "PCASignResolver" 'public struct PCASignResolver'
+control access  "PCASignResolver.resolved"                 $E/PCAStreaming.swift  "resolved"      'public func resolved()'
+control access  "PCASignResolver.merge"                    $E/PCAStreaming.swift  "merge"         'public mutating func merge(_ other: PCASignResolver'
+control overload "DiffractionFeatures.binnedVector(implementation:)" $E/DiffractionFeatures.swift "binnedVector" $'public static func binnedVector(pattern: [Float], rows qy: Int, columns qx: Int, binnedSize: Int,\n                                    implementation'
+control overload "DiffractionFeatures.binnedVector(UnsafeBufferPointer)" $E/DiffractionFeatures.swift "binnedVector" 'public static func binnedVector(pattern: UnsafeBufferPointer<Float>'
+control library "DiffractionFeatures.Implementation"       $E/DiffractionFeatures.swift "Implementation" 'public enum Implementation'
+control overload "KMeans.fit(isCancelled:)"                $E/KMeans.swift        "fit"           $'public static func fit(_ data: [Double], rows n: Int, columns d: Int, initialCentroids: [Double],\n                           maxIterations: Int = 300, tolerance: Double = 1e-4,\n                           isCancelled'
+control overload "KMeans.fitSeeded(isCancelled:)"          $E/KMeans.swift        "fitSeeded"     $'public static func fitSeeded(_ data: [Double], rows n: Int, columns d: Int, groups: Int, seed: UInt64,\n                                 maxIterations: Int = 50,\n                                 isCancelled'
 # A slice-1 symbol, to show the earlier checks are guarded too.
 control overload "VirtualImaging.image"             $V/VirtualImaging.swift      "image"             'public static func image(of source'
 

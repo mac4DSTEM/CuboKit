@@ -179,12 +179,12 @@ public enum PCA {
 
     // MARK: shared
 
-    private static func mirrorUpper(_ m: inout [Double], _ d: Int) {
+    static func mirrorUpper(_ m: inout [Double], _ d: Int) {
         for i in 1..<max(1, d) { for j in 0..<i { m[i * d + j] = m[j * d + i] } }
     }
 
     /// Top `k` eigenpairs of a symmetric row-major matrix, descending; vectors row-major `k × d`.
-    private static func topEigen(_ matrix: [Double], _ d: Int, _ k: Int) throws -> ([Double], [Double]) {
+    static func topEigen(_ matrix: [Double], _ d: Int, _ k: Int) throws -> ([Double], [Double]) {
         var a = matrix
         var w = [Double](repeating: 0, count: d)
         let info = cubo_embedding_symmetric_eigen(Int32(d), &a, &w)

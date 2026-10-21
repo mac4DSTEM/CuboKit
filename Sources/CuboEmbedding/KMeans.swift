@@ -25,8 +25,12 @@ public enum KMeans {
     /// With several empty clusters in one iteration the order in which they take the farthest rows is unspecified
     /// by scikit-learn (an `argpartition`) and not pinned here; rows are given out by descending distance, lower
     /// index first.
+    ///
+    /// `isCancelled` is asked once at the start of every iteration; when it answers true the call throws
+    /// `CancellationError`. The default never cancels, so a call without it behaves as before.
     public static func fit(_ data: [Double], rows n: Int, columns d: Int, initialCentroids: [Double],
-                           maxIterations: Int = 300, tolerance: Double = 1e-4) throws -> KMeansResult {
+                           maxIterations: Int = 300, tolerance: Double = 1e-4,
+                           isCancelled: () -> Bool = { false }) throws -> KMeansResult {
         guard n > 0, d > 0, data.count == n * d else {
             throw EmbeddingError.invalidShape("data.count \(data.count) is not rows \(n) × columns \(d)")
         }
@@ -59,6 +63,7 @@ public enum KMeans {
         var iterations = 0
         var stoppedEarly = false
         for _ in 0..<maxIterations {
+            if isCancelled() { throw CancellationError() }
             iterations += 1
             var sums = [Double](repeating: 0, count: k * d)
             var weights = [Double](repeating: 0, count: k)
@@ -130,8 +135,12 @@ public enum KMeans {
     ///
     /// The seeding depends on the Swift standard library's range sampling, so it is reproducible for a given
     /// toolchain's algorithm, not across languages.
+    ///
+    /// `isCancelled` is asked before each seed is chosen and at the start of every pass; when it answers true the
+    /// call throws `CancellationError`. The default never cancels, so a call without it behaves as before.
     public static func fitSeeded(_ data: [Double], rows n: Int, columns d: Int, groups: Int, seed: UInt64,
-                                 maxIterations: Int = 50) throws -> KMeansResult {
+                                 maxIterations: Int = 50,
+                                 isCancelled: () -> Bool = { false }) throws -> KMeansResult {
         guard n > 0, d > 0, data.count == n * d else {
             throw EmbeddingError.invalidShape("data.count \(data.count) is not rows \(n) × columns \(d)")
         }
@@ -148,6 +157,7 @@ public enum KMeans {
         var indices = [Int.random(in: 0..<n, using: &generator)]
         var minDistances = [Double](repeating: .infinity, count: n)
         while indices.count < k {
+            if isCancelled() { throw CancellationError() }
             let last = point(indices[indices.count - 1])
             for i in 0..<n {
                 let dist = squaredDistance(i, last)
@@ -175,6 +185,7 @@ public enum KMeans {
         var passes = 0
         var settled = false
         for _ in 0..<maxIterations {
+            if isCancelled() { throw CancellationError() }
             passes += 1
             var changed = false
             for i in 0..<n {

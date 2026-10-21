@@ -2,7 +2,7 @@ import Foundation
 
 /// PCA, k-means and the diffraction-pattern featurisation behind them.
 ///
-/// The primary entry points follow scikit-learn 1.4.2 (``PCA/Variant/scikitLearn``, ``KMeans/fit(_:rows:columns:initialCentroids:maxIterations:tolerance:)``).
+/// The primary entry points follow scikit-learn 1.4.2 (``PCA/Variant/scikitLearn``, ``KMeans/fit(_:rows:columns:initialCentroids:maxIterations:tolerance:isCancelled:)``).
 /// The numerics of mac4DSTEM's diffraction-embedding pipeline are separate, explicitly named options.
 public enum CuboEmbedding {
     /// What this module computes.
