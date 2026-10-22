@@ -310,6 +310,31 @@ private struct Planted {
         #expect(circleRange > 20 * rightRange)
     }
 
+    /// The whole chain on the planted tilted case: fit the ring of the pattern (task 18), store the fit in the calibration
+    /// (`Calibration.ellipse`), transform (task 17): the result is constant in phi, as with the true ellipse.
+    @Test func testFittedEllipseFeedsThePolarCube() async throws {
+        let p = Planted()
+        let cube = try p.cube()
+        let tile = try await cube.readPattern(row: 0, column: 0)
+        let data = try EllipseFitPlane(rows: p.size, columns: p.size, values: tile.values.map(Double.init))
+        let fit = try EllipseFit.fitAmorphousRing(data, center: (p.r0 + 0.5, p.c0 - 0.4), fitRadii: (p.b * 0.75, p.a * 1.25))
+        let e = fit.ellipse
+        print("fitted ellipse: centre (\(e.centerRow), \(e.centerColumn)) a \(e.a) b \(e.b) theta \(e.theta); truth \(p.r0), \(p.c0), \(p.a), \(p.b), \(p.thetaPy4DSTEM)")
+        #expect(fit.converged)
+        #expect(abs(e.a - p.a) < 0.1 && abs(e.b - p.b) < 0.1 && abs(e.centerRow - p.r0) < 0.05 && abs(e.centerColumn - p.c0) < 0.05)
+        var cal = Calibration()
+        cal.setOrigin(row: e.centerRow, column: e.centerColumn)
+        cal.ellipse = e.calibration
+        let polar = try PolarCube(detectorRows: p.size, detectorColumns: p.size, sampling: PolarSampling(annularCount: 90))
+        let fitted = try await polar.pattern(of: cube, scanRow: 0, scanColumn: 0, calibration: cal)
+        let truth = try await transform(p, ellipse: (p.a, p.b, p.thetaPy4DSTEM))
+        let circle = try await transform(p, ellipse: nil)
+        let freeBins = 2..<8
+        print("spread over phi: fitted \(spread(fitted, in: freeBins)), true ellipse \(spread(truth, in: freeBins)), circle \(spread(circle, in: freeBins))")
+        #expect(spread(fitted, in: freeBins) < 0.015)
+        #expect(spread(fitted, in: freeBins) < spread(circle, in: freeBins) / 5)
+    }
+
     /// The ring position: the phi mean of the right-ellipse transform peaks at b (bin 12 holds radius 12 to 13, centre 12.5 at the
     /// bin's left edge convention: the bin value is the density at its left edge), within 0.25 pixel.
     @Test func testRingPositionIsTheMinorAxisOnTheTiltedCase() async throws {
