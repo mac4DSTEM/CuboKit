@@ -29,6 +29,10 @@ stack, shifts and probe angles as separate calls. Defaults are py4DSTEM's; the p
 
 ## Topics
 
+### Essentials
+
+- <doc:Aligning-images>
+
 ### End to end
 
 - ``ParallaxReconstruction``
@@ -75,5 +79,4 @@ stack, shifts and probe angles as separate calls. Defaults are py4DSTEM's; the p
 ### Errors
 
 - ``ParallaxError``
-
 - ``ParallaxAlignmentError``

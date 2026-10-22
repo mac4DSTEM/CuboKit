@@ -10,3 +10,36 @@ Detector row is the reference first coordinate; detector column is the second.
 For a whole scan, ``StrainMapping`` follows py4DSTEM's `StrainMap`: build the Bragg vector map from centred peaks,
 choose the basis from its maxima, fit every scan position, take the reference from a scan region and return flat
 row-major exx, eyy, exy and theta maps (NaN where a position could not be fitted), with an optional coordinate rotation.
+
+## Topics
+
+### Essentials
+
+- <doc:From-peaks-to-strain>
+- <doc:Scope>
+
+### Per-pattern lattice fitting
+
+- ``LatticeStrain``
+- ``LatticeBasis``
+- ``LatticeVector``
+- ``LatticePeak``
+- ``LatticeFit``
+- ``StrainTensor``
+- ``LatticeStrainError``
+
+### Scan-level strain map
+
+- ``StrainMapping``
+- ``StrainMapOptions``
+- ``StrainMapResult``
+- ``StrainPeak``
+- ``StrainReference``
+- ``StrainReferenceMethod``
+- ``StrainFitMethod``
+- ``StrainIndexing``
+- ``StrainBasisOptions``
+- ``StrainDirections``
+- ``BraggVectorHistogram``
+- ``StrainFrame``
+- ``StrainMappingError``

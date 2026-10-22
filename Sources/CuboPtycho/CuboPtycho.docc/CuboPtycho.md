@@ -4,6 +4,10 @@ CPU ptychography preprocessing, probe construction and single-slice, mixed-state
 
 ## Topics
 
+### Essentials
+
+- <doc:Preparing-a-reconstruction>
+
 ### Processing
 
 - ``PtychographyPreparation``

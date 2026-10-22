@@ -14,6 +14,19 @@ Accelerate implementation, and ``KMeans`` takes an `isCancelled` closure.
 
 ## Topics
 
+### Essentials
+
+- <doc:Clustering-patterns>
+- <doc:Scope>
+
+### Principal components and k-means
+
+- ``PCA``
+- ``PCAResult``
+- ``KMeans``
+- ``KMeansResult``
+- ``EmbeddingError``
+
 ### Streamed PCA
 
 - ``PCACovarianceAccumulator``
