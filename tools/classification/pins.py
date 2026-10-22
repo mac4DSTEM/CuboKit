@@ -11,10 +11,15 @@ Outputs (floats as repr, so they round-trip exactly):
     Tests/CuboBraggTests/Fixtures/virtualimage.json
 """
 import json
+import os
 import platform
 import sys
 import warnings
 from pathlib import Path
+
+# one BLAS thread, so a regeneration is bit for bit repeatable (threaded reductions differ in the last digits between runs)
+for _v in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS', 'MKL_NUM_THREADS'):
+    os.environ[_v] = '1'
 
 import numpy as np
 import scipy
@@ -36,9 +41,24 @@ def flat(a):
     return np.asarray(a, dtype=np.float64).ravel().tolist()
 
 
+def sanitize(o):
+    """JSON has no NaN or Infinity: they become the strings "NaN", "Infinity", "-Infinity" (Swift's convertFromString strategy)."""
+    if isinstance(o, float):
+        if o != o:
+            return 'NaN'
+        if o in (float('inf'), float('-inf')):
+            return 'Infinity' if o > 0 else '-Infinity'
+        return o
+    if isinstance(o, dict):
+        return {k: sanitize(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [sanitize(v) for v in o]
+    return o
+
+
 def write(path, obj):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, separators=(',', ':'), allow_nan=True) + '\n')
+    path.write_text(json.dumps(sanitize(obj), separators=(',', ':'), allow_nan=False) + '\n')
     print(path.relative_to(KIT), path.stat().st_size, 'bytes')
 
 
@@ -80,7 +100,7 @@ def featurization():
 
     nmf_cases = []
 
-    def nmf_case(name, X, k, init=None, random_state=None, max_iter=200, W0=None, H0=None, tol=1e-4):
+    def nmf_case(name, X, k, init=None, random_state=0, max_iter=200, W0=None, H0=None, tol=1e-4):
         m = NMF(n_components=k, init=init, random_state=random_state, max_iter=max_iter, tol=tol)
         if init == 'custom':
             W = m.fit_transform(X, W=W0.copy(), H=H0.copy())
@@ -404,9 +424,55 @@ def classification():
     return out
 
 
+# ====================================================================================================== virtual image
+def virtualimage():
+    from py4DSTEM.braggvectors import BraggVectors
+
+    rng = np.random.default_rng(20261023)
+    R = (9, 11)
+    Q = (96, 96)
+    peaks = []
+    for r in range(R[0]):
+        for c in range(R[1]):
+            k = int(rng.integers(0, 14)) if (r + c) % 5 else 0              # some empty positions, some with more than 8 peaks
+            pts = [(float(rng.uniform(0, Q[0])), float(rng.uniform(0, Q[1])), float(rng.gamma(2.0, 3.0))) for _ in range(k)]
+            if k > 3:
+                pts[1] = (pts[1][0], pts[1][1], float('nan')) if (r * 7 + c) % 13 == 0 else pts[1]
+            peaks.append(pts)
+    # a position with 150 peaks (NumPy's pairwise sum recurses above 128) and one whose peaks all lie on a ring
+    peaks[3] = [(float(rng.uniform(0, Q[0])), float(rng.uniform(0, Q[1])), float(rng.gamma(2.0, 3.0))) for _ in range(150)]
+    peaks[4] = [(48 + 20 * np.cos(t), 48 + 20 * np.sin(t), 1.0 + t) for t in np.linspace(0, 6, 10, endpoint=False)]
+    pla = make_pla(peaks, R)
+    bv = BraggVectors(R, Q)
+    bv.set_raw_vectors(pla)
+
+    cases = []
+
+    def case(label, mode, geometry):
+        im = bv.get_virtual_image(mode=mode, geometry=geometry, center=False, ellipse=False, pixel=False, rotate=False)
+        cases.append(dict(label=label, mode=mode, geometry=None if geometry is None else geometry, image=flat(im.data)))
+
+    case('everythingFromTheOrigin', None, None)
+    case('circleAtCentre', 'circle', ((48.0, 48.0), 30.0))
+    case('circularAlias', 'circular', ((20.5, 60.25), 25.0))
+    case('circleAboutOrigin', 'circle', ((), 70.0))
+    case('annulus', 'annulus', ((48.0, 48.0), (15.0, 40.0)))
+    case('annularAlias', 'annular', ((30.0, 30.0), (5.0, 12.0)))
+    case('annulusAboutOrigin', 'annulus', ((), (50.0, 90.0)))
+    case('ringExact', 'annulus', ((48.0, 48.0), (20.0, 20.0000001)))       # the ring peaks sit at radius 20 to rounding
+    case('modeNoneRadius', None, ((48.0, 48.0), 33.0))
+    case('modeNoneRange', None, ((10.0, 10.0), (20.0, 60.0)))
+    case('modeNoneNoCentre', None, ((), (30.0, 80.0)))
+    case('modeNoneEmptyRange', None, ((48.0, 48.0), ()))                    # every peak, NaN intensities included
+    case('empty', 'annulus', ((48.0, 48.0), (0.0, 0.0)))
+    return dict(versions=VERSIONS, scan=list(R), detector=list(Q), peaks=[[list(map(float, p)) for p in pts] for pts in peaks], cases=cases)
+
+
 if __name__ == '__main__':
     which = sys.argv[1] if len(sys.argv) > 1 else 'all'
     if which in ('featurization', 'all'):
         write(KIT / 'Tests/CuboEmbeddingTests/Fixtures/featurization.json', featurization())
     if which in ('classification', 'all'):
         write(KIT / 'Tests/CuboBraggTests/Fixtures/classification.json', classification())
+    if which in ('virtualimage', 'all'):
+        write(KIT / 'Tests/CuboBraggTests/Fixtures/virtualimage.json', virtualimage())
