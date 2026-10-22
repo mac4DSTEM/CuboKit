@@ -24,6 +24,10 @@ is the median fill of non-finite pixels, public.
 
 ## Topics
 
+### Essentials
+
+- <doc:Finding-Bragg-disks>
+
 ### Detection
 
 - ``BraggDisks``
@@ -32,12 +36,16 @@ is the median fill of non-finite pixels, public.
 - ``BraggFunnel``
 - ``BraggVectors``
 - ``BraggPeak``
+- ``BraggScanResult``
+- ``BraggFailurePolicy``
+- ``BraggMasking``
 
 ### Options
 
 - ``BraggDiskOptions``
 - ``BraggSubpixel``
 - ``BraggPeakOrder``
+- ``BraggTieOrder``
 - ``BraggNonFinitePixels``
 - ``BraggPrecision``
 
