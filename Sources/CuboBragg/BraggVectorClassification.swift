@@ -131,6 +131,11 @@ public struct BraggVectorClassification: Sendable, Equatable {
         guard peakLabels.allSatisfy({ $0.allSatisfy { (0..<n).contains($0) } }) else {
             throw CuboBraggError.invalidOption("a label lies outside 0..<\(n)")
         }
+        let (squared, o1) = n.multipliedReportingOverflow(by: n)
+        let (cubed, o2) = squared.multipliedReportingOverflow(by: n)
+        guard correlationOrder == 2 ? (!o1 && squared <= 100_000_000) : (!o1 && !o2 && cubed <= 100_000_000) else {
+            throw CuboBraggError.invalidOption("featureCount \(n) is too large for correlationOrder \(correlationOrder)")
+        }
         let sets = peakLabels.map { Set($0) }
         let positions = Double(sets.count)
         var function = [Double](repeating: 0, count: correlationOrder == 2 ? n * n : n * n * n)
@@ -247,6 +252,10 @@ public struct BraggVectorClassification: Sendable, Equatable {
 
     // MARK: refinement (writes the candidate)
 
+    private func requireClass(_ i: Int, of count: Int) throws {
+        guard (0..<count).contains(i) else { throw CuboBraggError.invalidOption("class \(i) does not exist") }
+    }
+
     private func requireClasses() throws {
         guard classCount > 0 else { throw CuboBraggError.invalidOption("the initial classes have not been set") }
     }
@@ -291,12 +300,20 @@ public struct BraggVectorClassification: Sendable, Equatable {
         return out
     }
 
+    /// The Gaussian kernel must be finite, positive and no wider than four times the scan's longer side.
+    private func requireSplitSigma(_ sigma: Double) throws {
+        guard sigma.isFinite, sigma > 0, sigma <= 4 * Double(max(scanRows, scanColumns)) else {
+            throw CuboBraggError.invalidOption("sigma must be finite, positive and at most 4 x the longer scan side")
+        }
+    }
+
     /// `split(sigma, threshold_split, expand_mask, minimum_pixels)`: every class becomes one class per contiguous region of its
     /// smoothed image (see `regions`): the same `W` column, and `H` kept inside the region. A class without a region disappears.
     /// The result is the candidate.
     public mutating func split(sigma: Double = 2, thresholdSplit: Double = 0.25, expandMask: Int = 1,
                                minimumPixels: Int = 1) throws {
         try requireClasses()
+        try requireSplitSigma(sigma)
         var wColumns = [[Double]](), hRows = [[Double]]()
         for i in 0..<classCount {
             for region in regions(ofClass: i, sigma: sigma, thresholdSplit: thresholdSplit, expandMask: expandMask,
@@ -314,6 +331,7 @@ public struct BraggVectorClassification: Sendable, Equatable {
                                minimumPixels: Int = 1) throws {
         try requireClasses()
         guard (0..<classCount).contains(i) else { throw CuboBraggError.invalidOption("class \(i) does not exist") }
+        try requireSplitSigma(sigma)
         var wColumns = [[Double]](), hRows = [[Double]]()
         for region in regions(ofClass: i, sigma: sigma, thresholdSplit: thresholdSplit, expandMask: expandMask,
                               minimumPixels: minimumPixels) {
@@ -452,20 +470,32 @@ public struct BraggVectorClassification: Sendable, Equatable {
     // MARK: reading the classes
 
     /// `get_class_BPs(i)`: the Bragg peak weights of class `i` (`featureCount` values).
-    public func classPeakWeights(_ i: Int) -> [Double] { (0..<featureCount).map { w[$0 * classCount + i] } }
+    ///
+    /// Throws `CuboBraggError.invalidOption` when `i` is not a class.
+    public func classPeakWeights(_ i: Int) throws -> [Double] {
+        try requireClass(i, of: classCount)
+        return (0..<featureCount).map { w[$0 * classCount + i] }
+    }
 
     /// `get_class_image(i)`: the scan position weights of class `i`, `scanRows · scanColumns` values in row-major scan order.
-    public func classImage(_ i: Int) -> [Double] { Array(h[(i * positionCount)..<((i + 1) * positionCount)]) }
+    ///
+    /// Throws `CuboBraggError.invalidOption` when `i` is not a class.
+    public func classImage(_ i: Int) throws -> [Double] {
+        try requireClass(i, of: classCount)
+        return Array(h[(i * positionCount)..<((i + 1) * positionCount)])
+    }
 
-    /// `get_candidate_class_BPs(i)`.
-    public func candidateClassPeakWeights(_ i: Int) -> [Double]? {
+    /// `get_candidate_class_BPs(i)`; nil without a candidate, and `invalidOption` when `i` is not a candidate class.
+    public func candidateClassPeakWeights(_ i: Int) throws -> [Double]? {
         guard let c = candidate else { return nil }
+        try requireClass(i, of: c.classCount)
         return (0..<featureCount).map { c.w[$0 * c.classCount + i] }
     }
 
-    /// `get_candidate_class_image(i)`.
-    public func candidateClassImage(_ i: Int) -> [Double]? {
+    /// `get_candidate_class_image(i)`; nil without a candidate, and `invalidOption` when `i` is not a candidate class.
+    public func candidateClassImage(_ i: Int) throws -> [Double]? {
         guard let c = candidate else { return nil }
+        try requireClass(i, of: c.classCount)
         return Array(c.h[(i * positionCount)..<((i + 1) * positionCount)])
     }
 }
@@ -482,7 +512,8 @@ extension BraggVectorClassification {
     /// theorem (`get_shifted_ar`, periodic). `darkReference` is subtracted, weighted, from the running sum after each pattern.
     public static func classPattern(of source: some CubeSource, classImage: [Double], threshold: Double = 0.01,
                                     rowShifts: [Double]? = nil, columnShifts: [Double]? = nil, darkReference: [Double]? = nil,
-                                    integerShifts: Bool = true) async throws -> [Double] {
+                                    integerShifts: Bool = true,
+                                    isCancelled: (@Sendable () -> Bool)? = nil) async throws -> [Double] {
         let shape = source.shape
         guard classImage.count == shape.scanCount else {
             throw CuboBraggError.shapeMismatch("the class image must hold \(shape.scanRows) x \(shape.scanColumns) values")
@@ -494,6 +525,7 @@ extension BraggVectorClassification {
         var pattern = [Double](repeating: 0, count: rows * columns)
         var used = [Double]()
         for position in 0..<shape.scanCount {
+            if isCancelled?() == true { throw CancellationError() }
             let weight = classImage[position]
             guard weight >= threshold else { continue }
             used.append(weight)
@@ -501,8 +533,9 @@ extension BraggVectorClassification {
             var current = raw.values.map { weight * Double($0) }
             if let rowShifts, let columnShifts {
                 let dr = rowShifts[position], dc = columnShifts[position]
+                guard dr.isFinite, dc.isFinite else { throw CuboBraggError.invalidOption("a shift is not finite") }
                 if integerShifts {
-                    current = roll(current, rows, columns, rows: -Int(dr.rounded(.toNearestOrEven)), columns: -Int(dc.rounded(.toNearestOrEven)))
+                    current = roll(current, rows, columns, rows: integerShift(dr, modulo: rows), columns: integerShift(dc, modulo: columns))
                 } else {
                     current = fourierShift(current, rows, columns, rows: -dr, columns: -dc)
                 }
@@ -524,7 +557,8 @@ extension BraggVectorClassification {
                                                           radius: Double, originRow: Double, originColumn: Double,
                                                           threshold: Double = 0.01, rowShifts: [Double]? = nil,
                                                           columnShifts: [Double]? = nil, darkReference: [Double]? = nil,
-                                                          integerShifts: Bool = true) async throws -> [Double] {
+                                                          integerShifts: Bool = true,
+                                    isCancelled: (@Sendable () -> Bool)? = nil) async throws -> [Double] {
         let shape = source.shape
         guard classImage.count == shape.scanCount, vectors.scanRows == shape.scanRows, vectors.scanColumns == shape.scanColumns else {
             throw CuboBraggError.shapeMismatch("the class image and the vectors must match the scan \(shape.scanRows) x \(shape.scanColumns)")
@@ -536,6 +570,7 @@ extension BraggVectorClassification {
         var pattern = [Double](repeating: 0, count: rows * columns)
         var maskWeights = [Double](repeating: 0, count: rows * columns)
         for position in 0..<shape.scanCount {
+            if isCancelled?() == true { throw CancellationError() }
             let weight = classImage[position]
             guard weight >= threshold else { continue }
             let peaks = vectors.peaks[position]
@@ -558,8 +593,9 @@ extension BraggVectorClassification {
             var current = (0..<(rows * columns)).map { Double(raw.values[$0]) * mask[$0] * weight }
             if let rowShifts, let columnShifts {
                 let dr = rowShifts[position], dc = columnShifts[position]
+                guard dr.isFinite, dc.isFinite else { throw CuboBraggError.invalidOption("a shift is not finite") }
                 if integerShifts {
-                    let sr = -Int(dr.rounded(.toNearestOrEven)), sc = -Int(dc.rounded(.toNearestOrEven))
+                    let sr = integerShift(dr, modulo: rows), sc = integerShift(dc, modulo: columns)
                     current = roll(current, rows, columns, rows: sr, columns: sc)
                     mask = roll(mask, rows, columns, rows: sr, columns: sc)
                 } else {
@@ -571,6 +607,12 @@ extension BraggVectorClassification {
             for i in 0..<pattern.count { pattern[i] += current[i]; maskWeights[i] += mask[i] * weight }
         }
         return (0..<pattern.count).map { maskWeights[$0] != 0 ? pattern[$0] / maskWeights[$0] : 0 }
+    }
+
+    /// Minus the shift rounded to the nearest integer (ties to even), reduced modulo `n` as a Double first so a huge shift
+    /// cannot overflow `Int`; a roll by it equals a roll by the unreduced value. `shift` must be finite.
+    private static func integerShift(_ shift: Double, modulo n: Int) -> Int {
+        Int((-shift.rounded(.toNearestOrEven)).truncatingRemainder(dividingBy: Double(n)))
     }
 
     /// `np.roll(np.roll(a, rows, axis=0), columns, axis=1)`.

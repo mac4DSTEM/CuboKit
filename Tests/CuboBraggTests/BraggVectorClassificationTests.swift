@@ -178,8 +178,8 @@ private func classification(booleanData: Bool = true, maximumDistance: Double? =
         #expect(c.classCount == 3)
         // the class holding reflection 1 is phase A, 4 phase B, 7 phase C: its image is large inside the phase, small outside
         for (phase, label) in [("A", 1), ("B", 4), ("C", 7)] {
-            let k = try #require((0..<c.classCount).first { c.classPeakWeights($0)[label] == 1 })
-            let image = c.classImage(k)
+            let k = try #require((0..<c.classCount).first { try c.classPeakWeights($0)[label] == 1 })
+            let image = try c.classImage(k)
             let truth = pins.truth[phase]!
             let inside = zip(image, truth).filter { $0.1 == 1 }.map(\.0), outside = zip(image, truth).filter { $0.1 == 0 }.map(\.0)
             let meanInside = inside.reduce(0, +) / Double(inside.count), meanOutside = outside.reduce(0, +) / Double(outside.count)
