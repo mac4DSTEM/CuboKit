@@ -27,7 +27,7 @@ public enum FriedelOrigin {
         let n = shape.detectorCount
         var rows = [Double](repeating: 0, count: shape.scanCount), cols = rows
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
             let count = tile.positionCount, values = tile.values

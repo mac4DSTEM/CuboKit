@@ -9,19 +9,29 @@ extension LatticeStrain {
     ///
     /// Weights are the intensities floored at 1e-6 and divided by the largest weight when it exceeds 1, before every
     /// fit, so a very bright peak cannot trip the representability guard (the ratios are all the fit depends on).
+    /// Intensities of 1e10 and above are first divided by the largest intensity in Double (before the Float32 conversion
+    /// that would overflow or lose the small weights), so any finite intensity is accepted; below 1e10 the weights are
+    /// exactly those of earlier versions.
     /// The peak coordinates are relative to the diffraction origin; the returned origin is the fitted intercept in the
     /// same frame. Arithmetic follows the Float32 source (as ``fitIntensityOnce(_:)``): agreement with the Double
     /// formulas is about 1e-5 relative. Returns nil for fewer than `minimumPeaks` peaks or a singular design.
-    /// Throws `invalidInput` for a non-finite or unrepresentable (beyond 1e10) value or a negative intensity.
+    /// Throws `invalidInput` for a non-finite coordinate, index or intensity, a coordinate or index of 1e10 or beyond
+    /// (unrepresentable in the Float32 fit), or a negative intensity.
     public static func fitRobust(_ peaks: [LatticePeak], minimumPeaks: Int = 5) throws -> LatticeFit? {
         guard minimumPeaks >= 1,
               peaks.allSatisfy({ $0.vector.row.isFinite && $0.vector.column.isFinite && $0.intensity.isFinite && $0.intensity >= 0
                                  && $0.h.isFinite && $0.k.isFinite }),
-              peaks.allSatisfy({ [$0.vector.row, $0.vector.column, $0.h, $0.k, $0.intensity].allSatisfy { Float($0).isFinite && abs($0) < 1e10 } })
+              peaks.allSatisfy({ [$0.vector.row, $0.vector.column, $0.h, $0.k].allSatisfy { Float($0).isFinite && abs($0) < 1e10 } })
         else { throw LatticeStrainError.invalidInput }
         guard peaks.count >= minimumPeaks else { return nil }
         typealias Row = (h: Float, k: Float, x: Float, y: Float, wgt: Float)
-        let rows: [Row] = peaks.map { (Float($0.h), Float($0.k), Float($0.vector.row), Float($0.vector.column), max(Float($0.intensity), 1e-6)) }
+        // Intensities of 1e10 and above: ratios in Double first (the largest becomes 1; a weight below 1e-6 is floored later, as
+        // any weight is after the division by the largest).
+        let brightest = peaks.reduce(0.0) { max($0, $1.intensity) }
+        let divisor = brightest >= 1e10 ? brightest : 1.0
+        let rows: [Row] = peaks.map {
+            (Float($0.h), Float($0.k), Float($0.vector.row), Float($0.vector.column), max(Float($0.intensity / divisor), 1e-6))
+        }
         func fitScaled(_ r: [Row]) -> (originX: Float, originY: Float, g1x: Float, g1y: Float, g2x: Float, g2y: Float, residual: Float)? {
             let top = r.reduce(Float(0)) { max($0, $1.wgt) }
             let scale = top > 1 ? 1 / Double(top) : 1

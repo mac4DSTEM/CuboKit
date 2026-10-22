@@ -42,7 +42,7 @@ public struct VacuumProbe: Sendable, Equatable {
         var probe: [Double]? = nil
         var count = 0
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
             for k in 0..<tile.positionCount where scanMask?[first + k] ?? true {

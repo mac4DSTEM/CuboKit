@@ -18,7 +18,7 @@ enum CPUReducers {
         var out = [Double](repeating: 0, count: shape.scanCount)
         var pattern = [Double](repeating: 0, count: n)
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
             tile.values.withUnsafeBufferPointer { values in
@@ -53,7 +53,7 @@ enum CPUReducers {
         let blockSize = 512   // 4 KiB of Float32 per position and 8 KiB of state: in L1, and 8 blocks per 4096 pixels keep every core busy
         let blocks = (n + blockSize - 1) / blockSize
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let positions = range.count * shape.scanColumns
             try await withTileValues(of: source, rows: range) { values in
                 sum.withUnsafeMutableBufferPointer { s in

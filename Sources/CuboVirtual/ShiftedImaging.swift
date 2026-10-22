@@ -49,7 +49,7 @@ extension VirtualImaging {
             let qy = shape.detectorRows, qx = shape.detectorColumns, n = shape.detectorCount
             var out = [Double](repeating: 0, count: shape.scanCount)
             for range in try tiling.ranges(for: shape) {
-                try Task.checkCancellation()
+                try checkInterrupted()
                 let tile = try await source.readScanTile(rows: range)
                 let first = range.lowerBound * shape.scanColumns
                 for k in 0..<tile.positionCount {
@@ -136,7 +136,7 @@ extension VirtualDiffraction {
         var sums = [Neumaier](repeating: Neumaier(), count: n)
         var maximum = [Double](repeating: -.infinity, count: n)
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
             for k in 0..<tile.positionCount {
