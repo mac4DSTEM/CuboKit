@@ -212,6 +212,42 @@ final class LastValue: @unchecked Sendable {
         }
     }
 
+    /// `braggmask=True` with `radial_bksb=True`: the weighted average over the pixels each neighbour keeps. Everything kept is the
+    /// plain average; with a mask that drops a disk in one neighbour the result is the composition of the pieces by hand.
+    @Test func testLocalAverageKeepingAMask() async throws {
+        let (cube, base) = try fixtureCube()
+        let c = pin.polar[0]
+        let p = try polarCube(c)
+        let cal = calibration(base, c)
+        let plain = try await RadialBackground.localAverage(of: cube, polar: p, calibration: cal, scanRow: 1, scanColumn: 1)
+        let all = try await RadialBackground.localAverage(of: cube, polar: p, calibration: cal, scanRow: 1, scanColumn: 1,
+                                                          keeping: { _, _ in [Bool](repeating: true, count: 40 * 44) })
+        #expect(zip(plain.values, all.values).allSatisfy { abs($0 - $1) <= 1e-12 * (1 + abs($0)) })
+        // drop the left half of the detector in the neighbours (0, 0) and (2, 2), all of it in (0, 1) and (1, 0)
+        let keeping: @Sendable (Int, Int) throws -> [Bool] = { r, k in
+            (0..<(40 * 44)).map { i in
+                if (r, k) == (0, 0) || (r, k) == (2, 2) { return i % 44 >= 22 }
+                if (r, k) == (0, 1) || (r, k) == (1, 0) { return false }
+                return true
+            }
+        }
+        let got = try await RadialBackground.localAverage(of: cube, polar: p, calibration: cal, scanRow: 1, scanColumn: 1, keeping: keeping)
+        let kernel: [[Double]] = [[1, 2, 1], [2, 4, 2], [1, 2, 1]].map { $0.map { Double($0) / 16 } }
+        var num = [Double](repeating: 0, count: 40 * 44), den = num
+        for r in 0..<3 { for k in 0..<3 {
+            let dp = try await RadialBackground.subtracted(from: cube, polar: p, calibration: cal, scanRow: r, scanColumn: k)
+            let keep = try keeping(r, k)
+            for i in num.indices where keep[i] { num[i] += dp.values[i] * kernel[r][k]; den[i] += kernel[r][k] }
+        } }
+        for i in num.indices {
+            let want = den[i] > 0 ? num[i] / den[i] : .nan
+            #expect(abs(got.values[i] - want) <= 1e-12 * (1 + abs(want)), "pixel \(i)")
+        }
+        await #expect(throws: CuboVirtualError.self) {
+            _ = try await RadialBackground.localAverage(of: cube, polar: p, calibration: cal, scanRow: 1, scanColumn: 1, keeping: { _, _ in [true] })
+        }
+    }
+
     /// No ellipse in the calibration: the polar transform is circular and the lookup radius is the plain distance.
     @Test func testNoEllipseIsACircle() async throws {
         let (cube, base) = try fixtureCube()

@@ -155,6 +155,8 @@ private func ellipse(_ v: [Double]) -> EllipseParameters { EllipseParameters(cen
             // both are minima of the same sum of squares, to the optimiser's ftol
             let mine = cost(got.parameters, data, center: center, radii: radii), theirs = cost(f.amorphous.p, data, center: center, radii: radii)
             worstCostGap = max(worstCostGap, (mine - theirs) / theirs)
+            let w = f.amorphous.ellipse, e = got.ellipse
+            print("\(f.name) amorphous vs py4DSTEM: centre/axes relative \(max(abs(e.centerRow - w[0]) / w[0], abs(e.centerColumn - w[1]) / w[1], abs(e.a - w[2]) / w[2], abs(e.b - w[3]) / w[3])), theta \(angleDifference(e.theta, w[4])) rad")
             #expect(mine <= theirs * (1 + 1e-6), "\(f.name) cost \(mine) vs py4DSTEM \(theirs)")
             let masked = try EllipseFit.fitAmorphousRing(data, center: center, fitRadii: radii, keeping: f.keepMask.map { $0 != 0 })
             check(masked, f.amorphousMasked.ellipse, relative: 1e-6, "\(f.name) amorphous masked")

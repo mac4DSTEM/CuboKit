@@ -98,8 +98,14 @@ public enum RadialBackground {
     /// `get_local_ave_dp(rx, ry, radial_bksb=True, sigma)`: the radial-background-subtracted patterns of the 3 x 3 neighbourhood
     /// averaged with the kernel `[[1, 2, 1], [2, 4, 2], [1, 2, 1]] / 16` (cut at the scan edge and renormalised). `isCancelled`
     /// is asked before each neighbour and throws `CancellationError`.
+    ///
+    /// `keeping` is py4DSTEM's `braggmask=True` together with `radial_bksb=True`: for a scan position it returns which detector
+    /// pixels take part (`true`; `BraggMasking.mask` outside the Bragg disks, in CuboBragg, which this module cannot call). Each
+    /// neighbour then contributes only where it keeps the pixel and the sum is divided by the summed weights; a pixel no neighbour
+    /// keeps is NaN (py4DSTEM's masked entry).
     public static func localAverage(of source: some CubeSource, polar: PolarCube, calibration: Calibration, scanRow: Int,
                                     scanColumn: Int, sigma: Double = 2,
+                                    keeping: (@Sendable (_ scanRow: Int, _ scanColumn: Int) throws -> [Bool])? = nil,
                                     isCancelled: (@Sendable () -> Bool)? = nil) async throws -> DetectorImage {
         let s = source.shape
         try polar.requireDetector(of: s)
@@ -111,13 +117,23 @@ public enum RadialBackground {
         var total = 0.0
         for r in rows { var line = [Double](); for c in columns { let w = kernel[r - scanRow + 1][c - scanColumn + 1]; line.append(w); total += w }; weights.append(line) }
         var ans = [Double](repeating: 0, count: s.detectorCount)
+        var summedWeights = [Double](repeating: 0, count: keeping == nil ? 0 : s.detectorCount)
         for (i, r) in rows.enumerated() { for (j, c) in columns.enumerated() {
             if isCancelled?() == true { throw CancellationError() }
             try Task.checkCancellation()
             let w = weights[i][j] / total
             let dp = try await subtracted(from: source, polar: polar, calibration: calibration, scanRow: r, scanColumn: c, sigma: sigma)
-            for k in ans.indices { ans[k] += dp.values[k] * w }
+            if let keeping {
+                let keep = try keeping(r, c)
+                guard keep.count == s.detectorCount else {
+                    throw CuboVirtualError.maskLengthMismatch(expected: s.detectorCount, received: keep.count)
+                }
+                for k in ans.indices { let wk = keep[k] ? w : 0; ans[k] += dp.values[k] * wk; summedWeights[k] += wk }
+            } else {
+                for k in ans.indices { ans[k] += dp.values[k] * w }
+            }
         } }
+        if keeping != nil { for k in ans.indices { ans[k] = summedWeights[k] > 0 ? ans[k] / summedWeights[k] : .nan } }
         return DetectorImage(detectorRows: s.detectorRows, detectorColumns: s.detectorColumns, values: ans, path: .cpu)
     }
 }
