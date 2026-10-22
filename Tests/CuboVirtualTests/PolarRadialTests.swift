@@ -129,7 +129,7 @@ private func polarCube(_ c: PolarCase) throws -> PolarCube {
         #expect(all.scanRows == 3 && all.scanColumns == 3 && all.annularCount == 36 && all.radialCount == 29)
         for want in c.patterns {
             let one = try await p.pattern(of: cube, scanRow: want.row, scanColumn: want.column, calibration: cal)
-            let got = all.pattern(row: want.row, column: want.column)
+            let got = try all.pattern(row: want.row, column: want.column)
             #expect(got.valid == one.valid)
             #expect(zip(got.values, one.values).allSatisfy { $0 == $1 || ($0.isNaN && $1.isNaN) })
         }
@@ -138,7 +138,7 @@ private func polarCube(_ c: PolarCase) throws -> PolarCube {
         constant.setOrigin(row: 19.6, column: 22.4)
         let shared = try await p.transform(source: cube, calibration: constant)
         let one = try await p.pattern(of: cube, scanRow: 2, scanColumn: 1, calibration: constant)
-        let got = shared.pattern(row: 2, column: 1)
+        let got = try shared.pattern(row: 2, column: 1)
         #expect(zip(got.values, one.values).allSatisfy { $0 == $1 || ($0.isNaN && $1.isNaN) })
     }
 

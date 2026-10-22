@@ -72,7 +72,11 @@ public struct PolarCubeData: Sendable, Equatable {
     public let valid: [Bool]
 
     /// The polar pattern at a scan position.
-    public func pattern(row: Int, column: Int) -> (values: [Double], valid: [Bool]) {
+    /// Throws ``CuboError/outOfRange(_:)`` for a position outside the scan.
+    public func pattern(row: Int, column: Int) throws -> (values: [Double], valid: [Bool]) {
+        guard (0..<scanRows).contains(row), (0..<scanColumns).contains(column) else {
+            throw CuboError.outOfRange("Scan position (\(row), \(column))")
+        }
         let n = annularCount * radialCount, k = (row * scanColumns + column) * n
         return (Array(values[k..<(k + n)]), Array(valid[k..<(k + n)]))
     }
@@ -98,6 +102,11 @@ public struct PolarCube: Sendable {
     private let kdeSigma: [Double]         // _sigma_KDE
     private let radialScale: [Double]?     // _qscale_ar
 
+    /// The most angular bins, radial bins per pattern and angular smoothing samples (either side) a polar cube accepts.
+    public static let maximumAnnularCount = 1 << 16
+    public static let maximumCells = 1 << 26
+    static let maximumKernelRadius = 1 << 16
+
     public var annularCount: Int { annularBins.count }
     public var radialCount: Int { radialBins.count }
     /// `qq`: the radial bins in the calibrated unit (bins times the detector pixel size).
@@ -114,6 +123,9 @@ public struct PolarCube: Sendable {
         guard sampling.annularCount >= 2 else {
             throw CuboVirtualError.invalidInput("a polar cube needs at least two angular bins, not \(sampling.annularCount)")
         }
+        guard sampling.annularCount <= Self.maximumAnnularCount else {
+            throw CuboVirtualError.invalidInput("a polar cube takes at most \(Self.maximumAnnularCount) angular bins, not \(sampling.annularCount)")
+        }
         guard sampling.maskThreshold.isFinite, sampling.minimumRadius.isFinite else {
             throw CuboVirtualError.invalidInput("the polar sampling needs finite numbers")
         }
@@ -122,9 +134,16 @@ public struct PolarCube: Sendable {
         }
         let qmax = sampling.maximumRadius ?? Double(min(detectorRows, detectorColumns)) / 2.0.squareRoot()
         guard qmax.isFinite else { throw CuboVirtualError.invalidInput("the maximum radius must be finite") }
+        guard SciPyKernels.arangeLength(sampling.minimumRadius, qmax, sampling.radialStep) != nil else {
+            throw CuboVirtualError.invalidInput("the radii \(sampling.minimumRadius) to \(qmax) in steps of \(sampling.radialStep) give more than \(SciPyKernels.maximumArangeLength) radial bins")
+        }
         let bins = SciPyKernels.arange(sampling.minimumRadius, qmax, sampling.radialStep)
         guard !bins.isEmpty else { throw CuboVirtualError.invalidInput("no radial bin between \(sampling.minimumRadius) and \(qmax)") }
         guard detectorPixelSize.isFinite, detectorPixelSize > 0 else { throw CuboVirtualError.invalidPixelSize(detectorPixelSize) }
+        let (cells, cellOverflow) = bins.count.multipliedReportingOverflow(by: sampling.annularCount)
+        guard !cellOverflow, cells <= Self.maximumCells else {
+            throw CuboVirtualError.invalidInput("\(sampling.annularCount) angular x \(bins.count) radial bins is more than \(Self.maximumCells) cells per pattern")
+        }
         self.detectorRows = detectorRows; self.detectorColumns = detectorColumns
         self.sampling = sampling; self.detectorMask = detectorMask; self.detectorPixelSize = detectorPixelSize
         radialBins = bins
@@ -138,6 +157,11 @@ public struct PolarCube: Sendable {
         let density = bins.map { 1 / (angularStep * ($0 + sampling.radialStep * 0.5)) }
         binDensity = density
         kdeSigma = density.map { $0 * 0.5 }
+        // The smoothing along the angle has a width of 0.5 / (angular step x radius): a tiny radial step at a radius near 0 would
+        // ask for a kernel of millions of samples (the transform would not end).
+        for sigma in kdeSigma where !(sigma <= 0.1669) && !(sigma * 4 + 0.5 <= Double(Self.maximumKernelRadius)) {
+            throw CuboVirtualError.invalidInput("the radial step \(sampling.radialStep) at radius \(sampling.minimumRadius) gives an angular smoothing kernel wider than \(Self.maximumKernelRadius) samples")
+        }
         if let p = sampling.radialPower {
             let qq = bins.map { $0 * detectorPixelSize }
             let last = qq[qq.count - 1]
@@ -302,6 +326,12 @@ public struct PolarCube: Sendable {
         let shape = source.shape
         try requireDetector(of: shape)
         let size = annularCount * radialCount
+        // the whole result lives in memory (Double value and Bool validity per cell); the cap is that of ResidentCube.availability: half the physical memory
+        let (total, overflow) = shape.scanCount.multipliedReportingOverflow(by: size)
+        let (bytes, bytesOverflow) = total.multipliedReportingOverflow(by: MemoryLayout<Double>.stride + MemoryLayout<Bool>.stride)
+        guard !overflow, !bytesOverflow, bytes <= Int(clamping: ProcessInfo.processInfo.physicalMemory / 2) else {
+            throw CuboVirtualError.invalidInput("the polar cube of \(shape.scanCount) patterns of \(size) cells would not fit in memory")
+        }
         let constantPlacement: Bool = {
             guard calibration.originRow?.isConstant == true, calibration.originColumn?.isConstant == true else { return false }
             guard let e = calibration.ellipse else { return true }

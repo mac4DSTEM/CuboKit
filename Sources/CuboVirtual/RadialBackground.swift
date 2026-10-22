@@ -24,8 +24,10 @@ import Foundation
 
 public enum RadialBackground {
     /// The one-dimensional background of a polar pattern: per radial bin the median of the valid cells over the angle (0 where
-    /// no cell is valid), then `gaussian_filter1d(sigma)` when `sigma > 0`.
-    public static func profile(of polar: PolarPattern, sigma: Double = 2) -> [Double] {
+    /// no cell is valid), then `gaussian_filter1d(sigma)` when `sigma > 0`. Throws ``CuboVirtualError/invalidInput(_:)`` unless
+    /// `sigma` is finite and its kernel (`int(4 sigma + 0.5)` samples either side) is at most `1 << 20` samples wide.
+    public static func profile(of polar: PolarPattern, sigma: Double = 2) throws -> [Double] {
+        try requireSigma(sigma)
         var median = [Double](repeating: 0, count: polar.radialCount)
         for r in 0..<polar.radialCount {
             var column = [Double]()
@@ -34,6 +36,13 @@ public enum RadialBackground {
         }
         guard sigma > 0 else { return median }
         return SciPyKernels.gaussianFilter1D(median, sigma: sigma, boundary: .reflect)
+    }
+
+    /// The smoothing width must be a number whose kernel can be built; zero or less means no smoothing.
+    static func requireSigma(_ sigma: Double) throws {
+        guard sigma.isFinite, sigma <= 0 || SciPyKernels.gaussianRadius(sigma: sigma) != nil else {
+            throw CuboVirtualError.invalidInput("the smoothing sigma \(sigma) must be finite and give a kernel of at most \(SciPyKernels.maximumKernelRadius) samples either side")
+        }
     }
 
     /// The elliptical radius of every detector pixel about `origin`, on the scale of the major semi-axis (`qrr`).
@@ -57,6 +66,7 @@ public enum RadialBackground {
     /// fewer than two radial bins (nothing to interpolate).
     public static func background(of source: some CubeSource, polar: PolarCube, calibration: Calibration, scanRow: Int,
                                   scanColumn: Int, sigma: Double = 2) async throws -> DetectorImage {
+        try requireSigma(sigma)
         let pattern = try await source.readPattern(row: scanRow, column: scanColumn)
         return try background(of: pattern, polar: polar, calibration: calibration, scanRow: scanRow, scanColumn: scanColumn, sigma: sigma)
     }
@@ -64,13 +74,13 @@ public enum RadialBackground {
     static func background(of pattern: DiffractionPattern, polar: PolarCube, calibration: Calibration, scanRow: Int, scanColumn: Int,
                            sigma: Double) throws -> DetectorImage {
         guard polar.radialCount >= 2 else { throw CuboVirtualError.invalidInput("a radial background needs at least two radial bins") }
-        guard sigma.isFinite else { throw CuboVirtualError.invalidInput("the smoothing sigma must be finite") }
+        try requireSigma(sigma)
         guard pattern.detectorRows == polar.detectorRows, pattern.detectorColumns == polar.detectorColumns else {
             throw CuboVirtualError.invalidInput("the polar cube samples a \(polar.detectorRows) x \(polar.detectorColumns) detector, the pattern has \(pattern.detectorRows) x \(pattern.detectorColumns)")
         }
         let place = try PolarCube.placement(of: calibration, scanRow: scanRow, scanColumn: scanColumn)
         let transformed = try polar.transform(pattern: pattern.values, origin: place.origin, ellipse: place.ellipse)
-        let oneD = profile(of: transformed, sigma: sigma)
+        let oneD = try profile(of: transformed, sigma: sigma)
         let qrr = ellipticalRadius(detectorRows: polar.detectorRows, detectorColumns: polar.detectorColumns, origin: place.origin,
                                    ellipse: calibration.ellipse == nil ? nil : place.ellipse)
         let values = qrr.map { SciPyKernels.interpolateLinear(x: polar.radialBins, y: oneD, at: $0) }
@@ -80,6 +90,7 @@ public enum RadialBackground {
     /// `get_radial_bksb_dp(rx, ry, sigma)`: the pattern minus its radial background, negative values set to zero.
     public static func subtracted(from source: some CubeSource, polar: PolarCube, calibration: Calibration, scanRow: Int,
                                   scanColumn: Int, sigma: Double = 2) async throws -> DetectorImage {
+        try requireSigma(sigma)
         let pattern = try await source.readPattern(row: scanRow, column: scanColumn)
         return try subtract(pattern, polar: polar, calibration: calibration, scanRow: scanRow, scanColumn: scanColumn, sigma: sigma)
     }
@@ -107,6 +118,7 @@ public enum RadialBackground {
                                     scanColumn: Int, sigma: Double = 2,
                                     keeping: (@Sendable (_ scanRow: Int, _ scanColumn: Int) throws -> [Bool])? = nil,
                                     isCancelled: (@Sendable () -> Bool)? = nil) async throws -> DetectorImage {
+        try requireSigma(sigma)
         let s = source.shape
         try polar.requireDetector(of: s)
         try s.requirePosition(row: scanRow, column: scanColumn)

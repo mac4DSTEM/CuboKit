@@ -36,6 +36,10 @@ public actor ResidentCube: CubeSource {
     /// device and ``ResidentCubeError/unavailable(_:)`` when the cube is larger than the memory cap
     /// (``memoryCapFraction`` of the physical memory) or than the device's largest buffer (`maxBufferLength`); ask
     /// ``availability(of:)`` first to get the reason as a value and its words as ``UnavailableReason/message``.
+    ///
+    /// Order of the checks: ``availability(of:)`` reports the memory cap before the Metal device, whereas this initialiser asks for
+    /// the device first. A Mac without Metal therefore always gets `noMetalDevice` here, even for a cube above the cap, where
+    /// `availability` would answer `exceedsMemoryCap`.
     public init(loading source: some CubeSource, tiling: ScanTiling = .automatic) async throws {
         let metal = try MetalReducers.context()
         let shape = source.shape
