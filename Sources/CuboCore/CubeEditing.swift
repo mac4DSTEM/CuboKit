@@ -282,3 +282,183 @@ public enum CubeEditing {
 private extension Float {
     var asDouble: Double { Double(self) }
 }
+
+// MARK: Fourier resampling (task 18; a self-contained addition beside the bilinear `resampleDetector`)
+
+/// How ``CubeEditing/resampleDetectorFourier(of:_:options:calibration:isCancelled:progress:)`` is told its size.
+public enum FourierResampleSpecification: Sendable, Equatable {
+    /// py4DSTEM `scale` (`resampling_factor` of `resample_data_diffraction(method="fourier")`, a single number for both axes):
+    /// the output extent is `int(extent * scale)` (truncated toward zero), and the Q pixel size divides by `scale` itself.
+    case scale(Double)
+    /// py4DSTEM `output_size`; the Q pixel size divides by `rows / detector rows`.
+    case outputSize(rows: Int, columns: Int)
+}
+
+/// The options of py4DSTEM's `fourier_resample` besides the size.
+public struct FourierResampleOptions: Sendable, Equatable {
+    /// `bandlimit_nyquist`: a Gaussian low-pass on the output spectrum with this width in Nyquist units (0.5 is the Nyquist
+    /// frequency of both axes); `nil` leaves the spectrum as it is.
+    public var bandlimitNyquist: Double? = nil
+    /// `bandlimit_power`: the Gaussian's power law (higher is sharper).
+    public var bandlimitPower: Double = 2
+    /// `force_nonnegative`: negative output values become 0, after the filter.
+    public var forceNonnegative: Bool = false
+    /// `conserve_array_sums`: no `prod(out) / prod(in)` factor, so the sum of every pattern is conserved (not its mean).
+    public var conserveSums: Bool = false
+    public init(bandlimitNyquist: Double? = nil, bandlimitPower: Double = 2, forceNonnegative: Bool = false, conserveSums: Bool = false) {
+        self.bandlimitNyquist = bandlimitNyquist; self.bandlimitPower = bandlimitPower
+        self.forceNonnegative = forceNonnegative; self.conserveSums = conserveSums
+    }
+}
+
+extension CubeEditing {
+    /// `resample_Q(method="fourier")`: every pattern resized by zero-padding or cropping its Fourier spectrum
+    /// (py4DSTEM `fourier_resample`), in Double with one rounding to Float32 at the end. The low frequencies keep their place
+    /// (the first `(n + 1) / 2` and the last `n / 2` of the smaller extent), so an even extent's Nyquist row goes to the negative
+    /// frequencies and is neither split nor doubled. The Q pixel size is updated as `resample_data_diffraction` does (see
+    /// ``FourierResampleSpecification``); the origin is not.
+    ///
+    /// py4DSTEM transforms in single precision (NumPy 2 `fft2` of a Float32 array is complex64) and, unless the sums are
+    /// conserved, multiplies by a NumPy float64 scalar, so its cube becomes float64 with single-precision values; this one is
+    /// Float32 throughout, agreeing to single precision (relative 1e-6 of the largest value). `isCancelled` is asked before each
+    /// tile and throws `CancellationError`; `progress` receives the fraction of scan rows done.
+    public static func resampleDetectorFourier(of source: some CubeSource, _ spec: FourierResampleSpecification,
+                                               options: FourierResampleOptions = FourierResampleOptions(),
+                                               calibration: Calibration = Calibration(),
+                                               isCancelled: (@Sendable () -> Bool)? = nil,
+                                               progress: (@Sendable (Double) -> Void)? = nil) async throws -> EditedCube {
+        let s = source.shape
+        let (outRows, outColumns, factor) = try fourierOutput(rows: s.detectorRows, columns: s.detectorColumns, spec)
+        let out = try CubeShape(scanRows: s.scanRows, scanColumns: s.scanColumns, detectorRows: outRows, detectorColumns: outColumns)
+        let plan = try FourierResamplePlan(rows: s.detectorRows, columns: s.detectorColumns, outputRows: outRows, outputColumns: outColumns,
+                                           options: options)
+        let inCount = s.detectorCount, outCount = outRows * outColumns
+        var all = [Float](repeating: 0, count: out.elementCount)
+        for range in try ScanTiling.automatic.ranges(for: s) {
+            if isCancelled?() == true { throw CancellationError() }
+            try Task.checkCancellation()
+            let tile = try await source.readScanTile(rows: range).values
+            let count = range.count * s.scanColumns, first = range.lowerBound * s.scanColumns
+            tile.withUnsafeBufferPointer { input in
+                all.withUnsafeMutableBufferPointer { output in
+                    let inBase = UnsafeSendable(UnsafeMutablePointer(mutating: input.baseAddress!))
+                    let outBase = UnsafeSendable(output.baseAddress! + first * outCount)
+                    DispatchQueue.concurrentPerform(iterations: count) { k in
+                        var plane = [Double](repeating: 0, count: inCount)
+                        for i in 0..<inCount { plane[i] = Double(inBase.pointer[k * inCount + i]) }
+                        let resized = plan.resample(plane, narrowToFloat: true)
+                        for i in 0..<outCount { outBase.pointer[k * outCount + i] = Float(resized[i]) }
+                    }
+                }
+            }
+            progress?(Double(range.upperBound) / Double(s.scanRows))
+        }
+        return EditedCube(cube: try MemoryCube(shape: out, values: all),
+                          calibration: try calibration.afterResamplingDetector(rowFactor: factor))
+    }
+
+    /// `fourier_resample(array, output_size=...)` of one two-dimensional array (row-major `rows x columns`) to `outputRows x
+    /// outputColumns`, entirely in Double: the float64 reference of ``resampleDetectorFourier(of:_:options:calibration:isCancelled:progress:)``.
+    public static func fourierResample(_ values: [Double], rows: Int, columns: Int, outputRows: Int, outputColumns: Int,
+                                       options: FourierResampleOptions = FourierResampleOptions()) throws -> [Double] {
+        guard rows > 0, columns > 0, values.count == rows * columns else {
+            throw CuboError.valueCountMismatch(expected: rows * columns, received: values.count)
+        }
+        let plan = try FourierResamplePlan(rows: rows, columns: columns, outputRows: outputRows, outputColumns: outputColumns, options: options)
+        return plan.resample(values, narrowToFloat: false)
+    }
+
+    /// The output extents (and the factor the pixel size divides by) that py4DSTEM derives from a scale or an output size.
+    public static func fourierOutput(rows: Int, columns: Int, _ spec: FourierResampleSpecification) throws
+        -> (rows: Int, columns: Int, factor: Double) {
+        switch spec {
+        case .scale(let f):
+            guard f.isFinite, f > 0 else { throw CuboError.invalidView("the resampling scale must be positive, not \(f)") }
+            let r = Int(Double(rows) * f), c = Int(Double(columns) * f)
+            guard r > 0, c > 0 else { throw CuboError.invalidView("resampling a \(rows) x \(columns) detector by \(f) leaves nothing") }
+            return (r, c, f)
+        case .outputSize(let r, let c):
+            guard r > 0, c > 0 else { throw CuboError.invalidView("the output size \(r) x \(c) is empty") }
+            return (r, c, Double(r) / Double(rows))
+        }
+    }
+}
+
+private struct UnsafeSendable<T>: @unchecked Sendable {
+    let pointer: UnsafeMutablePointer<T>
+    init(_ p: UnsafeMutablePointer<T>) { pointer = p }
+}
+
+/// The index maps, the optional low-pass and the transforms of one `fourier_resample` size pair, shared by every pattern.
+private struct FourierResamplePlan: Sendable {
+    let rows: Int, columns: Int, outputRows: Int, outputColumns: Int
+    let rowMap: [(out: Int, source: Int)], columnMap: [(out: Int, source: Int)]
+    let forward: FFT2D, inverse: FFT2D
+    let filter: [Double]?
+    let nonnegative: Bool
+    let scaleOutput: Double?    // nil with conserved sums
+
+    init(rows: Int, columns: Int, outputRows: Int, outputColumns: Int, options: FourierResampleOptions) throws {
+        guard outputRows > 0, outputColumns > 0 else { throw CuboError.invalidView("the output size \(outputRows) x \(outputColumns) is empty") }
+        self.rows = rows; self.columns = columns; self.outputRows = outputRows; self.outputColumns = outputColumns
+        rowMap = Self.axisMap(input: rows, output: outputRows)
+        columnMap = Self.axisMap(input: columns, output: outputColumns)
+        forward = FFT2D(rows: rows, columns: columns)
+        inverse = FFT2D(rows: outputRows, columns: outputColumns)
+        nonnegative = options.forceNonnegative
+        scaleOutput = options.conserveSums ? nil : Double(outputRows * outputColumns) / Double(rows * columns)
+        if let nyquist = options.bandlimitNyquist {
+            guard nyquist.isFinite, nyquist > 0, options.bandlimitPower.isFinite, options.bandlimitPower > 0 else {
+                throw CuboError.invalidView("the band limit needs a positive width and power")
+            }
+            let kx = Self.frequencies(outputRows), ky = Self.frequencies(outputColumns)
+            var f = [Double](repeating: 0, count: outputRows * outputColumns)
+            for r in 0..<outputRows { for c in 0..<outputColumns {
+                let k2 = kx[r] * kx[r] + ky[c] * ky[c]
+                f[r * outputColumns + c] = exp(pow(k2, options.bandlimitPower / 2) / (-2 * pow(nyquist, options.bandlimitPower)))
+            } }
+            filter = f
+        } else {
+            filter = nil
+        }
+    }
+
+    /// `np.fft.fftfreq(n)`: `[0, 1, ..., (n - 1) // 2, -(n // 2), ..., -1] * (1 / n)`.
+    static func frequencies(_ n: Int) -> [Double] {
+        let positive = (n - 1) / 2 + 1
+        let step = 1.0 / Double(n)
+        return (0..<n).map { i in Double(i < positive ? i : i - n) * step }
+    }
+
+    /// Which output index takes which input index along one axis: the first `(m + 1) / 2` and the last `m / 2` of the smaller
+    /// extent `m`, the head and the tail of the spectrum in FFT order.
+    static func axisMap(input n: Int, output m: Int) -> [(out: Int, source: Int)] {
+        if m == n { return (0..<n).map { ($0, $0) } }
+        let small = min(n, m)
+        let head = (small + 1) / 2, tail = small / 2
+        var map = (0..<head).map { (out: $0, source: $0) }
+        for k in 0..<tail { map.append((out: m - tail + k, source: n - tail + k)) }
+        return map
+    }
+
+    /// One pattern. `narrowToFloat` rounds the inverse transform to Float32 before the nonnegative clamp and the scale, as
+    /// py4DSTEM's `astype(dtype)` does; the Double reference leaves it out.
+    func resample(_ plane: [Double], narrowToFloat: Bool) -> [Double] {
+        var re = plane, im = [Double](repeating: 0, count: plane.count)
+        forward.transform(&re, &im, inverse: false)
+        var outRe = [Double](repeating: 0, count: outputRows * outputColumns), outIm = outRe
+        for (ro, rs) in rowMap { for (co, cs) in columnMap {
+            outRe[ro * outputColumns + co] = re[rs * columns + cs]
+            outIm[ro * outputColumns + co] = im[rs * columns + cs]
+        } }
+        if let filter { for i in filter.indices { outRe[i] *= filter[i]; outIm[i] *= filter[i] } }
+        inverse.transform(&outRe, &outIm, inverse: true)
+        for i in outRe.indices {
+            var v = narrowToFloat ? Double(Float(outRe[i])) : outRe[i]
+            if nonnegative { v = max(v, 0) }
+            if let scaleOutput { v *= scaleOutput }
+            outRe[i] = v
+        }
+        return outRe
+    }
+}
