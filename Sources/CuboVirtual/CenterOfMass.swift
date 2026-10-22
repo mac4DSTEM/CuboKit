@@ -26,15 +26,17 @@ public enum CenterOfMass {
     /// The centre of mass of every pattern of `source`, weighted by `mask`'s weights when one is given.
     public static func measure(of source: some CubeSource, mask: DetectorGeometry? = nil, path: ComputePath = .cpu,
                                tiling: ScanTiling = .automatic,
-                               progress: (@Sendable (Double) -> Void)? = nil) async throws -> CenterOfMassMaps {
+                               progress: (@Sendable (Double) -> Void)? = nil,
+                               isCancelled: (@Sendable () -> Bool)? = nil) async throws -> CenterOfMassMaps {
         let shape = source.shape
         let weights = try mask.map { try DetectorMask.make($0, shape: shape) }
             ?? [Float](repeating: 1, count: shape.detectorCount)
-        let sums: (s: [Double], r: [Double], c: [Double])
-        switch path {
-        case .cpu: sums = try await cpuSums(of: source, weights: weights, tiling: tiling, progress: progress)
-        case .metal: sums = try await MetalReducers.centerOfMassSums(of: source, weights: weights, tiling: tiling,
-                                                                      progress: progress)
+        let sums: (s: [Double], r: [Double], c: [Double]) = try await withInterruption(isCancelled) {
+            switch path {
+            case .cpu: return try await cpuSums(of: source, weights: weights, tiling: tiling, progress: progress)
+            case .metal: return try await MetalReducers.centerOfMassSums(of: source, weights: weights, tiling: tiling,
+                                                                          progress: progress)
+            }
         }
         func image(_ v: [Double]) -> ScanImage {
             ScanImage(scanRows: shape.scanRows, scanColumns: shape.scanColumns, values: v, path: path)
@@ -56,7 +58,7 @@ public enum CenterOfMass {
         var s = [Double](repeating: 0, count: shape.scanCount)
         var r = s, c = s
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
             // Positions in parallel: each keeps its own sums in pixel order, so the result is

@@ -18,7 +18,7 @@ enum CPUReducers {
         var out = [Double](repeating: 0, count: shape.scanCount)
         var pattern = [Double](repeating: 0, count: n)
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
             tile.values.withUnsafeBufferPointer { values in
@@ -38,8 +38,8 @@ enum CPUReducers {
         return ScanImage(scanRows: shape.scanRows, scanColumns: shape.scanColumns, values: out, path: .cpu)
     }
 
-    /// Mean and maximum pattern: per position in scan order, each pixel widened to Double and added with Neumaier
-    /// compensation; the maximum in Float32 (exact), seeded at −∞. The detector pixels are split into blocks that run on
+    /// Mean and maximum pattern: per position in scan order, each pixel widened to Double and added with a compensated
+    /// (TwoSum) sum, four pixels per SIMD step (``CompensatedSum``, bit for bit the earlier scalar Neumaier loop); the maximum in Float32 (exact), seeded at −∞. The detector pixels are split into blocks that run on
     /// every core; each pixel is still added in scan order, so the result is bit for bit the single-thread one. `wantMean`
     /// and `wantMax` skip the statistic that is not asked for (its result is then empty values of the right length).
     static func meanAndMax(of source: some CubeSource, tiling: ScanTiling, wantMean: Bool = true, wantMax: Bool = true,
@@ -50,17 +50,16 @@ enum CPUReducers {
         var sum = [Double](repeating: -0.0, count: n)
         var correction = [Double](repeating: -0.0, count: n)
         var maximum = [Float](repeating: -.infinity, count: n)
-        let blockSize = Swift.max(2048, (n + 4 * ProcessInfo.processInfo.activeProcessorCount - 1) / (4 * ProcessInfo.processInfo.activeProcessorCount))
+        let blockSize = 512  // 4 KiB of Float32 per position and 8 KiB of state: in L1, and 8 blocks per 4096 pixels keep every core busy
         let blocks = (n + blockSize - 1) / blockSize
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
-            let tile = try await source.readScanTile(rows: range)
-            let positions = tile.positionCount
-            tile.values.withUnsafeBufferPointer { values in
+            try checkInterrupted()
+            let positions = range.count * shape.scanColumns
+            try await withTileValues(of: source, rows: range) { values in
                 sum.withUnsafeMutableBufferPointer { s in
                     correction.withUnsafeMutableBufferPointer { c in
                         maximum.withUnsafeMutableBufferPointer { mx in
-                            let vp = SharedBuffer(base: UnsafeMutablePointer(mutating: values.baseAddress!))
+                            let vp = SharedBuffer(base: UnsafeMutablePointer(mutating: values))
                             let sp = SharedBuffer(base: s.baseAddress!), cp = SharedBuffer(base: c.baseAddress!)
                             let mp = SharedBuffer(base: mx.baseAddress!)
                             DispatchQueue.concurrentPerform(iterations: blocks) { b in
@@ -68,18 +67,7 @@ enum CPUReducers {
                                 for k in 0..<positions {
                                     let p = vp.base + k * n
                                     if wantMean {
-                                        for i in lo..<hi {
-                                            let x = Double(p[i])
-                                            let a = sp.base[i]
-                                            let t = a + x
-                                            // Only a finite step carries a correction (∞ − ∞ is NaN), and only a non-zero one is
-                                            // added, so a correction of +0 never turns a −0 column positive.
-                                            if t.isFinite {
-                                                let e = abs(a) >= abs(x) ? (a - t) + x : (x - t) + a
-                                                if e != 0 { cp.base[i] += e }
-                                            }
-                                            sp.base[i] = t
-                                        }
+                                        CompensatedSum.add(p + lo, weight: nil, sum: sp.base + lo, correction: cp.base + lo, count: hi - lo)
                                     }
                                     if wantMax {
                                         vDSP_vmax(mp.base + lo, 1, p + lo, 1, mp.base + lo, 1, vDSP_Length(hi - lo))
@@ -93,7 +81,7 @@ enum CPUReducers {
             progress?(Double(range.upperBound) / Double(shape.scanRows))
         }
         let count = Double(shape.scanCount)
-        let mean = (0..<n).map { (sum[$0] + correction[$0]) / count }
+        let mean = (0..<n).map { CompensatedSum.value(sum: sum[$0], correction: correction[$0]) / count }
         return (DetectorImage(detectorRows: shape.detectorRows, detectorColumns: shape.detectorColumns,
                               values: mean, path: .cpu),
                 DetectorImage(detectorRows: shape.detectorRows, detectorColumns: shape.detectorColumns,

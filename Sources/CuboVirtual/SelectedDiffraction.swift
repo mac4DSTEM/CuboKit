@@ -39,9 +39,24 @@ extension VirtualDiffraction {
     /// `path: .metal` runs the mean and the max over `.all`, `.mask` and `.weights` on the GPU (compensated Float32 sums
     /// combined in Double, held to the CPU path within relative 1e-5); the median and a centre shift are CPU only and
     /// throw with `.metal`. A ``ResidentCube`` is read in place.
+    ///
+    /// `progress` receives the fraction done (scan rows per tile; for the median, tiles over all passes), never decreasing and
+    /// ending at 1; `isCancelled` is asked before each tile and throws `CancellationError` when it answers true, returning
+    /// nothing (as does a cancelled task).
     public static func pattern(of source: some CubeSource, statistic: DiffractionStatistic, scan: ScanSelection = .all,
                                shift: PatternShift? = nil, path: ComputePath = .cpu, tiling: ScanTiling = .automatic,
-                               medianWorkingBytes: Int = 256 << 20) async throws -> DetectorImage {
+                               medianWorkingBytes: Int = 256 << 20,
+                               progress: (@Sendable (Double) -> Void)? = nil,
+                               isCancelled: (@Sendable () -> Bool)? = nil) async throws -> DetectorImage {
+        try await withInterruption(isCancelled) {
+            try await selectedPattern(of: source, statistic: statistic, scan: scan, shift: shift, path: path, tiling: tiling,
+                                      medianWorkingBytes: medianWorkingBytes, progress: progress)
+        }
+    }
+
+    private static func selectedPattern(of source: some CubeSource, statistic: DiffractionStatistic, scan: ScanSelection,
+                                        shift: PatternShift?, path: ComputePath, tiling: ScanTiling, medianWorkingBytes: Int,
+                                        progress: (@Sendable (Double) -> Void)?) async throws -> DetectorImage {
         guard medianWorkingBytes > 0 else { throw CuboVirtualError.invalidInput("the median's working memory must be positive") }
         let shape = source.shape
         let weights: [Double]?
@@ -69,13 +84,13 @@ extension VirtualDiffraction {
             guard statistic != .median else {
                 throw CuboVirtualError.invalidInput("a centre-shifted median is not defined (py4DSTEM: mean and max only)")
             }
-            return try await shifted(source, statistic, selected, weights, shift, tiling)
+            return try await shifted(source, statistic, selected, weights, shift, tiling, progress)
         }
         if case .all = scan, statistic != .median {
-            return statistic == .mean ? try await mean(of: source, path: path, tiling: tiling)
-                : try await max(of: source, path: path, tiling: tiling)
+            return statistic == .mean ? try await mean(of: source, path: path, tiling: tiling, progress: progress)
+                : try await max(of: source, path: path, tiling: tiling, progress: progress)
         }
-        if statistic == .median { return try await median(source, selected, weights, tiling, medianWorkingBytes) }
+        if statistic == .median { return try await median(source, selected, weights, tiling, medianWorkingBytes, progress) }
         if path == .metal {
             var take = [Bool](repeating: false, count: shape.scanCount)
             for k in selected { take[k] = true }
@@ -87,42 +102,65 @@ extension VirtualDiffraction {
                 guard count != 0 else { throw CuboVirtualError.invalidInput("the weights sum to zero") }
             }
             return try await MetalReducers.weightedPattern(of: source, statistic: statistic, take: take, weights: weights,
-                                                           count: count, tiling: tiling, progress: nil)
+                                                           count: count, tiling: tiling, progress: progress)
         }
-        return try await reduce(source, statistic, selected, weights, tiling)
+        return try await reduce(source, statistic, selected, weights, tiling, progress)
     }
 
-    /// Mean and max over a mask or weights, in scan order: Neumaier sums per pixel, the maximum with NaN winning.
+    /// Mean and max over a mask or weights, in scan order: compensated sums per pixel, the maximum with NaN winning.
     private static func reduce(_ source: some CubeSource, _ statistic: DiffractionStatistic, _ selected: [Int],
-                               _ weights: [Double]?, _ tiling: ScanTiling) async throws -> DetectorImage {
+                               _ weights: [Double]?, _ tiling: ScanTiling,
+                               _ progress: (@Sendable (Double) -> Void)?) async throws -> DetectorImage {
         let shape = source.shape
         let n = shape.detectorCount
         var take = [Bool](repeating: false, count: shape.scanCount)
         for k in selected { take[k] = true }
-        var sums = [Neumaier](repeating: Neumaier(), count: n)
-        var maximum = [Double](repeating: -.infinity, count: n)
+        // Mean: a compensated sum per pixel (SIMD TwoSum, ``CompensatedSum``), the detector pixels in blocks on every core, each
+        // pixel added in scan order; the sums start at +0 as the scalar Neumaier did.
+        var sum = [Double](repeating: 0, count: statistic == .mean ? n : 0)
+        var correction = [Double](repeating: 0, count: statistic == .mean ? n : 0)
+        var maximum = [Double](repeating: -.infinity, count: statistic == .mean ? 0 : n)
         var total = Neumaier()
+        let blockSize = 512
+        let blocks = (n + blockSize - 1) / blockSize
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
-            let tile = try await source.readScanTile(rows: range)
+            try checkInterrupted()
             let first = range.lowerBound * shape.scanColumns
-            for k in 0..<tile.positionCount where take[first + k] {
-                let w = weights?[first + k] ?? 1.0
-                total.add(w)
-                for i in 0..<n {
-                    let v = weights == nil ? Double(tile.values[k * n + i]) : Double(tile.values[k * n + i]) * w
-                    if statistic == .mean { sums[i].add(v) } else {
-                        let m = maximum[i]    // np.max: NaN wins; of equal values (±0) the first is kept
-                        maximum[i] = (m.isNaN || v.isNaN) ? .nan : (v > m ? v : m)
+            let picked = (0..<(range.count * shape.scanColumns)).filter { take[first + $0] }
+            for k in picked { total.add(weights?[first + k] ?? 1.0) }
+            try await withTileValues(of: source, rows: range) { values in
+                if statistic == .mean {
+                    sum.withUnsafeMutableBufferPointer { s in
+                        correction.withUnsafeMutableBufferPointer { c in
+                            let sp = SharedBuffer(base: s.baseAddress!), cp = SharedBuffer(base: c.baseAddress!)
+                            let vp = SharedBuffer(base: UnsafeMutablePointer(mutating: values))
+                            DispatchQueue.concurrentPerform(iterations: blocks) { b in
+                                let lo = b * blockSize, hi = Swift.min(n, lo + blockSize)
+                                for k in picked {
+                                    CompensatedSum.add(vp.base + k * n + lo, weight: weights.map { $0[first + k] },
+                                                       sum: sp.base + lo, correction: cp.base + lo, count: hi - lo)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    for k in picked {
+                        let w = weights?[first + k] ?? 1.0
+                        for i in 0..<n {
+                            let v = weights == nil ? Double(values[k * n + i]) : Double(values[k * n + i]) * w
+                            let m = maximum[i]    // np.max: NaN wins; of equal values (±0) the first is kept
+                            maximum[i] = (m.isNaN || v.isNaN) ? .nan : (v > m ? v : m)
+                        }
                     }
                 }
             }
+            progress?(Double(range.upperBound) / Double(shape.scanRows))
         }
         let values: [Double]
         if statistic == .mean {
             let count = weights == nil ? Double(selected.count) : total.value
             guard count != 0 else { throw CuboVirtualError.invalidInput("the weights sum to zero") }
-            values = sums.map { $0.value / count }
+            values = (0..<n).map { CompensatedSum.value(sum: sum[$0], correction: correction[$0]) / count }
         } else {
             values = maximum
         }
@@ -133,7 +171,8 @@ extension VirtualDiffraction {
     /// The median per pixel over the selected positions (of P·w with weights). Detector pixels in blocks that fit the
     /// working memory, each block gathered from every tile and sorted per pixel.
     private static func median(_ source: some CubeSource, _ selected: [Int], _ weights: [Double]?,
-                               _ tiling: ScanTiling, _ workingBytes: Int) async throws -> DetectorImage {
+                               _ tiling: ScanTiling, _ workingBytes: Int,
+                               _ progress: (@Sendable (Double) -> Void)?) async throws -> DetectorImage {
         let shape = source.shape
         let n = shape.detectorCount, count = selected.count
         var slot = [Int](repeating: -1, count: shape.scanCount)
@@ -142,11 +181,14 @@ extension VirtualDiffraction {
         var out = [Double](repeating: 0, count: n)
         let ranges = try tiling.ranges(for: shape)
         var start = 0
+        let passes = (n + block - 1) / block
+        var tilesDone = 0
         while start < n {
             let end = Swift.min(start + block, n), width = end - start
             var gathered = [Double](repeating: 0, count: width * count)   // pixel-major: [pixel][position]
             for range in ranges {
-                try Task.checkCancellation()
+                try checkInterrupted()
+                defer { tilesDone += 1; progress?(Double(tilesDone) / Double(Swift.max(1, passes * ranges.count))) }
                 let tile = try await source.readScanTile(rows: range)
                 let first = range.lowerBound * shape.scanColumns
                 for k in 0..<tile.positionCount where slot[first + k] >= 0 {
@@ -182,7 +224,8 @@ extension VirtualDiffraction {
     /// The centre-shifted mean and max over a selection (slice 3, 3.4, with py4DSTEM's mask): each selected pattern moved
     /// by the map's mean minus its origin, then Σ moved (· w) / count (or Σ w) and the max of moved (· w), seeded at −∞.
     private static func shifted(_ source: some CubeSource, _ statistic: DiffractionStatistic, _ selected: [Int],
-                                _ weights: [Double]?, _ shift: PatternShift, _ tiling: ScanTiling) async throws
+                                _ weights: [Double]?, _ shift: PatternShift, _ tiling: ScanTiling,
+                                _ progress: (@Sendable (Double) -> Void)?) async throws
         -> DetectorImage {
         let shape = source.shape
         let map: OriginMap, fourier: Bool
@@ -196,7 +239,7 @@ extension VirtualDiffraction {
         var top = [Double](repeating: -.infinity, count: n)
         var weight = Neumaier()
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
             for k in 0..<tile.positionCount where take[first + k] {
@@ -218,6 +261,7 @@ extension VirtualDiffraction {
                     }
                 }
             }
+            progress?(Double(range.upperBound) / Double(shape.scanRows))
         }
         if statistic == .max { return DetectorImage(detectorRows: qy, detectorColumns: qx, values: top, path: .cpu) }
         let norm = weights == nil ? Double(selected.count) : weight.value

@@ -88,16 +88,21 @@ public enum CubeEditing {
         guard outRows > 0, outColumns > 0 else { throw CuboError.invalidView("binning a \(s.scanRows) x \(s.scanColumns) scan by \(factor) leaves nothing") }
         let out = try CubeShape(scanRows: outRows, scanColumns: outColumns, detectorRows: s.detectorRows, detectorColumns: s.detectorColumns)
         let dc = s.detectorCount
-        var o = [Float](); o.reserveCapacity(out.elementCount)
-        for r in 0..<outRows {
+        // Sums of Double in block order, rounded once; several output rows per read, the output positions on every core.
+        var o = [Float](repeating: 0, count: out.elementCount)
+        let chunkRows = max(1, min(outRows, (32 << 20) / max(1, factor * s.elementsPerScanRow * MemoryLayout<Float>.stride)))
+        var r = 0
+        while r < outRows {
             try Task.checkCancellation()
-            let tile = try await source.readScanTile(rows: (r * factor)..<(r * factor + factor)).values
-            var sums = [Double](repeating: 0, count: outColumns * dc)
-            for dr in 0..<factor { for c in 0..<(outColumns * factor) {
-                let base = (dr * s.scanColumns + c) * dc, target = (c / factor) * dc
-                for q in 0..<dc { sums[target + q] += Double(tile[base + q]) }
-            } }
-            o.append(contentsOf: sums.map { Float($0) })
+            let count = min(chunkRows, outRows - r)
+            let start = r
+            try await withScanRows(of: source, rows: (start * factor)..<((start + count) * factor)) { input in
+                o.withUnsafeMutableBufferPointer { target in
+                    binScanRows(input, scanColumns: s.scanColumns, detectorCount: dc, factor: factor, outRowCount: count,
+                                outColumns: outColumns, into: target.baseAddress! + start * outColumns * dc)
+                }
+            }
+            r += count
         }
         return EditedCube(cube: try MemoryCube(shape: out, values: o), calibration: try calibration.afterBinningScan(by: factor))
     }
@@ -240,19 +245,19 @@ public enum CubeEditing {
         for r in 0..<s.detectorRows { for c in 0..<s.detectorColumns where mask[r * s.detectorColumns + c] {
             windows.append((r, c, max(0, r - widthMin), min(s.detectorRows, r + widthMax), max(0, c - widthMin), min(s.detectorColumns, c + widthMax)))
         } }
-        return try await perPattern(source, outShape: s, calibration: calibration) { pattern in
-            var p = pattern
-            var scratch = [Float]()
-            for (r, c, r0, r1, c0, c1) in windows {
-                scratch.removeAll(keepingCapacity: true)
-                for rr in r0..<r1 { for cc in c0..<c1 { scratch.append(p[rr * s.detectorColumns + cc]) } }
-                let n = scratch.count
-                if scratch.contains(where: \.isNaN) { p[r * s.detectorColumns + c] = .nan; continue }   // np.median
-                scratch.sort()
-                p[r * s.detectorColumns + c] = n % 2 == 1 ? scratch[n / 2] : (scratch[n / 2 - 1] + scratch[n / 2]) / 2
+        let medianWindows = windows.map { MedianWindow(row: $0.0, column: $0.1, rowStart: $0.2, rowEnd: $0.3, columnStart: $0.4, columnEnd: $0.5) }
+        var all = [Float](repeating: 0, count: s.elementCount)
+        for range in try ScanTiling.automatic.ranges(for: s) {
+            try Task.checkCancellation()
+            let first = range.lowerBound * s.elementsPerScanRow
+            try await withScanRows(of: source, rows: range) { input in
+                all.withUnsafeMutableBufferPointer { target in
+                    medianFilterPatterns(input, positionCount: range.count * s.scanColumns, detectorRows: s.detectorRows,
+                                         detectorColumns: s.detectorColumns, windows: medianWindows, into: target.baseAddress! + first)
+                }
             }
-            return p
         }
+        return EditedCube(cube: try MemoryCube(shape: s, values: all), calibration: calibration)
     }
 
     // MARK: plumbing

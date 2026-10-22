@@ -120,7 +120,17 @@ extension OriginMeasurement {
     /// cancellation is checked between them.
     public static func measure(of source: some CubeSource, radius: Double, radiusScale: Double = 1.2,
                                estimator: OriginEstimator, path: ComputePath = .cpu, tiling: ScanTiling = .automatic,
-                               progress: (@Sendable (Double) -> Void)? = nil) async throws -> OriginMap {
+                               progress: (@Sendable (Double) -> Void)? = nil,
+                               isCancelled: (@Sendable () -> Bool)? = nil) async throws -> OriginMap {
+        try await withInterruption(isCancelled) {
+            try await measureOrigins(of: source, radius: radius, radiusScale: radiusScale, estimator: estimator, path: path,
+                                     tiling: tiling, progress: progress)
+        }
+    }
+
+    private static func measureOrigins(of source: some CubeSource, radius: Double, radiusScale: Double,
+                                       estimator: OriginEstimator, path: ComputePath, tiling: ScanTiling,
+                                       progress: (@Sendable (Double) -> Void)?) async throws -> OriginMap {
         guard radius > 0, radius < 1e6 else { throw CuboVirtualError.invalidRadius(radius) }
         guard radiusScale > 0, radiusScale < 1e6, radius * radiusScale < 1e6 else { throw CuboVirtualError.invalidRadius(radiusScale) }
         switch estimator {
@@ -140,7 +150,7 @@ extension OriginMeasurement {
             var rows = [Double](repeating: 0, count: shape.scanCount), cols = rows
             let metal = path == .metal ? try MetalReducers.context() : nil
             for range in try tiling.ranges(for: shape) {
-                try Task.checkCancellation()
+                try checkInterrupted()
                 let tile = try await source.readScanTile(rows: range)
                 let first = range.lowerBound * shape.scanColumns
                 let found: [(Float, Float)]
@@ -195,7 +205,7 @@ extension OriginMeasurement {
         var gathered = [Float]()
         gathered.reserveCapacity(indices.count * shape.detectorCount)
         for index in indices {
-            try Task.checkCancellation()
+            try checkInterrupted()
             gathered.append(contentsOf: try await source.readPattern(row: index / shape.scanColumns,
                                                                      column: index % shape.scanColumns).values)
         }

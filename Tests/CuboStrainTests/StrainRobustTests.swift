@@ -84,9 +84,8 @@ import CuboStrain
         close(a.basis.g1.row, b.basis.g1.row, 1e-6, scale: 10)
         close(a.basis.g2.column, b.basis.g2.column, 1e-6, scale: 10)
         #expect(try LatticeStrain.fitRobust(Array(base.prefix(4)), minimumPeaks: 5) == nil)
-        var bad = base; bad[3].intensity = 1e12
-        #expect(throws: LatticeStrainError.self) { try LatticeStrain.fitRobust(bad) }
-        bad = base; bad[3].intensity = -1
+        // 1e10 and above is rescaled in Double first (0.9.0; earlier versions refused it): see RobustLargeIntensityTests.
+        var bad = base; bad[3].intensity = -1
         #expect(throws: LatticeStrainError.self) { try LatticeStrain.fitRobust(bad) }
     }
 
@@ -154,12 +153,12 @@ import CuboStrain
     // MARK: - the scan-level path
 
     /// A 3 × 3 scan: position 4 carries exx = 0.01 (row axis scaled by 0.99); every position has one off-lattice peak
-    /// inside the indexing gate; the last carries an unrepresentable intensity the kit must refuse.
+    /// inside the indexing gate; the last carries a negative intensity the kit must refuse.
     func scan() -> [[StrainPeak]] {
         (0..<9).map { position in
             var list = lattice(rowScale: position == 4 ? 0.99 : 1).map { StrainPeak(row: $0.vector.row, column: $0.vector.column, intensity: $0.intensity) }
             list.append(StrainPeak(row: g1.row + 0.9, column: g1.column - 0.4, intensity: 1.2))
-            if position == 8 { list[2].intensity = 1e12 }
+            if position == 8 { list[2].intensity = -1 }
             return list
         }
     }
@@ -210,7 +209,8 @@ import CuboStrain
         let o = StrainMapOptions(maximumPeakSpacing: 5)
         #expect(o.indexing == .nearestDirection && o.indexingTolerance == nil && o.fitMethod == .py4DSTEM)
         let basis = LatticeBasis(g1: g1, g2: g2)
-        let peaks = scan().map { Array($0.prefix(24)) }
+        var peaks = scan().map { Array($0.prefix(24)) }
+        peaks[8][2].intensity = 1e12   // the py4DSTEM fit takes a bright peak (the refused one of scan() is the negative intensity)
         let r = try StrainMapping.compute(peaks: peaks, scanRows: 3, scanColumns: 3, detectorRows: 64, detectorColumns: 64,
                                           origin: .init(row: 0, column: 0), directions: StrainDirections.lattice(basis: basis), options: o)
         #expect(r.refusedFitCount == 0 && r.firstRefusal == nil && r.valid.allSatisfy { $0 })

@@ -242,10 +242,16 @@ public enum StrainMapping {
     /// `round(detector * sampling)` cells (ties to even). `scanMask` keeps the positions where it is true;
     /// `scanWeights` keeps those with weight above `weightsThreshold` and scales their intensities (not both).
     /// `peaks` holds one list per scan position, row-major.
+    ///
+    /// `isCancelled` is asked before every scan position and throws `CancellationError` when it answers true (never a partial
+    /// map); `progress` receives the fraction of scan positions done, never decreasing, ending at 1 (as
+    /// ``RotationSolver/curve(_:anglesDegrees:criterion:transpose:isCancelled:)`` does for its angles).
     public static func histogram(peaks: [[StrainPeak]], scanRows: Int, scanColumns: Int,
                                  detectorRows: Int, detectorColumns: Int, origin: LatticeVector,
                                  sampling: Double = 1, scanMask: [Bool]? = nil, scanWeights: [Double]? = nil,
-                                 weightsThreshold: Double = 0.005) throws -> BraggVectorHistogram {
+                                 weightsThreshold: Double = 0.005,
+                                 isCancelled: (@Sendable () -> Bool)? = nil,
+                                 progress: (@Sendable (Double) -> Void)? = nil) throws -> BraggVectorHistogram {
         try checkScan(peaks, scanRows, scanColumns)
         guard detectorRows > 0, detectorColumns > 0 else { throw bad("the detector must be at least 1 × 1 (\(detectorRows) × \(detectorColumns))") }
         guard origin.row.isFinite, origin.column.isFinite else { throw bad("the origin must be finite") }
@@ -265,7 +271,10 @@ public enum StrainMapping {
         }
         let size = gridRows * gridColumns
         var b00 = [Double](repeating: 0, count: size), b01 = b00, b10 = b00, b11 = b00
+        var gate = ProgressGate(total: n, from: 0, to: 1, progress)
         for position in 0..<n {
+            if isCancelled?() == true { throw CancellationError() }
+            gate.done(position)
             var weight = 1.0
             if let scanMask { guard scanMask[position] else { continue } }
             if let scanWeights { guard scanWeights[position] > weightsThreshold else { continue }; weight = scanWeights[position] }
@@ -284,6 +293,7 @@ public enum StrainMapping {
                 b11[cr * gridColumns + cc] += intensity * dr * dc
             }
         }
+        gate.done(n)
         var values = [Double](repeating: 0, count: size)
         for i in 0..<size { values[i] = b00[i] + b01[i] + b10[i] + b11[i] }
         return BraggVectorHistogram(rows: gridRows, columns: gridColumns, values: values,
@@ -339,11 +349,20 @@ public enum StrainMapping {
     /// A position is valid when it is in the scan mask and at least `minimumPeaks` of its peaks are indexed; the
     /// reference is the median of the valid positions in the reference region. A position whose weights sum to zero
     /// (all intensities 0) is treated as not fitted, where py4DSTEM would store NaN.
+    ///
+    /// - `isCancelled`: asked before every scan position of the Bragg vector map and of the local fits, and between the
+    ///   stages; when it answers true the call throws `CancellationError` and returns nothing (never a partial map), as
+    ///   ``RotationSolver/curve(_:anglesDegrees:criterion:transpose:isCancelled:)`` does. Default nil: never cancelled.
+    /// - `progress`: the fraction of the work done, from 0 to 1, never decreasing, called with 1 once just before the
+    ///   result is returned (at most about a hundred calls per stage, on the calling thread). The Bragg vector map takes the
+    ///   first tenth when `directions` is nil, the local fits the bulk, the reference and strain stages the rest.
     public static func compute(peaks: [[StrainPeak]], scanRows: Int, scanColumns: Int,
                                detectorRows: Int, detectorColumns: Int, origin: LatticeVector,
                                directions suppliedDirections: StrainDirections? = nil,
                                basisOptions: StrainBasisOptions = StrainBasisOptions(),
-                               options: StrainMapOptions) throws -> StrainMapResult {
+                               options: StrainMapOptions,
+                               isCancelled: (@Sendable () -> Bool)? = nil,
+                               progress: (@Sendable (Double) -> Void)? = nil) throws -> StrainMapResult {
         try checkScan(peaks, scanRows, scanColumns)
         let n = scanRows * scanColumns
         guard options.maximumPeakSpacing.isFinite, options.maximumPeakSpacing >= 0 else {
@@ -363,10 +382,14 @@ public enum StrainMapping {
             directions = suppliedDirections
         } else {
             let h = try Self.histogram(peaks: peaks, scanRows: scanRows, scanColumns: scanColumns,
-                                       detectorRows: detectorRows, detectorColumns: detectorColumns, origin: origin)
+                                       detectorRows: detectorRows, detectorColumns: detectorColumns, origin: origin,
+                                       isCancelled: isCancelled, progress: progress.map { p in { @Sendable f in p(0.1 * f) } })
             histogram = h
+            if isCancelled?() == true { throw CancellationError() }
             directions = try chooseBasisVectors(histogram: h, options: basisOptions)
+            progress?(0.1)
         }
+        let fitStart = suppliedDirections == nil ? 0.1 : 0.0
         guard !directions.directions.isEmpty else { throw bad("there are no lattice directions to index against") }
 
         // fit_basis_vectors: index each peak to its nearest direction, fit the lattice.
@@ -383,7 +406,10 @@ public enum StrainMapping {
             rounding = (order, tolerance)
         }
         var refusedCount = 0, firstRefusal: String?
+        var gate = ProgressGate(total: n, from: fitStart, to: 0.9, progress)
         for position in 0..<n where options.scanMask?[position] ?? true {
+            if isCancelled?() == true { throw CancellationError() }
+            gate.done(position)
             let measured = peaks[position].map { LatticePeak(row: $0.row, column: $0.column, intensity: $0.intensity) }
             let indexed: [LatticePeak]
             if let rounding {
@@ -418,6 +444,9 @@ public enum StrainMapping {
             bases[position] = fit.basis
         }
 
+        gate.done(n)
+        if isCancelled?() == true { throw CancellationError() }
+
         // get_reference_g1g2
         let reference: LatticeBasis, referenceCount: Int, inlierCount: Int
         switch options.reference {
@@ -439,6 +468,9 @@ public enum StrainMapping {
             referenceCount = chosen.count
         }
 
+        progress?(0.9)
+        if isCancelled?() == true { throw CancellationError() }
+
         // get_strain
         var exx = [Double](repeating: nan, count: n), eyy = exx, exy = exx, theta = exx
         for position in 0..<n {
@@ -446,12 +478,15 @@ public enum StrainMapping {
             let s = try LatticeStrain.strain(local: local, reference: reference, coordinateRotation: options.coordinateRotation)
             exx[position] = s.exx; eyy[position] = s.eyy; exy[position] = s.exy; theta[position] = s.theta
         }
+        if isCancelled?() == true { throw CancellationError() }
+        progress?(0.95)
         let observations = peaks.flatMap { $0 }.compactMap { p -> LatticeVector? in
             let r = hypot(p.row, p.column)
             return r > 0 && r.isFinite ? LatticeVector(row: p.row, column: p.column) : nil
         }
         let score = LatticeStrain.scoreBasis(basis: dBasis, observations: observations,
                                              tolerance: rounding?.tolerance ?? LatticeStrain.indexingTolerance(basis: dBasis))
+        progress?(1)
         return StrainMapResult(scanRows: scanRows, scanColumns: scanColumns, histogram: histogram, directions: directions,
                                valid: valid, indexedPeakCount: indexedCount, originRow: x0, originColumn: y0,
                                g1Row: g1r, g1Column: g1c, g2Row: g2r, g2Column: g2c, residual: err,
@@ -473,5 +508,22 @@ public enum StrainMapping {
     private static func checkScan(_ peaks: [[StrainPeak]], _ rows: Int, _ columns: Int) throws {
         guard rows > 0, columns > 0, rows <= Int.max / columns else { throw bad("the scan must be at least 1 × 1 (\(rows) × \(columns))") }
         guard peaks.count == rows * columns else { throw bad("\(peaks.count) peak lists for a \(rows) × \(columns) scan") }
+    }
+}
+
+/// Reports `from + (to - from) * done / total` to `progress`, at most about a hundred times, never decreasing.
+struct ProgressGate {
+    private let total: Int, from: Double, to: Double
+    private let progress: (@Sendable (Double) -> Void)?
+    private var last = -1
+    init(total: Int, from: Double, to: Double, _ progress: (@Sendable (Double) -> Void)?) {
+        self.total = Swift.max(1, total); self.from = from; self.to = to; self.progress = progress
+    }
+    mutating func done(_ count: Int) {
+        guard let progress else { return }
+        let percent = count * 100 / total
+        guard percent > last else { return }
+        last = percent
+        progress(from + (to - from) * Double(count) / Double(total))
     }
 }

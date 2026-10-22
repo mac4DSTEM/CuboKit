@@ -43,7 +43,7 @@ public actor ResidentCube: CubeSource {
         let buffer = try metal.buffer(floats: shape.elementCount, label: "CuboKit resident cube \(shape)")
         let base = buffer.contents().bindMemory(to: Float.self, capacity: shape.elementCount)
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let tile = try await source.readScanTile(rows: range)
             tile.values.withUnsafeBufferPointer { v in
                 (base + range.lowerBound * shape.elementsPerScanRow).update(from: v.baseAddress!, count: v.count)

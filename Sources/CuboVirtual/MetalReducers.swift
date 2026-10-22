@@ -382,7 +382,7 @@ enum MetalReducers {
         var s = [Double](repeating: 0, count: shape.scanCount)
         var r = s, c = s
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let (data, offset, positions) = try await tileBuffer(metal, source, range)
             let out = try metal.buffer(floats: 6 * positions, label: "CuboKit CoM sums")
             try await metal.run(metal.centerOfMass, threads: positions, buffers: [data, wBuffer, wiBuffer, wjBuffer, out],
@@ -422,7 +422,7 @@ enum MetalReducers {
         let maskBuffer = try metal.buffer(mask, label: "CuboKit detector mask")
         var out = [Double](repeating: 0, count: shape.scanCount)
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let (data, offset, positions) = try await tileBuffer(metal, source, range)
             let image = try metal.buffer(floats: 2 * positions, label: "CuboKit virtual image tile (sum, correction)")
             try await metal.run(metal.virtualImage, threads: positions, buffers: [data, maskBuffer, image], offsets: [offset],
@@ -446,7 +446,7 @@ enum MetalReducers {
         let sums = try metal.buffer(floats: 2 * n, label: "CuboKit tile sums (sum, correction)")
         let maxima = try metal.buffer(floats: n, label: "CuboKit tile maxima")
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let (data, offset, positions) = try await tileBuffer(metal, source, range)
             try await metal.run(metal.sumAndMax, threads: n, buffers: [data, sums, maxima], offsets: [offset],
                                 dims: .init(positions: UInt32(positions),
@@ -493,10 +493,13 @@ enum MetalReducers {
         let sums = try metal.buffer(floats: 2 * n, label: "CuboKit selected-area sums (sum, correction)")
         let maxima = try metal.buffer(floats: n, label: "CuboKit selected-area maxima")
         for range in try tiling.ranges(for: shape) {
-            try Task.checkCancellation()
+            try checkInterrupted()
             let first = range.lowerBound * shape.scanColumns
             let positions = range.count * shape.scanColumns
-            guard (0..<positions).contains(where: { take[first + $0] }) else { continue }
+            guard (0..<positions).contains(where: { take[first + $0] }) else {
+                progress?(Double(range.upperBound) / Double(shape.scanRows))
+                continue
+            }
             let w: [Float] = (0..<positions).map { k in
                 take[first + k] ? (weights.map { Float($0[first + k]) } ?? 1) : 0
             }

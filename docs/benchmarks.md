@@ -64,6 +64,51 @@ Float32 cubes, best of five after one warm-up; cells are best / median (spread) 
 | virtual_image_circle | mid | 0.7 / 0.7 (0.0) | 2.2 / 2.3 (0.6) | 7.0 / 7.1 (0.2) | 9.88x |
 | virtual_image_circle | typical | 10.3 / 10.8 (1.0) | 23.5 / 24.1 (1.9) | 31.3 / 32.7 (2.8) | 3.04x |
 
+## Speed round, 2026-10-22: the CPU mean, selected-area means and bin_R
+
+The first table above is the 2026-10-21 run. Five of its rows (`dp_mean`, `selected_area_mean_mask`, `selected_area_mean_weights`, `bin_R_2`,
+`median_masked_pixels`) were then the slowest against py4DSTEM; this round replaced their scalar loops and measured again. What changed:
+the mean and the selected-area mean add with a branch-free SIMD TwoSum (four pixels per step, no per-element finite check; the check
+moved to a post-pass on the result, `CompensatedSum`), the pixels split into 512-pixel blocks across every core (the old split made
+two blocks at 4096 pixels), a `MemoryCube` is read in place instead of through a 64 MiB tile copy; `binScan` sums four pixels per step and
+splits the output positions across cores; `medianFilterMaskedPixels` filters the patterns across cores with a fixed small buffer per
+window instead of a sorted array allocated per masked pixel and pattern.
+
+Method: three alternating rounds of old sources, new sources and Python, each 15 calls after one warm-up, `Tests/CuboVirtualTests/SpeedBench.swift`
+(Swift, both builds) and `tools/benchmarks/bench.py speed` (py4DSTEM/NumPy 2.5.4); cells are the median of the call medians in
+milliseconds, the three rounds' medians in brackets. The Mac was shared (load average 9 to 13 throughout), so every number is a
+loaded-machine number: the old column is also on the loaded machine, and the ratios are the finding. Float32 cubes of the benchmark
+above (`bench.py make`), kit CPU path, `MemoryCube`.
+
+| function | size | before | after | py4DSTEM / NumPy | before vs Python | after vs Python |
+|---|---|---|---|---|---|---|
+| dp_mean | typical | 19.2 (22.0, 18.9, 19.2) | 4.9 (5.0, 4.8, 4.9) | 2.7 (2.6, 3.0, 2.7) | 0.14x | 0.56x |
+| selected_area_mean_mask | typical | 43.1 (48.5, 43.1, 42.0) | 3.9 (3.8, 4.0, 3.9) | 10.0 (10.0, 10.0, 12.4) | 0.23x | 2.6x |
+| selected_area_mean_weights | typical | 54.9 (60.9, 54.1, 54.9) | 5.1 (5.2, 5.1, 4.6) | 157.2 (157.2, 160.4, 156.9) | 2.9x | 31x |
+| bin_R_2 | typical | 28.5 (31.5, 28.2, 28.5) | 2.4 (2.4, 2.5, 2.2) | 7.0 (11.2, 7.0, 6.1) | 0.25x | 2.9x |
+| median_masked_pixels | 64 x 64 scan, 32 x 32 detector | 1.74 (1.87, 1.73, 1.74) | 0.29 (0.26, 0.29, 0.52) | 0.64 (0.58, 0.81, 0.64) | 0.37x | 2.2x |
+| bin_R_2 | 64 x 64 scan, 32 x 32 detector | 2.89 (3.06, 2.89, 2.89) | 0.63 (0.65, 0.63, 0.63) | 0.72 (0.72, 0.76, 0.70) | 0.25x | 1.1x |
+
+Ratios are Python's time over the kit's (above 1 the kit is faster). `dp_mean` stays 1.8x behind NumPy at the typical size (best of 15:
+4.3 against 2.6 ms): the pass is bandwidth-bound and NumPy's reduction reads the cube once with no widening; the resident Metal path
+(3.4 ms, table above) is the way past it. Block sizes of 128 to 1024 pixels and a register-resident 16-pixel accumulator were tried
+and were no faster (the register variant was 1.5x slower: the strided reads between positions lose to row-contiguous ones).
+
+Numbers did not move. The hash of every result's bits is the same before and after for all six cases (`SpeedBench` prints it), so the
+results are bit identical to the earlier scalar loops, which are the CPU Float64/Double reference (D16). Against NumPy on the same
+cube, mask and weights (`bench.py compare`; the largest difference relative to the largest value):
+
+| result | kit vs float64 truth | py4DSTEM/NumPy vs float64 truth | kit vs py4DSTEM |
+|---|---|---|---|
+| dp_mean | 3.0e-18 | 3.9e-06 (Float32 accumulation) | 3.9e-06 |
+| selected_area_mean_mask | 0 | 3.1e-06 (Float32 accumulation) | 3.1e-06 |
+| selected_area_mean_weights | 6.0e-15 | 6.0e-15 (NumPy accumulates in Float64 here) | 1.9e-16 |
+| bin_R_2 | 3.6e-08 | 9.1e-08 | 7.3e-08 (both inside one Float32 rounding, 6e-08 relative to each value) |
+| median_masked_pixels | bit for bit equal to py4DSTEM | | |
+
+So the kit's means differ from NumPy by NumPy's own Float32 accumulation error, as before, and are closer to the exact value than
+NumPy is.
+
 ## Backend decision per function (D16)
 
 The break-even is read off the three sizes above; between two measured sizes it is interpolated, and says so. The Mac was
@@ -72,11 +117,11 @@ loaded (load average 10 to 11) during the final run, so a crossing near a tie mo
 | function | decision | why |
 |---|---|---|
 | `VirtualDiffraction.max` | CPU always | block-parallel since 0.8.0: 5.9 ms at the typical size against NumPy's 2.8 and 29 ms with the host copy; a `vmax` pass is memory-bound, so a copy to the GPU never pays |
-| `VirtualDiffraction.mean`, `meanAndMax` | CPU; **resident Metal always** | the compensated Double sum is compute-bound. Host-copy Metal ties the CPU at 4.2 M values (3.4 against 3.4 ms) and loses at 41.9 M on this loaded Mac (27.5 against 22.0), so it does not pay; the resident cube beats the CPU at every size (0.5 against 0.8 ms at 1.0 M, 3.4 against 22.0 at 41.9 M) and comes within 1.2x of NumPy (3.4 against 2.8 ms) |
-| `VirtualDiffraction.pattern` with a mask | Metal above about 4 M values; resident Metal always | CPU 47.6 ms, host-copy Metal 29.0, resident Metal 4.6 at the typical size; level at 4.2 M (4.5 against 3.7) |
-| `VirtualDiffraction.pattern` with weights | Metal above about 1 M values; resident Metal always | the CPU path pays Double products (62 ms at the typical size); host-copy Metal is 1.7x faster at 4.2 M (3.5 against 5.8) and 2.2x at 41.9 M; resident Metal 4.3 ms. The CPU path is already 2.7x faster than py4DSTEM |
+| `VirtualDiffraction.mean`, `meanAndMax` | CPU; **resident Metal always** | since 0.9.0 the compensated Double sum is a SIMD TwoSum across cores and is bandwidth-bound: 4.9 ms at the typical size (was 22.0), 1.8x NumPy's 2.7; host-copy Metal (27.5) does not pay; the resident cube (3.4 ms at 41.9 M values, measured before 0.9.0) is still a little ahead and comes within 1.2x of NumPy |
+| `VirtualDiffraction.pattern` with a mask | CPU (0.9.0); resident Metal for repeated reductions | CPU 3.9 ms at the typical size since 0.9.0 (was 47.6), 2.6x faster than py4DSTEM; host-copy Metal (29.0 before) now loses to it; resident Metal 4.6 ms is level |
+| `VirtualDiffraction.pattern` with weights | CPU (0.9.0); resident Metal for repeated reductions | CPU 5.1 ms at the typical size since 0.9.0 (was 61.7), 31x faster than py4DSTEM (157 ms); host-copy Metal (27.7) loses to it; resident Metal 3.6 ms |
 | `VirtualDiffraction.median` | CPU only | no Metal path; 3.4x faster than py4DSTEM at the typical size. A GPU sort per pixel needs the whole scan axis resident; revisit with the resident cube |
 | `VirtualImaging.image` | CPU only for a non-resident cube | the CPU dot product is 9.5 ms at the typical size against 21 ms with the host copy; resident Metal is not measured (open item) |
 | `CenterOfMass.measure` | CPU only | CPU 11.0 ms against Metal 26.7 at the typical size; the weighted-moment kernel is one thread per position |
-| `CubeEditing.binScan`, `thinScan`, `padDetector`, `resampleDetector`, `medianFilterMaskedPixels`, `ViewedCube` bin | CPU only | memory-bound copies and small per-pattern arithmetic; the copy to the GPU would cost more than the work. Faster than py4DSTEM except `binScan` and the masked-pixel median at 64 x 64 (open item 3) |
+| `CubeEditing.binScan`, `thinScan`, `padDetector`, `resampleDetector`, `medianFilterMaskedPixels`, `ViewedCube` bin | CPU only | memory-bound copies and small per-pattern arithmetic; the copy to the GPU would cost more than the work. Faster than py4DSTEM since 0.9.0 (`binScan` 2.4 against 7.0 ms, the masked-pixel median 0.29 against 0.64 ms at 64 x 64; see the speed round) |
 | `Calibration`, `CalibrationMeasurement`, `BraggMasking` | CPU only | scalars and one pattern at a time |
