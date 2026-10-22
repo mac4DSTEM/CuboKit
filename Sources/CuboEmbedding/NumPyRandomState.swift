@@ -48,6 +48,7 @@ public struct NumPyRandomState: Sendable {
     }
 
     /// `randint(upperBound)` for `1 <= upperBound <= 2³²`: masked rejection on 32-bit draws, as NumPy's legacy bounded integers.
+    /// Traps (a precondition) outside that range; the callers inside the kit pass counts they have checked.
     public mutating func randint(_ upperBound: Int) -> Int {
         precondition(upperBound >= 1 && upperBound <= 1 << 32, "randint: upperBound out of range")
         let range = UInt32(truncatingIfNeeded: upperBound - 1)
@@ -77,6 +78,7 @@ public struct NumPyRandomState: Sendable {
 
     /// `choice(p.count, p=p)` for one draw: the cumulative sum, normalised by its last entry, searched with `side="right"` for one
     /// `random_sample()`.
+    /// `probabilities` must not be empty (a precondition traps); the callers inside the kit pass non-empty ones.
     public mutating func choice(probabilities p: [Double]) -> Int {
         var cdf = [Double](repeating: 0, count: p.count)
         var running = 0.0
