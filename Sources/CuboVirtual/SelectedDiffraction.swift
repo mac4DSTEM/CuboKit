@@ -92,28 +92,49 @@ extension VirtualDiffraction {
         return try await reduce(source, statistic, selected, weights, tiling)
     }
 
-    /// Mean and max over a mask or weights, in scan order: Neumaier sums per pixel, the maximum with NaN winning.
+    /// Mean and max over a mask or weights, in scan order: compensated sums per pixel, the maximum with NaN winning.
     private static func reduce(_ source: some CubeSource, _ statistic: DiffractionStatistic, _ selected: [Int],
                                _ weights: [Double]?, _ tiling: ScanTiling) async throws -> DetectorImage {
         let shape = source.shape
         let n = shape.detectorCount
         var take = [Bool](repeating: false, count: shape.scanCount)
         for k in selected { take[k] = true }
-        var sums = [Neumaier](repeating: Neumaier(), count: n)
-        var maximum = [Double](repeating: -.infinity, count: n)
+        // Mean: a compensated sum per pixel (SIMD TwoSum, ``CompensatedSum``), the detector pixels in blocks on every core, each
+        // pixel added in scan order; the sums start at +0 as the scalar Neumaier did.
+        var sum = [Double](repeating: 0, count: statistic == .mean ? n : 0)
+        var correction = [Double](repeating: 0, count: statistic == .mean ? n : 0)
+        var maximum = [Double](repeating: -.infinity, count: statistic == .mean ? 0 : n)
         var total = Neumaier()
+        let blockSize = 512
+        let blocks = (n + blockSize - 1) / blockSize
         for range in try tiling.ranges(for: shape) {
             try Task.checkCancellation()
-            let tile = try await source.readScanTile(rows: range)
             let first = range.lowerBound * shape.scanColumns
-            for k in 0..<tile.positionCount where take[first + k] {
-                let w = weights?[first + k] ?? 1.0
-                total.add(w)
-                for i in 0..<n {
-                    let v = weights == nil ? Double(tile.values[k * n + i]) : Double(tile.values[k * n + i]) * w
-                    if statistic == .mean { sums[i].add(v) } else {
-                        let m = maximum[i]    // np.max: NaN wins; of equal values (±0) the first is kept
-                        maximum[i] = (m.isNaN || v.isNaN) ? .nan : (v > m ? v : m)
+            let picked = (0..<(range.count * shape.scanColumns)).filter { take[first + $0] }
+            for k in picked { total.add(weights?[first + k] ?? 1.0) }
+            try await withTileValues(of: source, rows: range) { values in
+                if statistic == .mean {
+                    sum.withUnsafeMutableBufferPointer { s in
+                        correction.withUnsafeMutableBufferPointer { c in
+                            let sp = SharedBuffer(base: s.baseAddress!), cp = SharedBuffer(base: c.baseAddress!)
+                            let vp = SharedBuffer(base: UnsafeMutablePointer(mutating: values))
+                            DispatchQueue.concurrentPerform(iterations: blocks) { b in
+                                let lo = b * blockSize, hi = Swift.min(n, lo + blockSize)
+                                for k in picked {
+                                    CompensatedSum.add(vp.base + k * n + lo, weight: weights.map { $0[first + k] },
+                                                       sum: sp.base + lo, correction: cp.base + lo, count: hi - lo)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    for k in picked {
+                        let w = weights?[first + k] ?? 1.0
+                        for i in 0..<n {
+                            let v = weights == nil ? Double(values[k * n + i]) : Double(values[k * n + i]) * w
+                            let m = maximum[i]    // np.max: NaN wins; of equal values (±0) the first is kept
+                            maximum[i] = (m.isNaN || v.isNaN) ? .nan : (v > m ? v : m)
+                        }
                     }
                 }
             }
@@ -122,7 +143,7 @@ extension VirtualDiffraction {
         if statistic == .mean {
             let count = weights == nil ? Double(selected.count) : total.value
             guard count != 0 else { throw CuboVirtualError.invalidInput("the weights sum to zero") }
-            values = sums.map { $0.value / count }
+            values = (0..<n).map { CompensatedSum.value(sum: sum[$0], correction: correction[$0]) / count }
         } else {
             values = maximum
         }

@@ -4,6 +4,9 @@ Run from the suite folder (one benchmark at a time machine-wide, under memcap):
   tools/memcap.sh -- References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py python <dir>    # writes <dir>/python.json
   CUBOKIT_BENCH_DIR=<dir> swift test -c release --filter BenchmarkHarness                            # writes <dir>/swift.json
   References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py merge <dir>                       # prints the markdown table
+Speed round (docs/benchmarks.md): `bench.py speed <dir> [calls]` prints one `SPEED name median_ms= best_ms=` line per case for the Python side (default 15 calls);
+the Swift side is `CUBOKIT_SPEED_DIR=<dir> swift test -c release --filter SpeedBench` (Tests/CuboVirtualTests/SpeedBench.swift, same cases and line format, plus a
+hash of each result's bits so two builds can be compared). Run the old sources, the new sources and the Python side in turn, three rounds, and take medians.
 Sizes (scan rows x columns x detector rows x columns, Float32): small 32x32x32x32, mid 64x64x32x32, typical 100x100x64x64; the large size
 (330x330x64x64) is the nightly review's. Best of five after one warm-up; the table reports best, median and spread.
 """
@@ -66,6 +69,31 @@ def python(d):
             print(k, name, out['results'][f'{k}|{name}'], flush=True)
     (d / 'python.json').write_text(json.dumps(out, indent=1))
 
+def speed(d, calls=15):
+    """Alternating-rounds side of the speed round: one `SPEED name median_ms= best_ms=` line per case (the Swift SpeedBench prints the same)."""
+    from py4DSTEM import DataCube
+    from py4DSTEM.preprocess.preprocess import bin_data_real, median_filter_masked_pixels
+    d = Path(d)
+    def report(name, f):
+        f(); ts = []
+        for _ in range(int(calls)):
+            t = time.perf_counter(); f(); ts.append((time.perf_counter() - t) * 1e3)
+        ts.sort()
+        print(f"SPEED {name} median_ms={ts[len(ts) // 2]:.2f} best_ms={ts[0]:.2f}", flush=True)
+    for name in ('typical', 'mid'):
+        data = np.load(d / f'{name}.npy')
+        R = data.shape[:2]; Q = data.shape[2:]
+        dc = DataCube(data=data)
+        if name == 'typical':
+            mask = np.random.default_rng(3).random(R) > 0.2
+            report(f'dp_mean|{name}', lambda: dc.get_dp_mean())
+            report(f'mask_mean|{name}', lambda: dc.get_virtual_diffraction(method='mean', mask=mask, name='bench'))
+            report(f'bin_R_2|{name}', lambda: bin_data_real(DataCube(data=data), 2))
+        else:
+            pmask = np.zeros(Q, bool); pmask[5, 7] = pmask[20, 30 % Q[1]] = True
+            report(f'median_masked_pixels|{name}', lambda: median_filter_masked_pixels(DataCube(data=data), pmask, 3))
+            report(f'bin_R_2|{name}', lambda: bin_data_real(DataCube(data=data), 2))
+
 def merge(d):
     d = Path(d)
     py = json.loads((d / 'python.json').read_text()); sw = json.loads((d / 'swift.json').read_text())
@@ -84,4 +112,4 @@ def merge(d):
             print(f"| {n} | {size} | {cell(c)} | {cell(m)} | {cell(p)} | {ratio} |")
 
 if __name__ == '__main__':
-    {'make': make, 'python': python, 'merge': merge}[sys.argv[1]](sys.argv[2])
+    {'make': make, 'python': python, 'merge': merge, 'speed': speed}[sys.argv[1]](*sys.argv[2:])
