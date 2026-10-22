@@ -213,7 +213,200 @@ def featurization():
     return out
 
 
+# ====================================================================================================== classification
+def make_pla(peaks_by_position, shape):
+    from emdfile import PointListArray
+    dtype = [('qx', np.float64), ('qy', np.float64), ('intensity', np.float64)]
+    pla = PointListArray(dtype=dtype, shape=shape)
+    for k, pts in enumerate(peaks_by_position):
+        if len(pts):
+            pla.get_pointlist(k // shape[1], k % shape[1]).add(np.array([tuple(p) for p in pts], dtype=dtype))
+    return pla
+
+
+def blob(shape, centre, radius, value=1.0):
+    r, c = np.mgrid[0:shape[0], 0:shape[1]]
+    return value * ((r - centre[0]) ** 2 + (c - centre[1]) ** 2 <= radius ** 2)
+
+
+def classification():
+    from py4DSTEM.process.classification import BraggVectorClassification
+    from py4DSTEM.process.classification.braggvectorclassification import get_initial_classes, get_braggpeak_labels_by_scan_position
+    from py4DSTEM.process.classification.classutils import get_class_DP, get_class_DP_without_Bragg_scattering
+    from py4DSTEM import DataCube
+
+    rng = np.random.default_rng(20261022)
+    out = dict(versions=VERSIONS)
+    R = (12, 14)
+    n = R[0] * R[1]
+    # nine reference points in a 64 x 64 detector: the direct beam and eight reflections
+    Qx = np.array([32.0, 20.0, 44.0, 32.0, 12.0, 52.0, 20.0, 44.0, 32.0])
+    Qy = np.array([32.0, 32.0, 32.0, 14.0, 20.0, 44.0, 48.0, 14.0, 52.0])
+    # three phases: A (left blob), B (lower right blob), C (two separate patches); direct beam everywhere
+    truth = {'A': blob(R, (4, 3), 4.2), 'B': blob(R, (8, 10), 4.0), 'C': np.maximum(blob(R, (2, 11), 2.6), blob(R, (10, 2), 2.2))}
+    sets = {'A': [1, 2, 3], 'B': [4, 5, 6], 'C': [7, 8]}
+    peaks = []
+    for r in range(R[0]):
+        for c in range(R[1]):
+            pts = [(Qx[0] + rng.normal(0, 0.25), Qy[0] + rng.normal(0, 0.25), 10 + rng.gamma(4, 1.0))]
+            for ph in 'ABC':
+                if truth[ph][r, c]:
+                    for i in sets[ph]:
+                        if rng.random() < 0.9:                                   # a reflection is missed now and then
+                            pts.append((Qx[i] + rng.normal(0, 0.35), Qy[i] + rng.normal(0, 0.35), rng.gamma(3, 1.0) + 0.5))
+            if rng.random() < 0.08:
+                pts.append((rng.uniform(0, 64), rng.uniform(0, 64), rng.gamma(2, 0.5) + 0.2))   # a stray peak
+            peaks.append(pts)
+    pla = make_pla(peaks, R)
+    out['scan'] = list(R)
+    out['peaks'] = [[list(map(float, p)) for p in pts] for pts in peaks]
+    out['Qx'] = Qx.tolist(); out['Qy'] = Qy.tolist()
+    out['truth'] = {k: flat(v) for k, v in truth.items()}
+
+    cases = []
+
+    # --- labels and X
+    lab = []
+    for max_dist in (None, 1.0):
+        labels = get_braggpeak_labels_by_scan_position(pla, Qx, Qy, max_dist)
+        bv = BraggVectorClassification(pla, Qx, Qy, X_is_boolean=True, max_dist=max_dist)
+        bv_i = BraggVectorClassification(pla, Qx, Qy, X_is_boolean=False, max_dist=max_dist)
+        lab.append(dict(maxDist=max_dist, labels=[sorted(int(i) for i in labels[r][c]) for r in range(R[0]) for c in range(R[1])],
+                        xBoolean=flat(bv.X), xIntensity=flat(bv_i.X)))
+    out['labels'] = lab
+
+    # --- get_initial_classes
+    bv = BraggVectorClassification(pla, Qx, Qy)
+    ic = []
+    for kw in (dict(), dict(thresh=0.5), dict(thresh=0.1, BP_fraction_thresh=0.0), dict(BP_fraction_thresh=0.5),
+               dict(max_iterations=1), dict(n_corr_init=3), dict(n_corr_init=3, thresh=0.6)):
+        sets_ = get_initial_classes(bv.braggpeak_labels, len(Qx), **kw)
+        ic.append(dict(args=kw, classes=[sorted(int(i) for i in s) for s in sets_]))
+    out['initialClasses'] = ic
+
+    # --- the state after get_initial_classes_by_cooccurrence
+    def state(b):
+        return dict(classCount=int(b.N_c), w=flat(b.W), h=flat(b.H))
+    for kw in (dict(), dict(thresh=0.5), dict(n_corr_init=3)):
+        b = BraggVectorClassification(pla, Qx, Qy)
+        b.get_initial_classes_by_cooccurrence(**kw)
+        cases.append(dict(name='cooccurrence', args=kw, state=state(b)))
+    bI = BraggVectorClassification(pla, Qx, Qy, X_is_boolean=False)
+    bI.get_initial_classes_by_cooccurrence()
+    cases.append(dict(name='cooccurrenceIntensity', args=dict(booleanData=False), state=state(bI)))
+    # from images (H given; W by least squares)
+    imgs = np.stack([truth['A'], truth['B'], truth['C']], axis=2).astype(float)
+    b = BraggVectorClassification(pla, Qx, Qy)
+    b.get_initial_classes_from_images(imgs)
+    cases.append(dict(name='fromImages', images=[flat(imgs[:, :, i]) for i in range(3)], state=state(b)))
+    # rank-deficient images (a repeated class): the minimum-norm solution
+    imgs2 = np.stack([truth['A'], truth['B'], truth['A'], truth['C']], axis=2).astype(float)
+    b = BraggVectorClassification(pla, Qx, Qy)
+    b.get_initial_classes_from_images(imgs2)
+    cases.append(dict(name='fromImagesRankDeficient', images=[flat(imgs2[:, :, i]) for i in range(4)], state=state(b)))
+    # more classes than reference points
+    imgs3 = np.stack([blob(R, (r, c), 1.5) for r in (2, 6, 10) for c in (2, 7, 11)] + [truth['A'], truth['B'], truth['C']], axis=2).astype(float)
+    b = BraggVectorClassification(pla, Qx, Qy)
+    b.get_initial_classes_from_images(imgs3)
+    cases.append(dict(name='fromImagesWide', images=[flat(imgs3[:, :, i]) for i in range(imgs3.shape[2])], state=state(b)))
+    out['cases'] = cases
+
+    # --- refinement from a given state: the candidates of nmf, split, merge, remove, split/merge by index
+    def run_ops(tag, W, H, ops):
+        res = []
+        for op in ops:
+            b = BraggVectorClassification(pla, Qx, Qy)
+            b.N_c = W.shape[1]; b.W = W.copy(); b.H = H.copy(); b.W_next = b.H_next = b.N_c_next = None
+            kind = op['op']
+            try:
+                if kind == 'nmf': b.nmf(max_iterations=op['maxIterations'])
+                elif kind == 'split': b.split(sigma=op['sigma'], threshold_split=op['thresholdSplit'], expand_mask=op['expandMask'], minimum_pixels=op['minimumPixels'])
+                elif kind == 'splitIndex': b.split_by_class_index(op['index'], sigma=op['sigma'], threshold_split=op['thresholdSplit'], expand_mask=op['expandMask'], minimum_pixels=op['minimumPixels'])
+                elif kind == 'merge': b.merge_iterative(threshBPs=op['thresholdPeaks'], threshScanPosition=op['thresholdScan'])
+                elif kind == 'mergeIndex': b.merge_by_class_index(op['i'], op['j'])
+                elif kind == 'remove': b.remove_class(op['index'])
+                cand = dict(classCount=int(b.N_c_next), w=flat(b.W_next), h=flat(b.H_next))
+                b.accept()
+                accepted = dict(classCount=int(b.N_c), w=flat(b.W), h=flat(b.H))
+                res.append(dict(op=op, candidate=cand, accepted=accepted))
+            except Exception as e:  # noqa
+                res.append(dict(op=op, error=type(e).__name__))
+        return dict(name=tag, classCount=int(W.shape[1]), w=flat(W), h=flat(H), results=res)
+
+    states = []
+    b = BraggVectorClassification(pla, Qx, Qy)
+    b.get_initial_classes_by_cooccurrence()
+    base_ops = [dict(op='nmf', maxIterations=1), dict(op='nmf', maxIterations=4), dict(op='nmf', maxIterations=200),
+                dict(op='split', sigma=2, thresholdSplit=0.25, expandMask=1, minimumPixels=1),
+                dict(op='split', sigma=1, thresholdSplit=0.4, expandMask=2, minimumPixels=6),
+                dict(op='split', sigma=0.5, thresholdSplit=0.1, expandMask=0, minimumPixels=1),
+                dict(op='merge', thresholdPeaks=0.1, thresholdScan=0.1),
+                dict(op='merge', thresholdPeaks=0.5, thresholdScan=0.5),
+                dict(op='remove', index=0), dict(op='splitIndex', index=0, sigma=2, thresholdSplit=0.25, expandMask=1, minimumPixels=1),
+                dict(op='mergeIndex', i=0, j=1)]
+    states.append(run_ops('cooccurrenceState', b.W, b.H, base_ops))
+    # a crafted state: 0 and 1 alike, 2 in two patches, 3 apart, 4 a speck; and 5-7 three alike classes (the dropped-partner quirk)
+    G = R
+    imgs_c = [blob(G, (4, 3), 3.5), blob(G, (4, 3), 3.5) * (0.7 + 0.3 * rng.random(G)),
+              np.maximum(blob(G, (2, 11), 2.4), blob(G, (10, 2), 2.4)) * (0.5 + 0.5 * rng.random(G)),
+              blob(G, (9, 10), 3.0) * (0.6 + 0.4 * rng.random(G)), blob(G, (6, 6), 0.6),
+              blob(G, (5, 12), 2.5), blob(G, (5, 12), 2.5) * (0.8 + 0.2 * rng.random(G)), blob(G, (5, 12), 2.6) * (0.8 + 0.2 * rng.random(G))]
+    Hc = np.stack([im.ravel() for im in imgs_c]).astype(float)
+    Wc = rng.random((9, 8)) * (rng.random((9, 8)) < 0.5)
+    Wc[:, 1] = Wc[:, 0] * (0.9 + 0.2 * rng.random(9)); Wc[:, 6] = Wc[:, 5] * (0.9 + 0.2 * rng.random(9)); Wc[:, 7] = Wc[:, 5] * (0.9 + 0.2 * rng.random(9))
+    Wc[0, :] += 0.05
+    crafted_ops = [dict(op='split', sigma=2, thresholdSplit=0.25, expandMask=1, minimumPixels=1),
+                   dict(op='split', sigma=2, thresholdSplit=0.25, expandMask=1, minimumPixels=4),
+                   dict(op='split', sigma=1.5, thresholdSplit=0.5, expandMask=2, minimumPixels=3),
+                   dict(op='split', sigma=3.5, thresholdSplit=0.05, expandMask=1, minimumPixels=1),
+                   dict(op='splitIndex', index=2, sigma=2, thresholdSplit=0.25, expandMask=1, minimumPixels=1),
+                   dict(op='splitIndex', index=4, sigma=2, thresholdSplit=0.25, expandMask=1, minimumPixels=1),
+                   dict(op='merge', thresholdPeaks=0.1, thresholdScan=0.1), dict(op='merge', thresholdPeaks=0.9, thresholdScan=0.9),
+                   dict(op='merge', thresholdPeaks=0.6, thresholdScan=0.4), dict(op='merge', thresholdPeaks=-1.0, thresholdScan=-1.0),
+                   dict(op='mergeIndex', i=0, j=1), dict(op='mergeIndex', i=1, j=0), dict(op='mergeIndex', i=2, j=7), dict(op='mergeIndex', i=7, j=2),
+                   dict(op='remove', index=3), dict(op='remove', index=7), dict(op='nmf', maxIterations=3)]
+    states.append(run_ops('craftedState', Wc, Hc, crafted_ops))
+    out['states'] = states
+
+    # --- class patterns: get_class_DP and the Bragg-masked variant
+    Qn = (8, 9)
+    data = rng.gamma(2.0, 25.0, R + Qn).astype(np.float32)
+    dc = DataCube(data=data.copy())
+    img = truth['A'] * (0.4 + 0.6 * rng.random(R)) + 0.005 * rng.random(R)
+    dark = rng.random(Qn) * 5
+    xs = rng.normal(0, 1.4, R); ys = rng.normal(0, 1.4, R)
+    dps = []
+    dps.append(dict(args=dict(), dp=flat(get_class_DP(dc, img))))
+    dps.append(dict(args=dict(threshold=0.3), dp=flat(get_class_DP(dc, img, thresh=0.3))))
+    dps.append(dict(args=dict(dark=True), dp=flat(get_class_DP(dc, img, darkref=dark))))
+    dps.append(dict(args=dict(shifts=True, integerShifts=True), dp=flat(get_class_DP(dc, img, xshifts=xs, yshifts=ys, intshifts=True))))
+    dps.append(dict(args=dict(shifts=True, integerShifts=False), dp=flat(get_class_DP(dc, img, xshifts=xs, yshifts=ys, intshifts=False))))
+    dps.append(dict(args=dict(shifts=True, integerShifts=True, dark=True), dp=flat(get_class_DP(dc, img, xshifts=xs, yshifts=ys, darkref=dark))))
+    # shifts with exact halves, to pin round half to even
+    xh = np.full(R, 0.5); xh[::2] = 1.5; yh = np.full(R, -2.5)
+    dps.append(dict(args=dict(shifts='halves'), dp=flat(get_class_DP(dc, img, xshifts=xh, yshifts=yh))))
+    out['classPattern'] = dict(patterns=flat(data), detector=list(Qn), image=flat(img), dark=flat(dark), rowShifts=flat(xs), columnShifts=flat(ys),
+                               rowHalves=flat(xh), columnHalves=flat(yh), cases=dps)
+    peaks_q = []
+    for r in range(R[0]):
+        for c in range(R[1]):
+            k = int(rng.integers(0, 4))
+            peaks_q.append([(rng.uniform(0, 8), rng.uniform(0, 9), 1.0) for _ in range(k)])
+    plaq = make_pla(peaks_q, R)
+    nb = []
+    nb.append(dict(args=dict(radius=1.5), dp=flat(get_class_DP_without_Bragg_scattering(dc, img, plaq, 1.5, 4.0, 4.5))))
+    nb.append(dict(args=dict(radius=2.5, threshold=0.2, origin=[3.5, 4.0]), dp=flat(get_class_DP_without_Bragg_scattering(dc, img, plaq, 2.5, 3.5, 4.0, thresh=0.2))))
+    nb.append(dict(args=dict(radius=1.5, shifts=True, integerShifts=True, dark=True),
+                   dp=flat(get_class_DP_without_Bragg_scattering(dc, img, plaq, 1.5, 4.0, 4.5, xshifts=xs, yshifts=ys, darkref=dark))))
+    nb.append(dict(args=dict(radius=2.0, shifts=True, integerShifts=False),
+                   dp=flat(get_class_DP_without_Bragg_scattering(dc, img, plaq, 2.0, 4.0, 4.5, xshifts=xs, yshifts=ys, intshifts=False))))
+    out['classPatternMasked'] = dict(peaks=[[list(map(float, p)) for p in pts] for pts in peaks_q], origin=[4.0, 4.5], cases=nb)
+    return out
+
+
 if __name__ == '__main__':
     which = sys.argv[1] if len(sys.argv) > 1 else 'all'
     if which in ('featurization', 'all'):
         write(KIT / 'Tests/CuboEmbeddingTests/Fixtures/featurization.json', featurization())
+    if which in ('classification', 'all'):
+        write(KIT / 'Tests/CuboBraggTests/Fixtures/classification.json', classification())
