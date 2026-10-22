@@ -36,6 +36,13 @@ struct SpeedBench {
         func report(_ name: String, _ t: (Double, Double), _ h: String) {
             print("SPEED \(name) median_ms=\(String(format: "%.2f", t.0)) best_ms=\(String(format: "%.2f", t.1)) hash=\(h)")
         }
+        // CUBOKIT_SPEED_DUMP=<folder>: also write the results (and the mask and weights used) raw, for `bench.py compare`.
+        let dump = env["CUBOKIT_SPEED_DUMP"].map { URL(fileURLWithPath: $0) }
+        func save<T>(_ name: String, _ v: [T]) throws {
+            guard let dump else { return }
+            try FileManager.default.createDirectory(at: dump, withIntermediateDirectories: true)
+            try v.withUnsafeBytes { try Data($0).write(to: dump.appendingPathComponent(name)) }
+        }
         for size in ["typical", "mid"] {
             let cube = try await MemoryCube(loading: try MappedCube(npy: dir.appendingPathComponent("\(size).npy")))
             let shape = cube.shape
@@ -46,12 +53,22 @@ struct SpeedBench {
                 var rd = [Double]()
                 var t = try await time(calls) { rd = try await VirtualDiffraction.mean(of: cube, path: .cpu).values }
                 report("dp_mean|\(size)", t, hash(rd))
+                try save("dp_mean.f64", rd)
+                try save("mask.u8", mask.map { $0 ? UInt8(1) : 0 })
                 t = try await time(calls) {
                     rd = try await VirtualDiffraction.pattern(of: cube, statistic: .mean, scan: .mask(mask), path: .cpu).values }
                 report("mask_mean|\(size)", t, hash(rd))
+                try save("mask_mean.f64", rd)
+                let weights = mask.map { $0 ? rnd() : 0 }
+                t = try await time(calls) {
+                    rd = try await VirtualDiffraction.pattern(of: cube, statistic: .mean, scan: .weights(weights), path: .cpu).values }
+                report("weights_mean|\(size)", t, hash(rd))
+                try save("weights_mean.f64", rd)
+                try save("weights.f64", weights)
                 var r = [Float]()
                 t = try await time(calls) { r = try await CubeEditing.binScan(of: cube, by: 2).cube.values }
                 report("bin_R_2|\(size)", t, hash(r))
+                try save("bin_R_2_typical.f32", r)
             }
             var pm = [Bool](repeating: false, count: shape.detectorCount)
             pm[5 * shape.detectorColumns + 7] = true; pm[20 * shape.detectorColumns + 30] = true
@@ -59,6 +76,7 @@ struct SpeedBench {
                 var r = [Float]()
                 var t = try await time(calls) { r = try await CubeEditing.medianFilterMaskedPixels(of: cube, mask: pm).cube.values }
                 report("median_masked_pixels|\(size)", t, hash(r))
+                try save("median_masked_pixels_mid.f32", r)
                 t = try await time(calls) { r = try await CubeEditing.binScan(of: cube, by: 2).cube.values }
                 report("bin_R_2|\(size)", t, hash(r))
             }

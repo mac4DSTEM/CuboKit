@@ -50,7 +50,7 @@ enum CPUReducers {
         var sum = [Double](repeating: -0.0, count: n)
         var correction = [Double](repeating: -0.0, count: n)
         var maximum = [Float](repeating: -.infinity, count: n)
-        let blockSize = 512   // 4 KiB of Float32 per position and 8 KiB of state: in L1, and 8 blocks per 4096 pixels keep every core busy
+        let blockSize = 512  // 4 KiB of Float32 per position and 8 KiB of state: in L1, and 8 blocks per 4096 pixels keep every core busy
         let blocks = (n + blockSize - 1) / blockSize
         for range in try tiling.ranges(for: shape) {
             try checkInterrupted()
