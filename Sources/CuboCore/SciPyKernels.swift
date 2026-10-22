@@ -14,9 +14,11 @@ import Foundation
 package enum SciPyKernels {
     /// `np.arange(start, stop, step)` for a positive float step: `ceil((stop - start) / step)` values, the first two exact
     /// (`start`, `start + step`) and then `start + i * delta` with `delta = (start + step) - start`, as NumPy fills them.
+    ///
+    /// ``arangeLength(_:_:_:limit:)`` is the count, `nil` for a request that is not finite or longer than ``maximumArangeLength``;
+    /// `arange` returns no values for that (it never traps), so a caller that needs the reason checks the length first.
     package static func arange(_ start: Double, _ stop: Double, _ step: Double) -> [Double] {
-        let length = Int(((stop - start) / step).rounded(.up))
-        guard length > 0 else { return [] }
+        guard let length = arangeLength(start, stop, step), length > 0 else { return [] }
         if length == 1 { return [start] }
         let second = start + step
         let delta = second - start
@@ -25,6 +27,27 @@ package enum SciPyKernels {
         if length > 2 { for i in 2..<length { out[i] = start + Double(i) * delta } }
         return out
     }
+
+    /// The most values a caller of ``arange(_:_:_:)`` is offered.
+    package static let maximumArangeLength = 10_000_000
+
+    /// `ceil((stop - start) / step)` as an `Int` (negative counts become 0), or `nil` when that is NaN, infinite or above `limit`.
+    package static func arangeLength(_ start: Double, _ stop: Double, _ step: Double, limit: Int = maximumArangeLength) -> Int? {
+        let n = ((stop - start) / step).rounded(.up)
+        guard n.isFinite, n <= Double(limit) else { return nil }
+        return n > 0 ? Int(n) : 0
+    }
+
+    /// The half-width, in samples, of the Gaussian kernel of `sigma` (`int(truncate * sigma + 0.5)`), or `nil` when `sigma` is not
+    /// finite or the half-width exceeds ``maximumKernelRadius``.
+    package static func gaussianRadius(sigma: Double, truncate: Double = 4.0) -> Int? {
+        let r = truncate * sigma + 0.5
+        guard r.isFinite, r < Double(maximumKernelRadius) else { return nil }
+        return r > 0 ? Int(r) : 0
+    }
+
+    /// The largest Gaussian kernel half-width accepted.
+    package static let maximumKernelRadius = 1 << 20
 
     /// Python and `np.mod` on floats: the result takes the sign of the divisor.
     package static func mod(_ x: Double, _ m: Double) -> Double {
@@ -39,7 +62,7 @@ package enum SciPyKernels {
     /// The weights of `gaussian_filter1d(..., order=0, truncate=4)`: radius `int(4 sigma + 0.5)`, `exp(-0.5/sigma^2 x^2)`
     /// normalised by NumPy's pairwise sum.
     package static func gaussianWeights(sigma: Double, truncate: Double = 4.0) -> [Double] {
-        let radius = Int(truncate * sigma + 0.5)
+        let radius = gaussianRadius(sigma: sigma, truncate: truncate) ?? 0   // callers validate; a bad sigma is the identity, not a trap
         let sigma2 = sigma * sigma
         var w = (-radius...radius).map { exp(-0.5 / sigma2 * Double($0 * $0)) }
         let s = NumPySum.pairwise(w)

@@ -53,7 +53,7 @@ private func plane(_ f: FitPin, _ values: [Double]) throws -> EllipseFitPlane {
 private func ellipse(_ v: [Double]) -> EllipseParameters { EllipseParameters(centerRow: v[0], centerColumn: v[1], a: v[2], b: v[3], theta: v[4]) }
 
 @Suite struct EllipseConversionAndFunctionTests {
-    @Test func testConversionsAndFunctionsAgreeWithPy4DSTEM() {
+    @Test func testConversionsAndFunctionsAgreeWithPy4DSTEM() throws {
         for c in pin.functions.convert {
             let got = EllipseFit.semiAxes(A: c.abc[0], B: c.abc[1], C: c.abc[2])
             #expect(agrees(got.a, c.aba[0]) && agrees(got.b, c.aba[1]) && agrees(got.theta, c.aba[2]), "convert \(c.abc)")
@@ -65,11 +65,11 @@ private func ellipse(_ v: [Double]) -> EllipseParameters { EllipseParameters(cen
         let f = pin.functions
         let xs = stride(from: 0, to: f.points.count, by: 2).map { f.points[$0] }
         let ys = stride(from: 1, to: f.points.count, by: 2).map { f.points[$0] }
-        let err = EllipseFit.ellipseError(parameters: f.pEllipse, rows: xs, columns: ys, values: f.values)
+        let err = try EllipseFit.ellipseError(parameters: f.pEllipse, rows: xs, columns: ys, values: f.values)
         #expect(zip(err, f.ellipseErr).allSatisfy { agrees($0, $1) })
-        let g = EllipseFit.doubleSidedGaussian(parameters: f.pGaussian, rows: xs, columns: ys)
+        let g = try EllipseFit.doubleSidedGaussian(parameters: f.pGaussian, rows: xs, columns: ys)
         #expect(zip(g, f.doubleSidedGaussian).allSatisfy { agrees($0, $1) })
-        let ge = EllipseFit.doubleSidedGaussianFitError(parameters: f.pGaussian, rows: xs, columns: ys, values: f.values)
+        let ge = try EllipseFit.doubleSidedGaussianFitError(parameters: f.pGaussian, rows: xs, columns: ys, values: f.values)
         #expect(zip(ge, f.doubleSidedGaussianFitErr).allSatisfy { agrees($0, $1) })
     }
 
@@ -111,14 +111,14 @@ private func ellipse(_ v: [Double]) -> EllipseParameters { EllipseParameters(cen
     }
 
     /// The sum of squares of the double-sided Gaussian's residuals over the annulus: both fits must be minima of it.
-    private func cost(_ p: [Double], _ data: EllipseFitPlane, center: (Double, Double), radii: (Double, Double)) -> Double {
+    private func cost(_ p: [Double], _ data: EllipseFitPlane, center: (Double, Double), radii: (Double, Double)) throws -> Double {
         var xs = [Double](), ys = [Double](), vs = [Double]()
         for r in 0..<data.rows { for c in 0..<data.columns {
             let rr = hypot(Double(r) - center.0, Double(c) - center.1)
             guard rr > radii.0, rr < radii.1 else { continue }
             xs.append(Double(r)); ys.append(Double(c)); vs.append(data[r, c])
         } }
-        return EllipseFit.doubleSidedGaussianFitError(parameters: p, rows: xs, columns: ys, values: vs).reduce(0) { $0 + $1 * $1 }
+        return try EllipseFit.doubleSidedGaussianFitError(parameters: p, rows: xs, columns: ys, values: vs).reduce(0) { $0 + $1 * $1 }
     }
 
     @Test func testFit1DAgreesWithPy4DSTEM() throws {
@@ -153,7 +153,7 @@ private func ellipse(_ v: [Double]) -> EllipseParameters { EllipseParameters(cen
             check(got, f.amorphous.ellipse, relative: 1e-6, "\(f.name) amorphous")
             print("\(f.name) amorphous: \(got.evaluations) evaluations, info \(got.info)")
             // both are minima of the same sum of squares, to the optimiser's ftol
-            let mine = cost(got.parameters, data, center: center, radii: radii), theirs = cost(f.amorphous.p, data, center: center, radii: radii)
+            let mine = try cost(got.parameters, data, center: center, radii: radii), theirs = try cost(f.amorphous.p, data, center: center, radii: radii)
             worstCostGap = max(worstCostGap, (mine - theirs) / theirs)
             let w = f.amorphous.ellipse, e = got.ellipse
             print("\(f.name) amorphous vs py4DSTEM: centre/axes relative \(max(abs(e.centerRow - w[0]) / w[0], abs(e.centerColumn - w[1]) / w[1], abs(e.a - w[2]) / w[2], abs(e.b - w[3]) / w[3])), theta \(angleDifference(e.theta, w[4])) rad")

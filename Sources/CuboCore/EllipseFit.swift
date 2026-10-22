@@ -29,7 +29,8 @@ public struct EllipseFitPlane: Sendable, Equatable {
     public let rows: Int, columns: Int
     public let values: [Double]
     public init(rows: Int, columns: Int, values: [Double]) throws {
-        guard rows > 0, columns > 0, values.count == rows * columns else {
+        let (count, overflow) = rows.multipliedReportingOverflow(by: columns)
+        guard rows > 0, columns > 0, !overflow, values.count == count else {
             throw EllipseFitError.invalidInput("\(values.count) values for a \(rows) x \(columns) plane")
         }
         self.rows = rows; self.columns = columns; self.values = values
@@ -111,8 +112,17 @@ public enum EllipseFit {
 
     /// `ellipse_err(p, x, y, val)`: for points (`rows`, `columns`) of weight `values` and the canonical ellipse
     /// `p = (x0, y0, A, B, C)`, `(A x^2 + B x y + C y^2 - 1) * val` with `x`, `y` relative to the centre.
-    public static func ellipseError(parameters p: [Double], rows x: [Double], columns y: [Double], values val: [Double]) -> [Double] {
-        precondition(p.count == 5 && x.count == y.count && x.count == val.count)
+    ///
+    /// Throws ``EllipseFitError/invalidInput(_:)`` unless `p` holds 5 numbers and the three arrays have one length.
+    public static func ellipseError(parameters p: [Double], rows x: [Double], columns y: [Double], values val: [Double]) throws -> [Double] {
+        guard p.count == 5, x.count == y.count, x.count == val.count else {
+            throw EllipseFitError.invalidInput("ellipse_err needs 5 parameters and points and weights of one length")
+        }
+        return residuals(parameters: p, rows: x, columns: y, values: val)
+    }
+
+    /// ``ellipseError(parameters:rows:columns:values:)`` for lengths the caller has checked.
+    private static func residuals(parameters p: [Double], rows x: [Double], columns y: [Double], values val: [Double]) -> [Double] {
         var out = [Double](repeating: 0, count: x.count)
         for i in x.indices {
             let dx = x[i] - p[0], dy = y[i] - p[1]
@@ -144,10 +154,11 @@ public enum EllipseFit {
         guard xs.count >= 5 else { throw EllipseFitError.tooFewPixels(found: xs.count, needed: 5) }
         let guess = (2 / (radii.inner + radii.outer)) * (2 / (radii.inner + radii.outer))
         let fit = try MINPACKLeastSquares.leastSquares([c.row, c.column, guess, 0, guess], shouldStop: isCancelled.map { f in { f() } }) {
-            ellipseError(parameters: $0, rows: xs, columns: ys, values: vals)
+            residuals(parameters: $0, rows: xs, columns: ys, values: vals)
         }
         guard fit.x.allSatisfy(\.isFinite) else { throw EllipseFitError.notFinite }
         let s = semiAxes(A: fit.x[2], B: fit.x[3], C: fit.x[4])
+        guard s.a.isFinite, s.b.isFinite, s.theta.isFinite else { throw EllipseFitError.notFinite }   // a hyperbola gives NaN
         return EllipseFitResult(ellipse: EllipseParameters(centerRow: fit.x[0], centerColumn: fit.x[1], a: s.a, b: s.b, theta: s.theta),
                                 parameters: fit.x, info: fit.info, evaluations: fit.evaluations)
     }
@@ -157,8 +168,17 @@ public enum EllipseFit {
     /// `double_sided_gaussian(p, x, y)` at points (`rows`, `columns`): a Gaussian at the centre plus a Gaussian ring of two
     /// widths (inner and outer) at the mean of the semi-axes, on an elliptical radius, plus a constant.
     /// `p = (I0, I1, sigma0, sigma1, sigma2, c_bkgd, x0, y0, A, B, C)`.
-    public static func doubleSidedGaussian(parameters p: [Double], rows x: [Double], columns y: [Double]) -> [Double] {
-        precondition(p.count == 11 && x.count == y.count)
+    ///
+    /// Throws ``EllipseFitError/invalidInput(_:)`` unless `p` holds 11 numbers and `rows` and `columns` have one length.
+    public static func doubleSidedGaussian(parameters p: [Double], rows x: [Double], columns y: [Double]) throws -> [Double] {
+        guard p.count == 11, x.count == y.count else {
+            throw EllipseFitError.invalidInput("double_sided_gaussian needs 11 parameters and points of one length")
+        }
+        return model(parameters: p, rows: x, columns: y)
+    }
+
+    /// ``doubleSidedGaussian(parameters:rows:columns:)`` for lengths the caller has checked.
+    private static func model(parameters p: [Double], rows x: [Double], columns y: [Double]) -> [Double] {
         let I0 = p[0], I1 = p[1], sigma0 = p[2], sigma1 = p[3], sigma2 = p[4], cBkgd = p[5], x0 = p[6], y0 = p[7]
         let s = semiAxes(A: p[8], B: p[9], C: p[10])
         let R = (s.a + s.b) / 2
@@ -179,19 +199,29 @@ public enum EllipseFit {
     }
 
     /// `double_sided_gaussian_fiterr(p, x, y, val)`: the model minus the data.
+    ///
+    /// Throws ``EllipseFitError/invalidInput(_:)`` unless `p` holds 11 numbers and the three arrays have one length.
     public static func doubleSidedGaussianFitError(parameters p: [Double], rows x: [Double], columns y: [Double],
-                                                   values val: [Double]) -> [Double] {
-        let model = doubleSidedGaussian(parameters: p, rows: x, columns: y)
-        return model.indices.map { model[$0] - val[$0] }
+                                                   values val: [Double]) throws -> [Double] {
+        guard val.count == x.count else { throw EllipseFitError.invalidInput("double_sided_gaussian_fiterr needs one weight per point") }
+        return gaussianResiduals(parameters: try doubleSidedGaussian(parameters: p, rows: x, columns: y), values: val)
+    }
+
+    private static func gaussianResiduals(parameters m: [Double], values val: [Double]) -> [Double] {
+        m.indices.map { m[$0] - val[$0] }
     }
 
     /// `radial_integral(ar, x0, y0, dr=1)`: the sum over the angle of the polar-elliptical transform with `a = b = 1`,
     /// `dphi = 2 degrees`, bins of width `dr` out to `rmax` (default: the farthest corner, truncated); `nil` where every angle of
     /// a radius falls outside the plane (a masked entry). Returns the bin centres and the sums.
-    static func radialIntegral(_ plane: EllipseFitPlane, centerRow x0: Double, centerColumn y0: Double, dr: Double = 1)
+    static func radialIntegral(_ plane: EllipseFitPlane, centerRow x0: Double, centerColumn y0: Double, dr: Double = 1) throws
         -> (centers: [Double], sums: [Double?]) {
         let nx = Double(plane.rows), ny = Double(plane.columns)
+        try requireCentre(near: plane, row: x0, column: y0)
         let rmax = Int(max(max(hypot(x0, y0), hypot(x0, ny - y0)), max(hypot(nx - x0, y0), hypot(nx - x0, ny - y0))))
+        guard SciPyKernels.arangeLength(dr / 2.0, Double(rmax) + dr / 2.0, dr) != nil else {
+            throw EllipseFitError.invalidInput("the radial step \(dr) gives too many radial bins")
+        }
         let rBins = SciPyKernels.arange(0 + dr / 2.0, Double(rmax) + dr / 2.0, dr)
         let dphi = 2.0 * (Double.pi / 180)      // np.radians(2) = 2 * (pi / 180)
         let pBins = SciPyKernels.arange(-Double.pi + dphi / 2.0, Double.pi + dphi / 2.0, dphi)
@@ -227,6 +257,7 @@ public enum EllipseFit {
                                         keeping mask: [Bool]? = nil,
                                         isCancelled: (@Sendable () -> Bool)? = nil) throws -> EllipseFitResult {
         try require(finite: [center.row, center.column, fitRadii.inner, fitRadii.outer])
+        try requireCentre(near: plane, row: center.row, column: center.column)
         let keep = mask ?? [Bool](repeating: true, count: plane.values.count)
         guard keep.count == plane.values.count else {
             throw EllipseFitError.invalidInput("data and mask must have the same shape")
@@ -246,7 +277,7 @@ public enum EllipseFit {
         for k in plane.values.indices { I1 = max(I1, plane.values[k] * (keep[k] ? 1 : 0)) }
         let sigma0 = ri / 2.0, sigma1 = (ro - ri) / 4.0, sigma2 = (ro - ri) / 4.0
         let cBkgd = plane.values.min() ?? 0
-        let profile = radialIntegral(plane, centerRow: center.row, centerColumn: center.column, dr: 1)
+        let profile = try radialIntegral(plane, centerRow: center.row, centerColumn: center.column, dr: 1)
         let candidates = profile.centers.indices.filter { profile.centers[$0] > ri && profile.centers[$0] < ro }
         guard !candidates.isEmpty else { throw EllipseFitError.noRadialBin(inner: ri, outer: ro) }
         var best = candidates[0]
@@ -259,10 +290,11 @@ public enum EllipseFit {
         let guess: [Double] = [I0, I1, sigma0, sigma1, sigma2, cBkgd, center.row, center.column, abc.A, abc.B, abc.C]
         let start = (0..<11).map { initial?[$0] ?? guess[$0] }
         let fit = try MINPACKLeastSquares.leastSquares(start, shouldStop: isCancelled.map { f in { f() } }) {
-            doubleSidedGaussianFitError(parameters: $0, rows: xs, columns: ys, values: vals)
+            gaussianResiduals(parameters: model(parameters: $0, rows: xs, columns: ys), values: vals)
         }
         guard fit.x.allSatisfy(\.isFinite) else { throw EllipseFitError.notFinite }
         let s = semiAxes(A: fit.x[8], B: fit.x[9], C: fit.x[10])
+        guard s.a.isFinite, s.b.isFinite, s.theta.isFinite else { throw EllipseFitError.notFinite }   // a hyperbola gives NaN
         return EllipseFitResult(ellipse: EllipseParameters(centerRow: fit.x[6], centerColumn: fit.x[7], a: s.a, b: s.b, theta: s.theta),
                                 parameters: fit.x, info: fit.info, evaluations: fit.evaluations)
     }
@@ -322,6 +354,15 @@ public enum EllipseFit {
         let aConstrained = p.a * t
         let bConstrained = (yFixed * yFixed / (1 - (xFixed / aConstrained) * (xFixed / aConstrained))).squareRoot()
         return (aConstrained, bConstrained)
+    }
+
+    /// A centre farther than a few plane sizes from the plane is no centre of a ring in it (and a huge one overflows the
+    /// radial-bin count).
+    private static func requireCentre(near plane: EllipseFitPlane, row: Double, column: Double) throws {
+        let reach = 4.0 * Double(max(plane.rows, plane.columns))
+        guard abs(row) <= reach, abs(column) <= reach else {
+            throw EllipseFitError.invalidInput("the centre (\(row), \(column)) lies too far from the \(plane.rows) x \(plane.columns) plane")
+        }
     }
 
     private static func require(finite values: [Double]) throws {

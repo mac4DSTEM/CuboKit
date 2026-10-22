@@ -239,6 +239,9 @@ public enum CubeEditing {
         let s = source.shape
         guard mask.count == s.detectorCount else { throw CuboError.valueCountMismatch(expected: s.detectorCount, received: mask.count) }
         guard kernelWidth >= 1 else { throw CuboError.invalidView("the median kernel width \(kernelWidth) is below 1") }
+        // A window of width k reaches at most k/2 + 1 pixels past a pixel, so once k >= 2 * max(extent) + 1 every window is the
+        // whole detector and a wider kernel gives the same result; clamping keeps `kernelWidth + 1` from overflowing.
+        let kernelWidth = min(kernelWidth, 2 * max(s.detectorRows, s.detectorColumns) + 1)
         let widthMax = kernelWidth % 2 == 0 ? kernelWidth / 2 : (kernelWidth + 1) / 2
         let widthMin = kernelWidth / 2
         var windows = [(Int, Int, Int, Int, Int, Int)]()   // pixel row, column, then the clipped window
@@ -361,8 +364,9 @@ extension CubeEditing {
     /// outputColumns`, entirely in Double: the float64 reference of ``resampleDetectorFourier(of:_:options:calibration:isCancelled:progress:)``.
     public static func fourierResample(_ values: [Double], rows: Int, columns: Int, outputRows: Int, outputColumns: Int,
                                        options: FourierResampleOptions = FourierResampleOptions()) throws -> [Double] {
-        guard rows > 0, columns > 0, values.count == rows * columns else {
-            throw CuboError.valueCountMismatch(expected: rows * columns, received: values.count)
+        let (expected, overflow) = rows.multipliedReportingOverflow(by: columns)
+        guard rows > 0, columns > 0, !overflow, values.count == expected else {
+            throw CuboError.valueCountMismatch(expected: overflow ? Int.max : expected, received: values.count)
         }
         let plan = try FourierResamplePlan(rows: rows, columns: columns, outputRows: outputRows, outputColumns: outputColumns, options: options)
         return plan.resample(values, narrowToFloat: false)
@@ -374,11 +378,17 @@ extension CubeEditing {
         switch spec {
         case .scale(let f):
             guard f.isFinite, f > 0 else { throw CuboError.invalidView("the resampling scale must be positive, not \(f)") }
-            let r = Int(Double(rows) * f), c = Int(Double(columns) * f)
+            let rf = (Double(rows) * f).rounded(.towardZero), cf = (Double(columns) * f).rounded(.towardZero)
+            guard rf <= Double(FourierResamplePlan.maximumSide), cf <= Double(FourierResamplePlan.maximumSide) else {
+                throw CuboError.invalidView("resampling a \(rows) x \(columns) detector by \(f) gives more than \(FourierResamplePlan.maximumSide) pixels along an axis")
+            }
+            let r = Int(rf), c = Int(cf)
+            try FourierResamplePlan.requireOutput(rows: r, columns: c)
             guard r > 0, c > 0 else { throw CuboError.invalidView("resampling a \(rows) x \(columns) detector by \(f) leaves nothing") }
             return (r, c, f)
         case .outputSize(let r, let c):
             guard r > 0, c > 0 else { throw CuboError.invalidView("the output size \(r) x \(c) is empty") }
+            try FourierResamplePlan.requireOutput(rows: r, columns: c)
             return (r, c, Double(r) / Double(rows))
         }
     }
@@ -398,8 +408,21 @@ private struct FourierResamplePlan: Sendable {
     let nonnegative: Bool
     let scaleOutput: Double?    // nil with conserved sums
 
+    /// The longest output side and the most output pixels per pattern that are accepted (larger asks would trap or allocate
+    /// without bound).
+    static let maximumSide = 1 << 20
+    static let maximumPixels = 1 << 26
+
+    static func requireOutput(rows: Int, columns: Int) throws {
+        let (pixels, overflow) = rows.multipliedReportingOverflow(by: columns)
+        guard rows <= maximumSide, columns <= maximumSide, !overflow, pixels <= maximumPixels else {
+            throw CuboError.invalidView("the output size \(rows) x \(columns) is larger than \(maximumPixels) pixels")
+        }
+    }
+
     init(rows: Int, columns: Int, outputRows: Int, outputColumns: Int, options: FourierResampleOptions) throws {
         guard outputRows > 0, outputColumns > 0 else { throw CuboError.invalidView("the output size \(outputRows) x \(outputColumns) is empty") }
+        try Self.requireOutput(rows: outputRows, columns: outputColumns)
         self.rows = rows; self.columns = columns; self.outputRows = outputRows; self.outputColumns = outputColumns
         rowMap = Self.axisMap(input: rows, output: outputRows)
         columnMap = Self.axisMap(input: columns, output: outputColumns)
