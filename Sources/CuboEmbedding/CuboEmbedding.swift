@@ -6,7 +6,7 @@ import Foundation
 /// The numerics of mac4DSTEM's diffraction-embedding pipeline are separate, explicitly named options.
 public enum CuboEmbedding {
     /// What this module computes.
-    public static let scope = "PCA (scikit-learn and mac4DSTEM covariance variants), Lloyd k-means (scikit-learn and mac4DSTEM k-means++ variants) and binned diffraction feature vectors."
+    public static let scope = "PCA (scikit-learn and mac4DSTEM covariance variants), Lloyd k-means (scikit-learn and mac4DSTEM k-means++ variants), binned diffraction feature vectors, and py4DSTEM's Featurization (scikit-learn NMF and Gaussian mixtures, NumPy RandomState)."
 }
 
 /// Why an embedding computation was refused.
