@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/banner.png" width="100%" alt="CuboKit: 4D-STEM data cubes on the Mac"></p>
+<p align="center"><img src="docs/banner.png" width="100%" alt="CuboKit: 4D-STEM in Swift, with virtual images, centre of mass and DPC on the CPU and the GPU"></p>
 
 # CuboKit
 
