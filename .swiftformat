@@ -1,0 +1,5 @@
+# The suite's one SwiftFormat config. tools/lint/sync.sh copies it to every Swift repo as .swiftformat; edit it here only.
+# CI runs `swiftformat --lint .`: whitespace and a few unambiguous fixes, nothing that reflows code.
+--swiftversion 6.2
+--exclude .build,build,References,DerivedData
+--rules trailingSpace,linebreakAtEndOfFile,consecutiveBlankLines,duplicateImports,semicolons,spaceAroundParens,emptyBraces,todos

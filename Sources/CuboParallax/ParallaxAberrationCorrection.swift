@@ -66,7 +66,7 @@ public enum ParallaxAberrationCorrection: Sendable {
         for i in image.indices {
             let s = sin(even[i]); let sign = s > 0 ? 1.0 : s < 0 ? -1.0 : 0
             var envelope = 1.0
-            if let lowpass { envelope /= 1 + pow(frequencies[i]/lowpass,Double(2*butterworthOrder)) }
+            if let lowpass { envelope /= 1 + pow(frequencies[i] / lowpass, Double(2*butterworthOrder)) }
             if let highpass, highpassBehavior == .apply { envelope *= 1 - 1/(1+pow(frequencies[i]/highpass,Double(2*butterworthOrder))) }
             tr[i] = sign * cos(odd[i]) * envelope; ti[i] = -sign * sin(odd[i]) * envelope
         }
