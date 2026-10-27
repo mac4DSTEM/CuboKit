@@ -28,7 +28,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Select the newest Xcode
         run: |
           xcode=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
