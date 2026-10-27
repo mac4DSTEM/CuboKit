@@ -39,7 +39,7 @@ files to it. Versions are enforced and recorded in `Tests/CuboParallaxTests/Fixt
 Python 3.12.4, NumPy 2.5.0, SciPy 1.18.0, py4DSTEM 0.14.19. Regenerate from the package root:
 
 ```sh
-../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/parallax/pins.py
+../References/python/py4dstem/bin/python -I -B tools/parallax/pins.py
 ```
 
 Four small three-frame stacks cover integer/wrapped shifts (8 × 10), fractional shifts on odd axes

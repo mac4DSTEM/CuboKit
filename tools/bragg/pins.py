@@ -1,5 +1,5 @@
-"""Generate CuboBragg pins. Run with memcap and the pinned venv, from the package root:
-../../tools/memcap.sh -- ../../References/python/py4dstem/bin/python -I -B tools/bragg/pins.py
+"""Generate CuboBragg pins. Run under a memory cap with the pinned venv, from the package root:
+../../References/python/py4dstem/bin/python -I -B tools/bragg/pins.py
 
 Two independent oracles, neither is Swift written for the kit:
   1. py4DSTEM 0.14.19 (f050d207) `find_Bragg_disks`, called as a public function, is the primary reference.

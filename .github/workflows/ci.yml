@@ -43,3 +43,14 @@ jobs:
           top=$(grep -m1 -E '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | sed -E 's/^## ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
           tag=${GITHUB_REF_NAME#v}
           [ "$top" = "$tag" ] || { echo "CHANGELOG top is $top, tag is $tag"; exit 1; }
+
+  private-refs:
+    name: No private references
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan tracked files
+        run: |
+          if git grep -n -I -E '_archive|CLAUDE\.md|memcap|macEM-suite|setup-python-refs' -- ':!.gitignore' ':!.github/workflows/ci.yml'; then
+            echo "Private references above; this repo is public."; exit 1
+          fi

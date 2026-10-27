@@ -14,7 +14,7 @@ See the module's DocC Scope for the precise supported subset.
 Regenerate from this worktree:
 
 ```sh
-MPLCONFIGDIR="$PWD/.build/matplotlib" ../../tools/memcap.sh -- ../../References/python/py4dstem/bin/python -I -B tools/ptycho/pins.py
+MPLCONFIGDIR="$PWD/.build/matplotlib" ../../References/python/py4dstem/bin/python -I -B tools/ptycho/pins.py
 ```
 
 The script verifies py4DSTEM f050d207 / 0.14.19, NumPy 2.5.0, and the installed

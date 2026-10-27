@@ -1,6 +1,6 @@
 """Pinned oracle for the single-slice options the mac4DSTEM app uses (CuboPtycho 0.6.0 candidates).
 Run from the worktree root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/ptycho/options_pins.py
+  MPLCONFIGDIR="$PWD/.build/matplotlib" ../References/python/py4dstem/bin/python -I -B tools/ptycho/options_pins.py
 Needs Tests/CuboPtychoTests/Fixtures/ptycho.json (pins.py) as its input data; writes Fixtures/options.json.
 
 1. constrainObjectAmplitude = false (the app's toggle). py4DSTEM has no switch: its _object_threshold_constraint is unconditional.

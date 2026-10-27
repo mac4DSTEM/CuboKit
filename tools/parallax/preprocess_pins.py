@@ -1,4 +1,4 @@
-"""Pinned Parallax.preprocess oracle; run with suite memcap and pinned Python -I -B."""
+"""Pinned Parallax.preprocess oracle; run under a memory cap and pinned Python -I -B."""
 import json, platform, subprocess, hashlib
 from pathlib import Path
 import numpy as np

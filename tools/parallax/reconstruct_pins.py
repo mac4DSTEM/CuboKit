@@ -1,7 +1,7 @@
 """Pinned Parallax.reconstruct oracle (alignment schedule, regularised shifts, running average) and one end-to-end
 subpixel case. Real py4DSTEM `Parallax(...).preprocess().reconstruct()` on small synthetic bright-field cubes.
 From the clone root:
-  ../../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/parallax/reconstruct_pins.py
+  ../References/python/py4dstem/bin/python -I -B tools/parallax/reconstruct_pins.py
 Bright-field disks are small (at most 16 groups per bin): NumPy sorts up to 16 elements with a stable insertion sort.
 Planted data: one smooth random object seen through every bright-field pixel with a linear shift of the pixel offset
 (a parallax of defocus type), so correlation maxima are unique (no float32 ties). For every bin the script asserts

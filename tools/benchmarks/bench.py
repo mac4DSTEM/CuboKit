@@ -1,7 +1,7 @@
 """py4DSTEM side of the CuboKit benchmark, and the merge into docs/benchmarks.md.
-Run from the suite folder (one benchmark at a time machine-wide, under memcap):
-  tools/memcap.sh -- References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py make   <dir>    # writes <dir>/{small,mid,typical}.npy
-  tools/memcap.sh -- References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py python <dir>    # writes <dir>/python.json
+Run from the suite folder (one benchmark at a time machine-wide, under a memory cap):
+  References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py make   <dir>    # writes <dir>/{small,mid,typical}.npy
+  References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py python <dir>    # writes <dir>/python.json
   CUBOKIT_BENCH_DIR=<dir> swift test -c release --filter BenchmarkHarness                            # writes <dir>/swift.json
   References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py merge <dir>                       # prints the markdown table
 Speed round (docs/benchmarks.md): `bench.py speed <dir> [calls]` prints one `SPEED name median_ms= best_ms=` line per case for the Python side (default 15 calls);

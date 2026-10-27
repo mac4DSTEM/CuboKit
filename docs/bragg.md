@@ -149,5 +149,5 @@ measurement), pinned to scipy in `GaussianEdgeTests`.
 Regenerate from a suite worktree:
 
 ```sh
-../../tools/memcap.sh -- ../../References/python/py4dstem/bin/python -I -B tools/bragg/pins.py
+../../References/python/py4dstem/bin/python -I -B tools/bragg/pins.py
 ```

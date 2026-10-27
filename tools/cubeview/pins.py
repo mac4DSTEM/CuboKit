@@ -1,6 +1,6 @@
 """Pinned py4DSTEM crop and bin: preprocess.crop_data_real, crop_data_diffraction, bin_data_diffraction on a Float32 DataCube.
 Run from the kit root:
-  ../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/cubeview/pins.py
+  ../References/python/py4dstem/bin/python -I -B tools/cubeview/pins.py
 Output: Tests/CuboCoreTests/Fixtures/cubeview.json
 """
 from pathlib import Path

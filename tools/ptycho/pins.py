@@ -1,5 +1,5 @@
 """Pinned py4DSTEM CPU single-slice oracle, no app transcription.
-Run from the worktree: ../../tools/memcap.sh -- ../../References/python/py4dstem/bin/python -I -B tools/ptycho/pins.py
+Run from the worktree: ../../References/python/py4dstem/bin/python -I -B tools/ptycho/pins.py
 Only preprocessed numerical arrays cross the API; no calibration/state/UI is ported.
 """
 from pathlib import Path

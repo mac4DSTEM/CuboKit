@@ -1,6 +1,6 @@
 """Pins for OriginFit.fitTrimmed: the MAD-trimmed origin fit of mac4DSTEM's calibration (OriginCalibration.fitOriginTrimmed).
 Run from the kit root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/origin/trimmed_pins.py
+  MPLCONFIGDIR="$PWD/.build/matplotlib" ../References/python/py4dstem/bin/python -I -B tools/origin/trimmed_pins.py
 Two references, both recorded in the fixture:
  * `app`: a line-by-line NumPy transcription of the app's Swift source (mac4DSTEM origin/main, Core/Analysis/OriginCalibration.swift,
    `fitOriginTrimmed` and `fit2D`), in Float32 where the app is Float (residuals, median, MAD, cutoff, RMS), the least-squares surface in

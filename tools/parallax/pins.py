@@ -1,5 +1,5 @@
 """Regenerate with the pinned venv, from the package root:
-../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/parallax/pins.py
+../References/python/py4dstem/bin/python -I -B tools/parallax/pins.py
 
 Only public py4DSTEM test data is cropped; no owner's dataset is copied.
 """

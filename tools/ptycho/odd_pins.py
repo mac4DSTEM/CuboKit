@@ -1,6 +1,6 @@
 """Pinned py4DSTEM oracle for ODD, non-square detector / probe / object sizes (CuboPtycho preprocessing and the three engines).
 Run from the kit root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/ptycho/odd_pins.py
+  MPLCONFIGDIR="$PWD/.build/matplotlib" ../References/python/py4dstem/bin/python -I -B tools/ptycho/odd_pins.py
 Same method as preprocess_pins.py and engines_pins.py (real py4DSTEM methods on numerically injected state; the engine data go
 through py4DSTEM's _normalize_diffraction_intensities), with a 15 x 13 probe on a 31 x 29 object (single, mixed, multislice) and a
 9 x 7 detector in the preprocessing pin. Odd lengths change fftfreq (no Nyquist bin), the corner-centred patch offsets, the

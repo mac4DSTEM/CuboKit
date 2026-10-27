@@ -1,5 +1,5 @@
 """Pinned py4DSTEM DataCube.get_braggmask and get_local_ave_dp (braggmask and plain). Run from the suite folder:
-  tools/memcap.sh -- References/python/py4dstem/bin/python -I -B CuboKit/tools/braggmask/pins.py
+  References/python/py4dstem/bin/python -I -B CuboKit/tools/braggmask/pins.py
 Output: CuboKit/Tests/CuboBraggTests/Fixtures/braggmask.json
 """
 from pathlib import Path
