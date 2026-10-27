@@ -1,6 +1,6 @@
 """Pinned py4DSTEM oracle for the mixed-state and multislice CPU engines (CuboPtycho).
 Run from the kit root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/ptycho/engines_pins.py
+  MPLCONFIGDIR="$PWD/.build/matplotlib" ../References/python/py4dstem/bin/python -I -B tools/ptycho/engines_pins.py
 The real MixedstatePtychography / MultislicePtychography classes run `reconstruct` on numerically injected preprocessing state
 (the same method as tools/ptycho/pins.py); orthogonalisation, probe initialisation (seeded NumPy RNG) and the propagator
 arrays are also called directly. Output: Tests/CuboPtychoTests/Fixtures/engines.json

@@ -269,7 +269,7 @@ enum ConsensusNumerics {
     /// peaks. Basis row for a peak is [1, h, k]; solves the 3×3 normal
     /// equations for each of the x and y coordinates.
     ///
-    /// DEVIATION (measured 2026-08-04, ../_archive/mac4DSTEM/tools/training-dataset-campaign parity):
+    /// DEVIATION (measured 2026-08-04, training-dataset campaign parity):
     /// py4DSTEM's fit_lattice_vectors multiplies both the design matrix and
     /// the data by the intensity weight before lstsq, which minimizes
     /// Σ w²·r². These normal equations weight by w once, minimizing Σ w·r² —

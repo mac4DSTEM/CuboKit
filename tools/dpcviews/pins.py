@@ -1,6 +1,6 @@
 """NumPy reference for the DPC views: magnitude np.hypot and the CoM angle np.angle(x + 1j y), as py4DSTEM's
 show_complex_CoM builds the complex CoM (`com_x + 1j*com_y`, x = first axis). Wrapped to [0, 2 pi) with +0 canonical.
-Run from the kit root:  ../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/dpcviews/pins.py
+Run from the kit root:  ../References/python/py4dstem/bin/python -I -B tools/dpcviews/pins.py
 Output: Tests/CuboPhaseTests/Fixtures/dpcviews.json
 """
 from pathlib import Path

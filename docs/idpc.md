@@ -23,7 +23,7 @@ The result is projected phase in radians up to its fixed zero-mean gauge.
 Regeneration from this worktree:
 
 ```sh
-MPLCONFIGDIR="$PWD/.build/matplotlib" ../../tools/memcap.sh -- ../../References/python/py4dstem/bin/python -I -B tools/idpc/pins.py
+MPLCONFIGDIR="$PWD/.build/matplotlib" ../../References/python/py4dstem/bin/python -I -B tools/idpc/pins.py
 ```
 
 Fixtures cover 7×10 periodic with anisotropic sampling, 8×8 at 2× padding and

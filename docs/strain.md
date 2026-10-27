@@ -66,7 +66,7 @@ minimal value shims. It never imports or executes CuboStrain to generate pins.
 Regenerate from a suite worktree:
 
 ```sh
-../../tools/memcap.sh -- ../../References/python/py4dstem/bin/python -I -B tools/strain/pins.py
+../../References/python/py4dstem/bin/python -I -B tools/strain/pins.py
 ```
 
 The generator checks Python 3.12.4, NumPy 2.5.0, py4DSTEM 0.14.19, the reference
@@ -75,7 +75,7 @@ unequal-intensity noise that distinguishes weighting, a reference population
 that distinguishes MAD rejection, repeated vector clusters, and peaks measured
 on public `small_datacube.dm4` crop [0,0,200:312,200:312]. Its input SHA256 and
 source SHA256 are in `Fixtures/strain.json`. Numeric arrays are little-endian
-binary f64, under 5 KB total. Oracle execution under the 8 GB memcap peaked at
+binary f64, under 5 KB total. Oracle execution under an 8 GB memory cap peaked at
 689 MB. The Swift source oracle is also a descendant of that capped process.
 
 Absolute tolerance 1e-10 for primary fits/strains (no bit-exact claim across SVD
@@ -130,7 +130,7 @@ would index out of range or return NaN, the kit refuses with the reason.
 `tools/strain/mapping_pins.py` (a sibling of `pins.py`, which is unchanged, as are its fixtures) runs py4DSTEM's real
 `BraggVectors.histogram`, `StrainMap.choose_basis_vectors`, `fit_basis_vectors` and `get_strain` (Agg backend, the
 plots discarded) and `get_maxima_2D`, and writes `Tests/CuboStrainTests/Fixtures/map_*.f64` and `strain_mapping.json`
-(61 little-endian f64 arrays, 277 KB; the oracle peaked at 199 MB under the 8 GB memcap). Datasets:
+(61 little-endian f64 arrays, 277 KB; the oracle peaked at 199 MB under an 8 GB memory cap). Datasets:
 
 - d1: noise-free planted lattice (7 x 8 scan, 48 x 48 detector, fractional origin, non-orthogonal reference lattice,
   planted exx, eyy, exy, theta ramps, columns 0 to 2 exactly unstrained).

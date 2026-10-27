@@ -1,7 +1,7 @@
 """Pins for CuboCore FrameTransform. py4DSTEM (f050d207) moves no origin on crop/bin, so the primary pin for those is the
 app source CalibrationReReference.swift at mac4DSTEM c809679c, transcribed here in Float32 (never from the Swift port).
 py4DSTEM contributes the crop slice and the Q-pixel-size x bin rule, asserted from its source text.
-Run: ../../tools/memcap.sh -- ../../References/python/py4dstem/bin/python -I -B tools/rereference/pins.py"""
+Run: ../../References/python/py4dstem/bin/python -I -B tools/rereference/pins.py"""
 import json, pathlib, numpy as np
 f = np.float32
 ref = pathlib.Path('../References/CuboKit/py4DSTEM-f050d207/py4DSTEM/preprocess/preprocess.py')

@@ -3,7 +3,7 @@ StrainMap (choose_basis_vectors, fit_basis_vectors, get_strain) run on planted l
 public simulated Au dataset. Sibling of pins.py (which is untouched); writes only `map_*.f64` and `strain_mapping.json`
 under Tests/CuboStrainTests/Fixtures. Run from the clone root:
 
-  ../../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/strain/mapping_pins.py
+  ../References/python/py4dstem/bin/python -I -B tools/strain/mapping_pins.py
 
 Peaks are stored as py4DSTEM sees them (centred, calibrated vectors from `get_vectors(center=True)`), so the Swift side
 starts from the same doubles. Rows are py4DSTEM x, columns y.

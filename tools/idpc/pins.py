@@ -1,7 +1,7 @@
 """NumPy float64 transcription of the app's Fourier-integration iDPC.
 This is NOT py4DSTEM iterative DPC. Periodic/centered zero-padded boundary,
 mean subtraction before padding and after cropping, regularized inverse gradient.
-Run with the pinned venv under ../../tools/memcap.sh, from this worktree.
+Run with the pinned venv under a memory cap, from this worktree.
 """
 from pathlib import Path
 import json, platform, hashlib, subprocess

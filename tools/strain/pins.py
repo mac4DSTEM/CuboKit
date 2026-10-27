@@ -1,4 +1,4 @@
-"""Generate reference and original-app pins. Run with memcap and the pinned venv.
+"""Generate reference and original-app pins. Run under a memory cap with the pinned venv.
 Paths resolve from either the primary checkout or a worktree. No new Swift implementation is used.
 """
 import hashlib, json, platform, subprocess, tempfile

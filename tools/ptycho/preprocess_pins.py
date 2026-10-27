@@ -1,6 +1,6 @@
 """Pinned py4DSTEM preprocessing oracle for CuboPtycho (amplitudes, scan positions, object shape, probe normalisation).
 Run from the kit root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/ptycho/preprocess_pins.py
+  MPLCONFIGDIR="$PWD/.build/matplotlib" ../References/python/py4dstem/bin/python -I -B tools/ptycho/preprocess_pins.py
 Actual py4DSTEM methods (_normalize_diffraction_intensities, _calculate_scan_positions_in_pixels, _initialize_object,
 _initialize_probe) are called on a SingleslicePtychography whose preprocessing attributes are set directly; centre of mass,
 rotation search and calibration extraction are outside this pin (the origins and the rotation are inputs).

@@ -2,7 +2,7 @@
 # published to GitHub Pages at https://mac4dstem.github.io/CuboKit/documentation/ on every tag.
 # On a pull request the site is built and uploaded as an artifact only, so a broken catalog fails before the tag.
 #
-# No swift-docc-plugin: the kit takes no package dependencies (CLAUDE.md). `xcodebuild docbuild` builds the archives
+# No swift-docc-plugin: the kit takes no package dependencies. `xcodebuild docbuild` builds the archives
 # from the package's own schemes; `docc merge` (Xcode 16+) joins them. Needs Pages enabled with source "GitHub Actions"
 # (repository Settings > Pages). Pattern first proposed for CuboKit; the other kits copy it with their module list.
 name: Docs

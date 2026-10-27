@@ -3,7 +3,7 @@ scikit-learn they call, NumPy's RandomState draws, BraggVectorClassification and
 produced by py4DSTEM itself on small planted inputs; no CuboKit Swift is used. Run from the CuboKit folder with the suite's
 reference environment under the memory cap:
 
-    ../tools/memcap.sh -- ../References/python/py4dstem/bin/python -I -B tools/classification/pins.py [featurization|classification|virtualimage|all]
+    ../References/python/py4dstem/bin/python -I -B tools/classification/pins.py [featurization|classification|virtualimage|all]
 
 Outputs (floats as repr, so they round-trip exactly):
     Tests/CuboEmbeddingTests/Fixtures/featurization.json
