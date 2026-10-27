@@ -36,7 +36,7 @@ jobs:
           xcodebuild -version
       - name: Build the site
         run: tools/build-docs.sh .docs-site /CuboKit
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: .docs-site
 
