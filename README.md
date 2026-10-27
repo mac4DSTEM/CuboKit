@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/banner.png" width="100%" alt="CuboKit: 4D-STEM data cubes on the Mac"></p>
+
 # CuboKit
 
 A Swift package for 4D-STEM data on the Mac: the numbers, never the user interface. It is the Mac-native counterpart of
