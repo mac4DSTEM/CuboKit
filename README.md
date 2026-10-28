@@ -185,7 +185,7 @@ change something. `docs/parity.md` is the checklist against py4DSTEM's documente
 
 ## Licence and where the parts come from
 
-GPL-3.0 (`LICENSE`, `NOTICE`). The whole package is GPL-3.0, so anyone who links the kit into an app or tool must license the result under GPL-3.0 or a compatible licence.
+GPL-3.0-only (`LICENSE`, `NOTICE`). The whole package is GPL-3.0, so anyone who links the kit into an app or tool must license the result under GPL-3.0 or a compatible licence.
 
 - The cube model and the reducers were extracted from the GPL-3.0 macOS app mac4DSTEM (same authors) and rewritten as a public API; `NOTICE` names
   the commit and the files.

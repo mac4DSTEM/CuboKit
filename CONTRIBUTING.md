@@ -30,4 +30,4 @@ or a planted cube. A test's tolerance is the one the Python package's own tests 
 - Keep a change focused, with a test that fails before it and passes after.
 - Public API only: a type a user needs must be `public`, and nothing should name an application.
 - Say in the pull request what you ran. Please do not edit generated fixtures by hand.
-- By contributing you agree that your contribution is licensed under GPL-3.0, like the rest of the package.
+- By contributing you agree that your contribution is licensed under GPL-3.0-only, like the rest of the package.
