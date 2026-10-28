@@ -1,5 +1,5 @@
-# CuboKit CI: the test run (tools/test.sh = `swift test -c release`), the consumer check, the README consumer, an iOS
-# Simulator build and, on a tag, the CHANGELOG version check.
+# CuboKit CI: the test run (tools/test.sh = `swift test -c release`) on every pull request; after merge the consumer check,
+# the README consumer and an iOS Simulator build; on a tag, the CHANGELOG version check.
 #
 # The package needs macOS 15 / iOS 18 or later and a Swift 6.2 or later toolchain (Package.swift: tools 6.2); the
 # macos-26 image with Xcode 26.6, pinned below, carries both.
@@ -35,6 +35,15 @@ jobs:
           swift --version
       - name: Gate (tools/test.sh, release)
         run: tools/test.sh
+
+  post-merge:
+    name: Consumer checks and iOS build (after merge)
+    # Not on pull requests: the free plan's macOS runners are scarce, so the extra builds run on main, tags and by hand.
+    if: github.event_name != 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
       - name: Consumer check (a separate package, the public API only)
         run: tools/consumer-check/run.sh
       - name: README consumer (a separate package compiling exactly the README's program, output checked)
