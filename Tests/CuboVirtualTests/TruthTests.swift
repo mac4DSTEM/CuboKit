@@ -117,7 +117,7 @@ import CuboVirtual
         for (row, column) in [(1, 5), (3, 2), (4, 0), (0, 6), (2, 4)] {
             for path in paths {
                 let image = try await VirtualImaging.image(of: source, geometry: .point(row: row, column: column), path: path)
-                #expect(image.values == (0..<6).map { Double($0 * 10000 + row * 100 + column) }, "(\(row), \(column)) \(path)")
+                #expect(image.values == (0..<6).map { (i: Int) -> Double in Double(i * 10000 + row * 100 + column) }, "(\(row), \(column)) \(path)")
             }
         }
     }
