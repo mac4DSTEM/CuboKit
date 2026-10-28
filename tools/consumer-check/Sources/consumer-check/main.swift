@@ -475,7 +475,7 @@ check("CuboVirtualError.invalidInput", CuboVirtualError.invalidInput("x") == .in
 // HotPixelFilter.Replacer: the reusable in-place replacement plan (equals the one-frame `replacing`).
 do {
     let hpMask = (0..<20).map { $0 % 7 == 3 }
-    let hpFrame = (0..<20).map { Float(($0 * 37) % 11) + (($0 == 3) ? 50 : 0) }
+    let hpFrame: [Float] = (0..<20).map { (i: Int) -> Float in Float((i * 37) % 11) + (i == 3 ? 50 : 0) }
     var hpPlanned = hpFrame
     let replacer = try HotPixelFilter.Replacer(rows: 4, columns: 5, mask: hpMask)
     replacer.apply(to: &hpPlanned)
@@ -659,7 +659,9 @@ do {
     let probe = try PtychographyArray(rows: d, columns: d, real: probeRe, imaginary: [Double](repeating: 0, count: d * d))
     let object = try PtychographyArray(rows: 24, columns: 24, real: [Double](repeating: 1, count: 576), imaginary: [Double](repeating: 0, count: 576))
     let amps = [Double](repeating: 1, count: count * d * d)
-    let positions = (0..<count).map { PtychographyPosition(row: Double(8 + 3 * $0), column: Double(8 + 2 * $0)) }
+    let positions: [PtychographyPosition] = (0..<count).map { (i: Int) -> PtychographyPosition in
+        PtychographyPosition(row: Double(8 + 3 * i), column: Double(8 + 2 * i))
+    }
     nonisolated(unsafe) var ptychoProgress: [Int] = []
     let single = try SingleslicePtychography.reconstruct(amplitudes: amps, positions: positions, object: object, probe: probe, iterations: 2,
                                                          precision: .single, progress: { done, _ in ptychoProgress.append(done) })
