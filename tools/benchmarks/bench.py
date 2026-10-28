@@ -1,5 +1,5 @@
 """py4DSTEM side of the CuboKit benchmark, and the merge into docs/benchmarks.md.
-Run from the suite folder (one benchmark at a time machine-wide, under a memory cap):
+Run from the folder that holds this package and References/python/py4dstem (the pinned venv; see the README); one benchmark at a time:
   References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py make   <dir>    # writes <dir>/{small,mid,typical}.npy
   References/python/py4dstem/bin/python -I -B CuboKit/tools/benchmarks/bench.py python <dir>    # writes <dir>/python.json
   CUBOKIT_BENCH_DIR=<dir> swift test -c release --filter BenchmarkHarness                            # writes <dir>/swift.json

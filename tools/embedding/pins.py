@@ -1,4 +1,4 @@
-"""Generate CuboEmbedding pins. Run under a memory cap with the OLD pinned venv (scikit-learn 1.4.2; References/python/py4dstem has 1.9.1,
+"""Generate CuboEmbedding pins. Run with the OLD pinned venv (scikit-learn 1.4.2; References/python/py4dstem has 1.9.1,
 whose PCA fixtures differ, so a regeneration there is a fixture move of its own):
 
     ../../References/CuboKit/py4dstem-venv/bin/python -I -B tools/embedding/pins.py

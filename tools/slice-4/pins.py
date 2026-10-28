@@ -1,22 +1,21 @@
-"""CuboKit slice 4: the pin generator (docs/registration-slice-4.md).
+"""CuboKit slice 4: the pin generator.
 
     ../References/python/py4dstem/bin/python -I -B tools/slice-4/pins.py synthetic
     ../References/python/py4dstem/bin/python -I -B tools/slice-4/pins.py export-bullseye
     ../References/python/py4dstem/bin/python -I -B tools/slice-4/pins.py real [name ...]
 
-An external memory cap (a watchdog on the process tree, 8 GB by default) is the enforcer; the watchdog thread below is a
-second guard. One worker at a time; almgsi and auref need --gb 16 (and CUBOKIT_PINS_MEM_GB=16).
+The watchdog thread below caps memory (8 GB by default). One worker at a time; almgsi and auref need --gb 16 (and CUBOKIT_PINS_MEM_GB=16).
 
 synthetic -> Tests/CuboVirtualTests/Fixtures/slice-4-pins.json (+ planted cubes as .npy), before any Swift;
-export-bullseye -> $CUBOKIT_REAL_DATA/bullseye.npy (the owner's 20 vacuum-probe images as a 1 x 20 x 250 x 250 cube);
+export-bullseye -> $CUBOKIT_REAL_DATA/bullseye.npy (20 vacuum-probe images of your own as a 1 x 20 x 250 x 250 cube);
 real -> $CUBOKIT_REAL_DATA/<name>-s4-pins.json beside slice 1's exports.
-py4DSTEM's own results beside the float64 evaluation of each definition (section 3), which the kit is held to.
+py4DSTEM's own results beside the float64 evaluation of each definition, which the kit is held to.
 """
 import datetime, importlib.util, json, os, resource, sys, warnings
-# The suite's memory cap (owner, 2026-10-15 12:30): 8 GB by default, set before anything else is loaded. This macOS
+# The memory cap: 8 GB by default, set before anything else is loaded. This macOS
 # refuses RLIMIT_AS and RLIMIT_DATA outright (setrlimit: "current limit exceeds maximum limit"), so the cap is a watchdog:
 # a thread that ends the process with exit code 3 once its peak resident size passes the cap. The two big cubes (almgsi,
-# auref) need about 12 GB for their float64 copies: CUBOKIT_PINS_MEM_GB=16, one worker at a time (registration 9).
+# auref) need about 12 GB for their float64 copies: CUBOKIT_PINS_MEM_GB=16, one worker at a time.
 import threading, time
 _cap = int(float(os.environ.get("CUBOKIT_PINS_MEM_GB", "8")) * (1 << 30))
 
@@ -156,8 +155,8 @@ def parabola(c0, cp, cm):
 
 
 def friedel_one(P, mask=None, u=1):
-    """Section 3.3 in float64, written from the text. Returns (row, column, peak, gap) where gap is the distance of the
-    second-largest cc value below the peak over max|cc| (the near-tie measure of section 4)."""
+    """get_origin_friedel in float64, written from its definition. Returns (row, column, peak, gap) where gap is the distance of the
+    second-largest cc value below the peak over max|cc| (the near-tie measure)."""
     Qr, Qc = P.shape
     im = np.pad(np.asarray(P, np.float64), ((0, Qr), (0, Qc)))
     if mask is None:
