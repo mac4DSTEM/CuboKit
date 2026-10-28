@@ -1,7 +1,7 @@
 //
 //  ShiftedImaging.swift
-//  Centred, calibrated and centre-shifted virtual images, and centre-shifted mean and maximum patterns (registration
-//  slice 3, 3.3, 3.4): py4DSTEM's get_virtual_image(centered, calibrated, shift_center, subpixel) and
+//  Centred, calibrated and centre-shifted virtual images, and centre-shifted mean and maximum patterns:
+//  py4DSTEM's get_virtual_image(centered, calibrated, shift_center, subpixel) and
 //  get_virtual_diffraction(shift_center, subpixel) at f050d207, CPU, Double.
 //
 //  DEVIATIONS: centred and calibrated together are refused (py4DSTEM divides the pixel origin by the pixel size); the

@@ -1,6 +1,6 @@
 //
 //  CenterOfMassReference.swift
-//  The reference a measured centre of mass is taken against, and the normalized shift (registration slice 2, 3.2):
+//  The reference a measured centre of mass is taken against, and the normalized shift:
 //  py4DSTEM's `fit_origin` (process/calibration/origin.py 76) and the normalization at the end of
 //  `_calculate_intensities_center_of_mass` (process/phase/phase_base_class.py) at f050d207.
 //

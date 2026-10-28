@@ -4,8 +4,8 @@
 //  Q-R rotation and flip, and the probe numbers, with the coordinate vectors and grids built from them.
 //
 //  Reference: py4DSTEM `data.calibration.Calibration` and `DataCube.calibrate` (qxx, qyy, rxx, ryy, the raw grids, qxxs and
-//  qyys). py4DSTEM's x is this kit's ROW and y its COLUMN. A value type, so the registration of targets that py4DSTEM
-//  re-calibrates on every setter (`register_target`, `attach`) has no counterpart: a caller derives the axes it needs from the
+//  qyys). py4DSTEM's x is this kit's ROW and y its COLUMN. A value type, so the targets that py4DSTEM
+//  re-calibrates on every setter (`register_target`, `attach`) have no counterpart: a caller derives the axes it needs from the
 //  value. Differences that are on purpose:
 //    - py4DSTEM's grids come from `np.meshgrid(dim_x, dim_y)` and are shaped (Ny, Nx), the transpose of the cube's detector
 //      plane (the four `*_raw` grids are `meshgrid(..., indexing="ij")`-like and are not transposed). The grids here are `rows x columns`, entry [row][column] (the transpose of py4DSTEM's array, values equal).

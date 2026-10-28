@@ -3,8 +3,8 @@
 //  The exact N-point complex DFT in Double for any N: vDSP's vDSP_DFT_zop plans for the lengths it takes (2^n × {1, 3, 5, 15};
 //  5-7× faster than vDSP_fft_zipD from 128² up), vDSP's radix-2 FFT (vDSP_fft_zipD) for the other powers of two, Bluestein's
 //  chirp-z through a radix-2 FFT of length M ≥ 2N − 1 otherwise. Forward is NumPy's fft (e^{−2πi kn/N}, unnormalized);
-//  inverse is NumPy's ifft (e^{+2πi kn/N}, divided by N). Double throughout, for the DPC iteration of slice 2
-//  and the Fourier shifts of slice 3 (moved to CuboCore, package, in slice 3).
+//  inverse is NumPy's ifft (e^{+2πi kn/N}, divided by N). Double throughout, for the DPC iteration
+//  and the Fourier shifts (package access in CuboCore).
 //
 
 import Accelerate

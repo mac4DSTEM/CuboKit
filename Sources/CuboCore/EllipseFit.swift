@@ -1,6 +1,6 @@
 //
 //  EllipseFit.swift
-//  Fitting the elliptical distortion of a diffraction pattern (task 18): py4DSTEM's `process/calibration/ellipse.py` at f050d207
+//  Fitting the elliptical distortion of a diffraction pattern: py4DSTEM's `process/calibration/ellipse.py` at f050d207
 //  (`fit_ellipse_1D`, `ellipse_err`, `fit_ellipse_amorphous_ring`, `double_sided_gaussian`, `double_sided_gaussian_fiterr`,
 //  `constrain_degenerate_ellipse`) and the two conversions of `process/utils/elliptical_coords.py` (`convert_ellipse_params`,
 //  `convert_ellipse_params_r`), in Double. The fits run MINPACK's Levenberg-Marquardt (``MINPACKLeastSquares``) from the same

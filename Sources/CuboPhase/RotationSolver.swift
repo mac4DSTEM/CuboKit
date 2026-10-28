@@ -1,7 +1,7 @@
 //
 //  RotationSolver.swift
 //  The relative rotation (and transpose) between the scan and the detector, by minimising the curl of the
-//  centre-of-mass field or maximising its divergence (registration slice 2, 3.3): a port of py4DSTEM's
+//  centre-of-mass field or maximising its divergence: a port of py4DSTEM's
 //  `_solve_for_center_of_mass_relative_rotation` (process/phase/phase_base_class.py 769 at f050d207), in Double.
 //
 

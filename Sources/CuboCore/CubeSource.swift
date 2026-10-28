@@ -1,6 +1,6 @@
 //
 //  CubeSource.swift
-//  How a computation gets its pixels: one pattern, or contiguous scan rows (registration 1.1). Every read returns
+//  How a computation gets its pixels: one pattern, or contiguous scan rows. Every read returns
 //  Float32 whatever the stored element type.
 //
 //  A source here is only a shape and reads: load views, calibration, probes and file attributes belong to the consumer.
@@ -81,7 +81,7 @@ extension CubeShape {
     }
 }
 
-/// How a whole-cube pass walks the scan axis (registration 1.1).
+/// How a whole-cube pass walks the scan axis.
 public enum ScanTiling: Sendable, Hashable {
     /// The largest row count whose Float32 tile is at most 64 MiB, at least 1: a function of the shape alone, never of
     /// the machine, so a tiled result is the same on every Mac.

@@ -1,6 +1,6 @@
 //
 //  FriedelOrigin.swift
-//  Per-position origins from Friedel symmetry (registration slice 4, 3.3): py4DSTEM's get_origin_friedel
+//  Per-position origins from Friedel symmetry: py4DSTEM's get_origin_friedel
 //  (process/calibration/origin.py 332 at f050d207) and its DFT upsampling (process/utils/multicorr.py
 //  upsampled_correlation 22, dftUpsample 145), CPU, Double. A pattern is centrosymmetric about the unscattered beam, so
 //  the correlation of the zero-padded pattern with its point reflection, Re(IFFT2(FFT2(im)²)), peaks at twice the origin.
@@ -66,7 +66,7 @@ public enum FriedelOrigin {
             if let mask, mask.count != qy * qx {
                 throw CuboVirtualError.maskLengthMismatch(expected: qy * qx, received: mask.count)
             }
-            if let mask, !mask.contains(true) {   // every masked correlation is then noise over noise (Gate B F1)
+            if let mask, !mask.contains(true) {   // every masked correlation is then noise over noise
                 throw CuboVirtualError.invalidInput("the mask keeps no pixel of the pattern")
             }
             self.qy = qy; self.qx = qx; ny = 2 * qy; nx = 2 * qx; self.u = u

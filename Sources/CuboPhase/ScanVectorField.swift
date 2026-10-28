@@ -1,6 +1,6 @@
 //
 //  ScanVectorField.swift
-//  A 2-vector per scan position (registration slice 2, section 1): py4DSTEM's (x, y) component pairs, which the kit names
+//  A 2-vector per scan position: py4DSTEM's (x, y) component pairs, which the kit names
 //  by the detector axis they lie along: `row` is py4DSTEM's x (the first detector axis), `column` its y.
 //
 

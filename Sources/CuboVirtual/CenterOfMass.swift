@@ -1,6 +1,6 @@
 //
 //  CenterOfMass.swift
-//  The intensity-weighted centre of mass of every pattern (registration slice 2, 3.1): py4DSTEM's
+//  The intensity-weighted centre of mass of every pattern: py4DSTEM's
 //  `_calculate_intensities_center_of_mass` (process/phase/phase_base_class.py 613 at f050d207), in Double.
 //
 //  DEVIATION from a common Float32 implementation, toward py4DSTEM: negative intensities are summed as they are (that

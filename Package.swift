@@ -64,7 +64,7 @@ let package = Package(
         .target(name: "CuboKitTestSupport", dependencies: ["CuboCore", "CuboVirtual", "CuboPhase"],
                 path: "Tests/CuboKitTestSupport", swiftSettings: settings),
         // The real-data comparisons against the pinned float64 / py4DSTEM exports in $CUBOKIT_REAL_DATA (skipped by name when absent):
-        // `swift test -c release --parallel --skip CuboKitParityTests` is the per-session gate, the plain run is the full suite.
+        // `swift test -c release --parallel --skip CuboKitParityTests` is the fast gate, the plain run is the full suite.
         .testTarget(name: "CuboKitParityTests", dependencies: ["CuboCore", "CuboVirtual", "CuboPhase", "CuboKitTestSupport"],
                     swiftSettings: settings),
         .testTarget(name: "CuboCoreTests", dependencies: ["CuboCore"], exclude: ["Fixtures"], swiftSettings: settings),

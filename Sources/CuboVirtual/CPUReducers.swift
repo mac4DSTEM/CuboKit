@@ -1,6 +1,6 @@
 //
 //  CPUReducers.swift
-//  The reference path (registration 3.2, 3.3): Accelerate, Double accumulation, the same arithmetic whatever the
+//  The reference path: Accelerate, Double accumulation, the same arithmetic whatever the
 //  tiling, so the eager and lazy cubes and every tiling give the same bits.
 //
 

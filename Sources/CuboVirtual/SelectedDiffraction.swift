@@ -1,10 +1,10 @@
 //
 //  SelectedDiffraction.swift
-//  The median pattern and virtual diffraction over a real-space selection (registration slice 4, 3.1): py4DSTEM's
+//  The median pattern and virtual diffraction over a real-space selection: py4DSTEM's
 //  get_dp_median and get_virtual_diffraction(method, mask, shift_center, subpixel) at f050d207, CPU, Double.
 //
 //  DEVIATIONS: an empty selection, weights summing to zero (for the mean) and non-finite weights are refused where
-//  py4DSTEM returns NaN or ∞ or raises; the shifted maximum is seeded at −∞ (slice 3; py4DSTEM seeds it at 0). Complex
+//  py4DSTEM returns NaN or ∞ or raises; the shifted maximum is seeded at −∞ (as in ShiftedImaging; py4DSTEM seeds it at 0). Complex
 //  masks are not ported.
 //
 
@@ -34,7 +34,7 @@ extension VirtualDiffraction {
     }
 
     /// A virtual diffraction pattern over a selection of positions, optionally centre-shifted (mean and max only).
-    /// `.mean` and `.max` over `.all` without a shift are slice 1's `mean` and `max` on the CPU, bit for bit.
+    /// `.mean` and `.max` over `.all` without a shift are `VirtualImaging`'s `mean` and `max` on the CPU, bit for bit.
     /// `medianWorkingBytes` bounds the median's gathered block (256 MiB by default; it changes the passes, not the result).
     /// `path: .metal` runs the mean and the max over `.all`, `.mask` and `.weights` on the GPU (compensated Float32 sums
     /// combined in Double, held to the CPU path within relative 1e-5); the median and a centre shift are CPU only and
@@ -221,7 +221,7 @@ extension VirtualDiffraction {
         return c % 2 == 1 ? v[c / 2] : (v[c / 2 - 1] + v[c / 2]) / 2
     }
 
-    /// The centre-shifted mean and max over a selection (slice 3, 3.4, with py4DSTEM's mask): each selected pattern moved
+    /// The centre-shifted mean and max over a selection (py4DSTEM's shift_center with a mask): each selected pattern moved
     /// by the map's mean minus its origin, then Σ moved (· w) / count (or Σ w) and the max of moved (· w), seeded at −∞.
     private static func shifted(_ source: some CubeSource, _ statistic: DiffractionStatistic, _ selected: [Int],
                                 _ weights: [Double]?, _ shift: PatternShift, _ tiling: ScanTiling,

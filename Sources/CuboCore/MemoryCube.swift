@@ -1,7 +1,7 @@
 //
 //  MemoryCube.swift
-//  The eager cube: the whole array as one [Float] in storage order (registration 1.1). Registered equal to the lazy
-//  MappedCube of the same bytes, bit for bit (3.4).
+//  The eager cube: the whole array as one [Float] in storage order. Equal to the lazy
+//  MappedCube of the same bytes, bit for bit (tested in CuboCoreTests).
 //
 
 /// A cube held in memory as Float32, `[ry][rx][qy][qx]`.

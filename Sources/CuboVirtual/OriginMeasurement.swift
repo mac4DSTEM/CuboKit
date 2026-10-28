@@ -1,6 +1,6 @@
 //
 //  OriginMeasurement.swift
-//  Per-position origins (registration slice 3, 3.1): py4DSTEM's get_origin (process/calibration/origin.py 222 at f050d207)
+//  Per-position origins: py4DSTEM's get_origin (process/calibration/origin.py 222 at f050d207)
 //  in Double: scipy's gaussian_filter (σ = r, truncate 4, mode nearest, rows then columns), the first argmax, and the centre
 //  of mass of the pattern within r · rscale of it.
 //
@@ -46,7 +46,7 @@ public enum OriginMeasurement {
         try await measure(of: source, radius: radius, radiusScale: radiusScale, scanMask: nil, tiling: tiling)
     }
 
-    /// get_origin with its scan `mask` and `fast_center` (registration slice 4, 3.2): origins only where `scanMask` is true
+    /// get_origin with its scan `mask` and `fast_center`: origins only where `scanMask` is true
     /// (row-major over the scan), NaN elsewhere; with `fastCenter` the filtered argmax itself, no centre of mass. The radius
     /// default is the probe size of the whole cube's maximum pattern, as py4DSTEM's.
     public static func measure(of source: some CubeSource, radius: Double? = nil, radiusScale: Double = 1.2,

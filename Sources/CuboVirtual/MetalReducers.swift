@@ -1,14 +1,14 @@
 //
 //  MetalReducers.swift
-//  The accelerated path (registration 3.2, 3.3): compute kernels compiled at run time from the source below, in Metal's
+//  The accelerated path: compute kernels compiled at run time from the source below, in Metal's
 //  safe math mode (no fast-math reassociation), compensated Float32 sums, Double combination on the host.
-//  Held to the CPU path within relative 1e-5 (registration 3.4).
+//  Held to the CPU path within relative 1e-5.
 //
 //  Four kernels: one thread per scan position (a detector mask, the centre of mass, the origin) or per detector pixel over the scan
 //  positions. Every sum is compensated
 //  (TwoSum and the fma TwoProduct, Dot2) and each thread returns its sum and its correction, which the host adds in
-//  Double (the first version's plain two-level Float32 sums missed the registered 1e-5 on zero-mean data: Gate B,
-//  2026-10-15); the tiles are combined in Double; the kernels are compiled from source so the
+//  Double (the first version's plain two-level Float32 sums missed relative 1e-5 on
+//  zero-mean data); the tiles are combined in Double; the kernels are compiled from source so the
 //  kit needs no .metallib and `swift build` alone builds it.
 //
 
@@ -73,7 +73,7 @@ final class MetalContext: @unchecked Sendable {
 
     // Error-free transformations (Knuth's TwoSum, the fma TwoProduct): in safe math mode nothing reassociates them, so
     // s + c holds the running sum with its rounding error carried exactly to the next step (Ogita, Rump and Oishi's
-    // Dot2). The host adds s and c in Double. Registration 3.2, 3.3, amendment of 2026-10-15 (Gate B).
+    // Dot2). The host adds s and c in Double.
     inline void two_sum(thread float &s, thread float &c, float x) {
         const float t = s + x;
         const float z = t - s;
@@ -137,7 +137,7 @@ final class MetalContext: @unchecked Sendable {
         lo = e - (hi - s);
     }
 
-    // One thread per scan position: Σ wP, Σ (w i) P, Σ (w j) P (registration slice 2, 3.1; Gate B amendment). Each
+    // One thread per scan position: Σ wP, Σ (w i) P, Σ (w j) P. Each
     // coefficient arrives as a Float32 pair (hi, lo) with hi + lo its Double value; the product with hi is split exactly by
     // fma, the lo part is added rounded, and every term goes into a renormalised double-float accumulator returned as
     // (hi, lo) for the host to add in Double.
