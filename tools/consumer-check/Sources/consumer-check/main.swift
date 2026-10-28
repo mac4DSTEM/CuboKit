@@ -751,5 +751,33 @@ do {
     let lattice = try BraggMasking.latticeMask(detectorRows: 8, detectorColumns: 9, g1: (3, 0), g2: (0, 3), radius: 0.6, origin: (4, 4), maximumDistance: 4)
     check("BraggMasking (mask, localAverage, latticeMask)", braggMask[2 * 9 + 2] == false && braggMask[0] == true && average.valid[0] && lattice[4 * 9 + 4] == 1)
 }
+
+// 0.9.0 public names: the polar cube, radial background, ellipse fit, resident cube, NMF, Gaussian mixture, classification.
+do {
+    let resident = try await ResidentCube(loading: lazy, tiling: .rows(1))
+    let residentPattern = try await resident.readPattern(row: 2, column: 3)
+    check("ResidentCube(loading:) reads the same pattern", residentPattern.values == pattern.values && ResidentCube.fits(shape))
+
+    let polarCube = try PolarCube(detectorRows: 8, detectorColumns: 9, sampling: PolarSampling(annularCount: 12))
+    let polar = try polarCube.transform(pattern: Array(values[0..<72]), origin: (3.5, 4), ellipse: nil)
+    let profile = try RadialBackground.profile(of: polar)
+    check("PolarCube and RadialBackground", polarCube.annularCount == 12 && polarCube.radialCount > 0 && profile.count == polarCube.radialCount)
+    let radius = RadialBackground.ellipticalRadius(detectorRows: 8, detectorColumns: 9, origin: (3.5, 4), ellipse: nil)
+    check("RadialBackground.ellipticalRadius", radius.count == 72)
+
+    let canonical = EllipseFit.canonical(a: 5, b: 3, theta: 0.4)
+    let axes = EllipseFit.semiAxes(A: canonical.A, B: canonical.B, C: canonical.C)
+    check("EllipseFit canonical and semiAxes round trip", abs(axes.a - 5) < 1e-9 && abs(axes.b - 3) < 1e-9)
+
+    let x: [Double] = [1, 0, 0, 1, 2, 0, 0, 2, 1, 1, 2, 2]
+    let nmf = try NMF.fit(x, rows: 6, columns: 2, components: 2)
+    check("NMF.fit", nmf.components == 2 && nmf.w.count == 12 && nmf.h.count == 4)
+    let mixture = try GaussianMixture.fit(x, rows: 6, columns: 2, components: 2, seed: 1)
+    let probabilities = try mixture.model.probabilities(of: x, rows: 6)
+    check("GaussianMixture.fit", probabilities.count == 12 && mixture.probabilities.count == 12 && mixture.labels.count == 6)
+
+    let initial = try BraggVectorClassification.initialClasses(peakLabels: [[0, 1], [0], [1]], featureCount: 2)
+    check("BraggVectorClassification.initialClasses", !initial.isEmpty)
+}
 print("consumer-check summary: \(checks) checks, \(failures) failures")
 exit(failures == 0 ? 0 : 1)
