@@ -1,4 +1,5 @@
 // swift-tools-version: 6.2
+// SPDX-License-Identifier: GPL-3.0-only
 // CuboKit — a 4D-STEM library for the Mac: the cube model with an eager and a lazy, memory-mapped path (CuboCore);
 // the mean and maximum diffraction pattern and virtual images from py4DSTEM's detector geometries, on the CPU
 // with Accelerate and on the GPU with Metal behind one API (CuboVirtual); centre of mass and DPC (CuboPhase);

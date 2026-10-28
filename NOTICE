@@ -3,8 +3,7 @@ Copyright (C) 2026 Paul Lobpreis
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version (LICENSE).
+Foundation, version 3 of the License only (LICENSE).
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
@@ -163,5 +162,5 @@ operation by operation. SciPy is BSD-3-Clause.
 Copyright (c) 2001-2002 Enthought, Inc. 2003, SciPy Developers. Full terms:
 Licenses/SciPy-BSD-3-Clause.txt.
 
-Licence note: CuboKit is GPL-3.0. Anyone who links it into an app or tool must license the combined work under GPL-3.0 or a
+Licence note: CuboKit is GPL-3.0-only. Anyone who links it into an app or tool must license the combined work under GPL-3.0 or a
 compatible licence.
