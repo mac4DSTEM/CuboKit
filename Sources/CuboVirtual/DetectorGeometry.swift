@@ -1,6 +1,6 @@
 //
 //  DetectorGeometry.swift
-//  py4DSTEM's virtual detectors in detector pixels, from the corner, and their masks (registration 1.2, 3.1).
+//  py4DSTEM's virtual detectors in detector pixels, from the corner, and their masks.
 //
 //  Ported from py4DSTEM f050d207, py4DSTEM/datacube/virtualimage.py, DataCubeVirtualImager.make_detector (line 588):
 //      circle    (qx - x0)**2 + (qy - y0)**2 <  r**2

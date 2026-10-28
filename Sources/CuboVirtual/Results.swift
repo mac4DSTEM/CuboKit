@@ -1,6 +1,6 @@
 //
 //  Results.swift
-//  What CuboVirtual returns: Double images that record the path that made them (registration 1.2).
+//  What CuboVirtual returns: Double images that record the path that made them.
 //
 //  Double on purpose: py4DSTEM's virtual image of an integer cube is an exact integer sum (NumPy sums uint16 × bool in
 //  uint64); a Float32 result would round it above 2^24, and a kit whose numbers are the reference cannot round where the
@@ -13,8 +13,8 @@ import Foundation
 public enum ComputePath: String, Sendable, Hashable, Codable, CaseIterable {
     /// Accelerate on the CPU, Double accumulation: the reference path.
     case cpu
-    /// Metal compute kernels, Float32 accumulation, Double combination across tiles; within the registered tolerance of
-    /// the CPU path (registration 3.4).
+    /// Metal compute kernels, Float32 accumulation, Double combination across tiles; within relative 1e-5 of
+    /// the CPU path.
     case metal
 }
 

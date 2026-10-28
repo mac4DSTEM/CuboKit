@@ -1,4 +1,4 @@
-"""Generate CuboBragg pins. Run under a memory cap with the pinned venv, from the package root:
+"""Generate CuboBragg pins. Run with the pinned venv (see the README), from the package root:
 ../../References/python/py4dstem/bin/python -I -B tools/bragg/pins.py
 
 Two independent oracles, neither is Swift written for the kit:
@@ -6,7 +6,7 @@ Two independent oracles, neither is Swift written for the kit:
   2. The mac4DSTEM source at APP (Core/Analysis/DiskDetection.swift, Core/Compute/MatrixDFTCorrelation.swift,
      Core/Analysis/ProbeRingHint.swift, with ImagoKit 0.1.1's Float32 FFT2D) is compiled UNCHANGED apart from
      access qualifiers and four minimal shims (ProbeKernel's fields, a probe-size stub fed from py4DSTEM) and run.
-Scenes are synthetic (logistic-edge disks at fractional positions, seeded noise); no owner data is used.
+Scenes are synthetic (logistic-edge disks at fractional positions, seeded noise); no private data is used.
 """
 import hashlib, json, platform, subprocess, tempfile
 from pathlib import Path

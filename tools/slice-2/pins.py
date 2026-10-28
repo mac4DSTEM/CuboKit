@@ -1,4 +1,4 @@
-"""CuboKit slice 2: the pin generator (docs/registration-slice-2.md, sections 2 to 5).
+"""CuboKit slice 2: the pin generator.
 
     ../References/python/py4dstem/bin/python -I -B tools/slice-2/pins.py synthetic
     ../References/python/py4dstem/bin/python -I -B tools/slice-2/pins.py real [name ...]
@@ -7,7 +7,7 @@
 `real` reads slice 1's exports in $CUBOKIT_REAL_DATA and writes <name>-s2-pins.json and <name>-s2-<quantity>.npy beside them.
 
 For every quantity: py4DSTEM's own result (f050d207, float32 where py4DSTEM computes in float32) and the float64
-evaluation of the same definition written here from the registration's text (section 3), which the kit is held to.
+evaluation of the same definition written here from py4DSTEM's documented behaviour, which the kit is held to.
 """
 import datetime
 import hashlib
@@ -53,7 +53,7 @@ def versions():
 
 
 # ------------------------------------------------------------------------------------------------------------------
-# The float64 definitions (registration section 3)
+# The float64 definitions
 # ------------------------------------------------------------------------------------------------------------------
 def com_f64(cube, weights=None):
     """3.1: per position S, the row and column moments, and the quotients, in float64."""
@@ -338,9 +338,9 @@ def run_synthetic():
         check(f"disk {cr},{cc}: py4DSTEM centre exact", abs(float(e["center_row"]) - cr) < 1e-12
               and abs(float(e["center_column"]) - cc) < 1e-12)
         out["probe"].append(e)
-    # mutant-driven cases (amendment 2026-10-15): a ring exactly at a trusted threshold (so `>` and `>=` differ where the
+    # boundary cases: a ring exactly at a trusted threshold (so `>` and `>=` differ where the
     # radius is averaged), and a ring exactly at the last threshold with thresholds whose computed last linspace value is
-    # not the stop. Each is checked to change get_probe_size's answer under its mutation before it is pinned.
+    # not the stop. Each is checked to change get_probe_size's answer if the comparison is changed, before it is pinned.
     def probe_variant(dp, lo, hi, n, ge=False, inexact_last=False):
         t = np.arange(n) * ((hi - lo) / (n - 1)) + lo
         if not inexact_last:

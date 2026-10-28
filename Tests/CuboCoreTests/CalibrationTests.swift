@@ -4,7 +4,7 @@ import CuboCore
 
 /// py4DSTEM has no test for these calibration numbers, so the tolerance is `assert_allclose`'s default for Float64, rtol 1e-7, with
 /// atol 1e-12 so that a value that is zero in one arithmetic and 1e-17 in the other agrees (0.8.1; the pins were 1e-12 to 1e-15 before,
-/// stricter than the package, D17). Stored values and indices stay exact (`==`).
+/// stricter than the package). Stored values and indices stay exact (`==`).
 private func agrees(_ a: Double, _ b: Double) -> Bool { abs(a - b) <= 1e-12 + 1e-7 * abs(b) }
 
 private struct Op: Decodable {

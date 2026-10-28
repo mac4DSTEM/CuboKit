@@ -1,6 +1,6 @@
 //
 //  CuboCoreTests.swift
-//  The cube model (registration 1.1, 3.5, 5.5): shapes, tilings, the eager and lazy cubes, the .npy container and the
+//  The cube model: shapes, tilings, the eager and lazy cubes, the .npy container and the
 //  element conversions.
 //
 
@@ -29,7 +29,7 @@ import CuboCore
         #expect(s.elementsPerScanRow == 105); #expect(s.scanIndex(row: 1, column: 2) == 5)
         #expect(throws: CuboError.invalidShape([2, 0, 5, 7])) { try CubeShape([2, 0, 5, 7]) }
         #expect(throws: CuboError.invalidShape([2, 3, 5])) { try CubeShape([2, 3, 5]) }
-        // Two negative extents multiply to a positive count: only the per-extent guard refuses them (mutant M20).
+        // Two negative extents multiply to a positive count: only the per-extent guard refuses them.
         #expect(throws: CuboError.invalidShape([-2, -3, 5, 7])) { try CubeShape([-2, -3, 5, 7]) }
         #expect(throws: CuboError.invalidShape([Int.max / 2, 4, 4, 4])) { try CubeShape([Int.max / 2, 4, 4, 4]) }
         let decoded = try JSONDecoder().decode(CubeShape.self, from: JSONEncoder().encode(s))
@@ -184,7 +184,7 @@ import CuboCore
         #expect(eager.values == [1, 2, 3, 40000, 5, 6])
 
         // A version 2.0 header longer than 64 KiB (what version 2.0 exists for): its third length byte is not zero, so a
-        // reader that drops or swaps the high bytes reads the data from the wrong place (mutant M14b, 2026-10-15).
+        // reader that drops or swaps the high bytes reads the data from the wrong place.
         let long = scratch.appendingPathComponent("v2-long.npy")
         var longHeader = dict + String(repeating: " ", count: 70_000)
         longHeader += String(repeating: " ", count: (64 - (12 + longHeader.utf8.count + 1) % 64) % 64) + "\n"
@@ -236,7 +236,7 @@ import CuboCore
         if case .cannotOpen? = absent {} else { Issue.record("expected cannotOpen, got \(String(describing: absent))") }
     }
 
-    /// Gate B F2 (2026-10-15): a header whose element or byte count overflows is refused, never trapped on.
+    /// A header whose element or byte count overflows is refused, never trapped on.
     @Test(arguments: ["(4294967296, 4294967296, 4294967296, 4294967296)", "(9223372036854775807, 2)",
                       "(3000000000, 3000000000)", "(1152921504606846976,)"])
     func testOverflowingShapesAreRefused(_ shape: String) throws {

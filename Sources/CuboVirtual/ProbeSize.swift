@@ -1,6 +1,6 @@
 //
 //  ProbeSize.swift
-//  The radius and centre of the bright central disk (registration slice 2, 3.5): a port of py4DSTEM's `get_probe_size`
+//  The radius and centre of the bright central disk: a port of py4DSTEM's `get_probe_size`
 //  (process/calibration/probe.py 6 at f050d207), step for step in float64, with NumPy's linspace, gradient, median and
 //  pairwise sums, so it reproduces py4DSTEM's numbers bit for bit on the same pattern.
 //

@@ -1,6 +1,6 @@
 //
 //  FourierResampleTests.swift
-//  `resample_Q(method="fourier")` and `fourier_resample` (task 18) against py4DSTEM 0.14.19 (tools/polar-ellipse/pins.py) and
+//  `resample_Q(method="fourier")` and `fourier_resample` against py4DSTEM 0.14.19 (tools/polar-ellipse/pins.py) and
 //  against the exact band-limited truth of tools/polar-ellipse/planted.py. py4DSTEM has no test for them. Its transform is
 //  single precision (NumPy 2 `fft2` of Float32 is complex64), so the pinned comparison holds the kit to single-precision
 //  agreement, relative 1e-6 of the largest value of a case (the rule of the other resample rows); the exact truth, where the

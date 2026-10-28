@@ -1,6 +1,6 @@
 //
 //  CubeShape.swift
-//  The shape of a 4D-STEM cube and the one index map the kit uses (registration 1.1).
+//  The shape of a 4D-STEM cube and the one index map the kit uses.
 //
 //  Storage order is C order [scanRow][scanColumn][detectorRow][detectorColumn], py4DSTEM's (R_Nx, R_Ny, Q_Nx, Q_Ny).
 //  py4DSTEM's x (Rx, Qx: the first axis of a pair) is this kit's ROW; its y (Ry, Qy) is this kit's COLUMN. The kit says

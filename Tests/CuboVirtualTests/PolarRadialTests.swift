@@ -1,6 +1,6 @@
 //
 //  PolarRadialTests.swift
-//  The polar data cube and the radial background (task 17) against py4DSTEM 0.14.19 (tools/polar-ellipse/pins.py, run on
+//  The polar data cube and the radial background against py4DSTEM 0.14.19 (tools/polar-ellipse/pins.py, run on
 //  planted cubes) and against the planted truth of tools/polar-ellipse/planted.py. No upstream test exists for these functions, so
 //  the tolerance is `assert_allclose`'s Float64 default (rtol 1e-7) with atol 1e-12 (the rule of CalibrationTests); the port runs
 //  the same operations in the same order and the measured difference is printed.
@@ -346,8 +346,8 @@ private struct Planted {
         #expect(circleRange > 20 * rightRange)
     }
 
-    /// The whole chain on the planted tilted case: fit the ring of the pattern (task 18), store the fit in the calibration
-    /// (`Calibration.ellipse`), transform (task 17): the result is constant in phi, as with the true ellipse.
+    /// The whole chain on the planted tilted case: fit the ring of the pattern, store the fit in the calibration
+    /// (`Calibration.ellipse`), transform: the result is constant in phi, as with the true ellipse.
     @Test func testFittedEllipseFeedsThePolarCube() async throws {
         let p = Planted()
         let cube = try p.cube()

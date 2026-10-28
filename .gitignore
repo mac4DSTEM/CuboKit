@@ -6,6 +6,6 @@
 __pycache__/
 .docs-site/
 
-# Local session rules, kept on disk only
+# Local agent instructions, kept on disk only
 CLAUDE.md
 .claude/

@@ -1,8 +1,8 @@
 //
 //  TestSupport.swift
 //  The fixtures directory (read by #filePath, not as resources), the pins written by tools/slice-1/pins.py before any
-//  Swift existed (registration section 4), the real-data directory (outside the repository), and the registered
-//  comparison: relative `t` with the floor 1e-6 · max|want| over the image (registration 3.4).
+//  Swift existed, the real-data directory (outside the repository), and the relative
+//  comparison: relative `t` with the floor 1e-6 · max|want| over the image.
 //
 
 import Foundation
@@ -14,7 +14,7 @@ package enum Fixtures {
     package static let directory = FixtureDirs.fixtures(of: "CuboVirtualTests")
     package static func url(_ name: String) -> URL { directory.appendingPathComponent(name) }
 
-    /// `$CUBOKIT_REAL_DATA`, default `~/Library/Caches/CuboKit/real-data` (registration 4).
+    /// `$CUBOKIT_REAL_DATA`, default `~/Library/Caches/CuboKit/real-data`.
     package static var realData: URL {
         if let env = ProcessInfo.processInfo.environment["CUBOKIT_REAL_DATA"], !env.isEmpty {
             return URL(fileURLWithPath: env)
@@ -110,7 +110,7 @@ package struct GeometryPin: Decodable, Sendable {
     }
 }
 
-/// The generator's geometry dictionary (registration 5.2), in the kit's names.
+/// The generator's geometry dictionary, in the kit's names.
 package struct GeometrySpec: Decodable, Sendable {
     package let kind: String
     package let centerRow: Double?, centerColumn: Double?, radius: Double?, inner: Double?, outer: Double?
@@ -130,7 +130,7 @@ package struct GeometrySpec: Decodable, Sendable {
     }
 }
 
-/// The registered comparison (3.4): |got − want| ≤ t · max(|want|, 1e-6 · max_k |want_k|). Returns the largest
+/// The relative comparison: |got − want| ≤ t · max(|want|, 1e-6 · max_k |want_k|). Returns the largest
 /// distance in units of that denominator, so a test can print what it measured.
 @discardableResult
 package func assertRelative(_ got: [Double], _ want: [Double], _ t: Double, _ message: @autoclosure () -> String,
@@ -151,7 +151,7 @@ package func assertRelative(_ got: [Double], _ want: [Double], _ t: Double, _ me
 }
 
 /// Exact comparison (bit pattern). Use for readers, I/O, indices, metadata and same-code equality; for numerics against
-/// a Python reference D12 prefers a written tolerance.
+/// a Python reference, use the tolerance the reference's own tests use.
 package func assertIdentical(_ got: [Double], _ want: [Double], _ message: @autoclosure () -> String,
                      sourceLocation: SourceLocation = SourceLocation(fileID: #fileID, filePath: #filePath,
                                                                      line: #line, column: #column)) {
@@ -162,7 +162,7 @@ package func assertIdentical(_ got: [Double], _ want: [Double], _ message: @auto
             sourceLocation: sourceLocation)
 }
 
-/// Whether the real-data directory holds `name`'s export (registration 4); the real-data tests are enabled by it.
+/// Whether the real-data directory holds `name`'s export; the real-data tests are enabled by it.
 package func realDataIsPresent(_ name: String) -> Bool {
     FileManager.default.fileExists(atPath: Fixtures.realData.appendingPathComponent("\(name)-pins.json").path)
 }

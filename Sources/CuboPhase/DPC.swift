@@ -1,6 +1,6 @@
 //
 //  DPC.swift
-//  Differential phase contrast by py4DSTEM's iterative reconstruction (registration slice 2, 3.4): `DPC.preprocess`'s
+//  Differential phase contrast by py4DSTEM's iterative reconstruction: `DPC.preprocess`'s
 //  operators and `DPC.reconstruct` with `_forward`, `_adjoint`, `_update` (process/phase/dpc.py at f050d207), literally,
 //  in Double, with its default constraints (no Gaussian and no Butterworth filter). py4DSTEM computes this in float32;
 //  the kit is held to the float64 evaluation of the same steps.

@@ -1,9 +1,9 @@
-"""Pinned py4DSTEM polar data cube, radial background, ellipse fits and Fourier resampling (CuboKit tasks 17 and 18), run on
+"""Pinned py4DSTEM polar data cube, radial background, ellipse fits and Fourier resampling (CuboKit 0.9.0), run on
 small cases built from the planted truth of tools/polar-ellipse/planted.py (its `pattern`, `ring_points`, `band_limited`).
 Calls py4DSTEM itself: PolarDatacube, DataCube.get_radial_bkgrnd / get_radial_bksb_dp / get_local_ave_dp(radial_bksb=True),
 fit_ellipse_1D, fit_ellipse_amorphous_ring, constrain_degenerate_ellipse, ellipse_err, double_sided_gaussian(_fiterr),
 convert_ellipse_params(_r), fourier_resample and resample_data_diffraction(method="fourier").
-Run from the suite folder (References/python/py4dstem, a pinned venv):
+Run from the folder that holds this package and References/python/py4dstem (the pinned venv; see the README):
   References/python/py4dstem/bin/python -I -B CuboKit/tools/polar-ellipse/pins.py
 Output: CuboKit/Tests/CuboVirtualTests/Fixtures/polar-radial-pins.json and CuboKit/Tests/CuboCoreTests/Fixtures/ellipse-resample-pins.json
 Conventions: py4DSTEM's x is the kit's ROW and y its COLUMN, so the (x0, y0, a, b, theta) here are the kit's (row, column, a, b, theta)

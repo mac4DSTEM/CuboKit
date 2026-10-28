@@ -1,6 +1,6 @@
 //
 //  PinsTests.swift
-//  Agreement with py4DSTEM f050d207 on the synthetic cubes (registration 3.4, 4, 5.1, 5.2), read from slice-1-pins.json.
+//  Agreement with py4DSTEM f050d207 on the synthetic cubes, read from slice-1-pins.json.
 //  Agreement is agreement, not truth (TruthTests); a difference is a failure of the port, never a tolerance to widen.
 //
 
@@ -49,7 +49,7 @@ import CuboVirtual
         }
     }
 
-    /// Registration 3.4: CPU virtual images. Integer cubes exact against py4DSTEM's own call (D12: tolerance allowed); every cube within
+    /// CPU virtual images. Integer cubes exact against py4DSTEM's own call (a tolerance would be allowed); every cube within
     /// relative 1e-10 of the float64 evaluation; py4DSTEM's own float32 distance printed beside the kit's.
     @Test func testVirtualImagesOnTheCPUAgreeWithPy4DSTEM() async throws {
         for cube in pins.cubes {
@@ -84,9 +84,9 @@ import CuboVirtual
         }
     }
 
-    /// Registration 3.4: Metal within relative 1e-5 of the CPU path; max exact.
+    /// Metal within relative 1e-5 of the CPU path; max exact.
     @Test(.enabled(if: VirtualDiffraction.metalIsAvailable, "no Metal device on this machine"))
-    func testMetalAgreesWithTheCPUWithinTheRegisteredTolerance() async throws {
+    func testMetalAgreesWithTheCPUWithinTolerance() async throws {
         for cube in pins.cubes {
             let source = try cube.mapped()
             for tiling in [ScanTiling.automatic, .rows(1)] {

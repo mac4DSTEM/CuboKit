@@ -1,4 +1,4 @@
-"""CuboKit slice 1: the pin generator (registration docs/registration-slice-1.md, sections 2, 3, 4, 5).
+"""CuboKit slice 1: the pin generator.
 
 Run with the pinned oracle, from any directory:
 
@@ -6,19 +6,19 @@ Run with the pinned oracle, from any directory:
     ../References/python/py4dstem/bin/python -I -B tools/slice-1/pins.py real [name ...]
 
 `synthetic` writes Tests/CuboVirtualTests/Fixtures/<cube>.npy and slice-1-pins.json (committed) BEFORE any Swift exists.
-`real` exports the owner's cubes (section 5.4) and py4DSTEM's test datacube (5.3) as .npy into the real-data
+`real` exports your own cubes and py4DSTEM's test datacube as .npy into the real-data
 directory, $CUBOKIT_REAL_DATA (default ~/Library/Caches/CuboKit/real-data), outside the repository, and writes beside
 each <name>-pins.json plus its float64 arrays as <name>-<quantity>.npy.
 
 py4DSTEM f050d207 (0.14.19) is the oracle: DataCube.get_virtual_image, make_detector, get_dp_mean, get_dp_max, called
 as a user calls them (verbose=False). Beside each py4DSTEM number the generator records the float64 evaluation of the
-same definition (section 2); the kit is held to the float64 number and the distance between the two is recorded.
+same definition; the kit is held to the float64 number and the distance between the two is recorded.
 
 File:line pins into References/py4DSTEM-f050d207/py4DSTEM/datacube/:
   virtualimage.py       get_virtual_image 67 (np.sum(self.data[rx, ry] * mask)), make_detector 588
   virtualdiffraction.py get_virtual_diffraction 63 (np.mean / np.max over axes (0, 1)), get_dp_max 308, get_dp_mean 337
   datacube.py           DataCube.__init__ 33 (dims Rx, Ry, Qx, Qy), R_Nx/Q_Nx 172-194
-Index map (registration 1.1): py4DSTEM's qx (first detector axis) is the kit's ROW, qy its COLUMN; geometry tuples
+Index map: py4DSTEM's qx (first detector axis) is the kit's ROW, qy its COLUMN; geometry tuples
 pass through unchanged: circle ((row, column), r), annulus ((row, column), (r_in, r_out)), rectangle (rowMin, rowMax,
 columnMin, columnMax), point (row, column).
 """
@@ -54,7 +54,7 @@ def check(name, ok, detail=""):
 
 
 def g17(x):
-    """Every number as a float64 string with 17 significant digits (registration 4); parsed by Double(String)."""
+    """Every number as a float64 string with 17 significant digits; parsed by Double(String)."""
     return "%.17g" % float(x)
 
 
@@ -78,7 +78,7 @@ def versions():
 
 
 # ----------------------------------------------------------------------------------------------------------------
-# The detector (registration 3.1), written from the text, standard library only, to cross-check make_detector
+# The detector, written from the text, standard library only, to cross-check make_detector
 # ----------------------------------------------------------------------------------------------------------------
 def mask_by_definition(shape, g):
     qy, qx = shape
@@ -279,7 +279,7 @@ def run_synthetic():
         for gname, g in geos:
             mask_py, _, _ = py4dstem_mask(shape, g)
             mask_def = mask_by_definition(shape, g)
-            check(f"{name}/{gname}: make_detector = registration 3.1",
+            check(f"{name}/{gname}: make_detector = definition",
                   np.array_equal(np.asarray(mask_py, dtype=np.float64), mask_def))
             own32, f64, _ = virtual_image_both(cube32, g)
             own_native, _, _ = virtual_image_both(cube, g)
@@ -396,7 +396,7 @@ def run_real(names):
                 own_native, _, _ = virtual_image_both(data, g)
             else:
                 own_native = own32
-            check(f"{name}/{gname}: make_detector = registration 3.1",
+            check(f"{name}/{gname}: make_detector = definition",
                   np.array_equal(np.asarray(mask, dtype=np.float64), mask_by_definition(mask.shape, g)))
             arrays[f"{gname}-image_f64"] = f64
             arrays[f"{gname}-image_py4dstem_float32_cube"] = own32

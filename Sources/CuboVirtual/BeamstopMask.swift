@@ -1,6 +1,6 @@
 //
 //  BeamstopMask.swift
-//  The beamstop mask of a pattern (registration slice 4, 3.4): py4DSTEM's DataCube.get_beamstop_mask
+//  The beamstop mask of a pattern: py4DSTEM's DataCube.get_beamstop_mask
 //  (datacube/datacube.py 1013 at f050d207) on a pattern the caller passes (the mean pattern, or the maximum for
 //  `use_max_dp`), in Double, with scipy's binary_fill_holes (4-connected) and the exact Euclidean distance transform.
 //
@@ -15,7 +15,7 @@ import Foundation
 public enum BeamstopMask {
     /// `true` under the beamstop (and within `distanceEdge` pixels of it, and of the border with `includeEdges`), `false`
     /// in the pattern, row-major. `threshold` is the fraction of the sorted intensities below the cut; `sigma > 0` smooths
-    /// first (slice 3's Gaussian filter); `scaleRadial` multiplies by 1 + s · (distance from the centre in half-widths).
+    /// first (`GaussianFilter`); `scaleRadial` multiplies by 1 + s · (distance from the centre in half-widths).
     public static func make(from pattern: DetectorImage, threshold: Double = 0.25, distanceEdge: Double = 2.0,
                             includeEdges: Bool = true, sigma: Double = 0, scaleRadial: Double? = nil) throws -> [Bool] {
         let qy = pattern.detectorRows, qx = pattern.detectorColumns, n = qy * qx

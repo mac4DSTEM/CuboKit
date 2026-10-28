@@ -1,6 +1,6 @@
 //
 //  CuboError.swift
-//  Every refusal of CuboCore. A refusal is never a fallback: a read that cannot be honoured stops (registration 1.1).
+//  Every refusal of CuboCore. A refusal is never a fallback: a read that cannot be honoured stops.
 //
 
 import Foundation
@@ -22,7 +22,7 @@ public enum CuboError: Error, Equatable, Sendable, LocalizedError {
     case notNPY(String)
     /// An `.npy` element type outside the supported list.
     case unsupportedElementType(String)
-    /// Big-endian data (`>f4` and the like); slice 2 at the earliest.
+    /// Big-endian data (`>f4` and the like); not supported.
     case bigEndianNotSupported(String)
     /// `fortran_order: True`.
     case fortranOrderNotSupported

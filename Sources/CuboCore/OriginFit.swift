@@ -1,6 +1,6 @@
 //
 //  OriginFit.swift
-//  py4DSTEM's `fit_origin` for a scan map (registration slice 3, 3.2): process/calibration/origin.py 76 and fit_2D
+//  py4DSTEM's `fit_origin` for a scan map: process/calibration/origin.py 76 and fit_2D
 //  (process/fit/fit.py 38) at f050d207. The four models are linear in their parameters, so the fit is the least-squares
 //  solution, here by Householder QR in Double on the design matrix with py4DSTEM's [0, 1] coordinates; py4DSTEM reaches
 //  it with curve_fit within that solver's convergence. The robust option follows fit_2D's loop exactly.

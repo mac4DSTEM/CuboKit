@@ -1,8 +1,8 @@
 //
 //  NPYFile.swift
-//  NumPy's .npy container, versions 1.0, 2.0 and 3.0 (registration 1.1): the magic "\x93NUMPY", the version, the
+//  NumPy's .npy container, versions 1.0, 2.0 and 3.0: the magic "\x93NUMPY", the version, the
 //  header length (little-endian UInt16 for 1.0, UInt32 for 2.0 and 3.0), then a Python dict literal with 'descr',
-//  'fortran_order' and 'shape'. The kit's exchange format with py4DSTEM in slice 1 (np.save(path, datacube.data));
+//  'fortran_order' and 'shape'. The kit's exchange format with py4DSTEM (np.save(path, datacube.data));
 //  HDF5, DM4 and the vendor formats are out of scope here.
 //
 
@@ -61,7 +61,7 @@ public enum NPYFile {
         guard !fortran else { throw CuboError.fortranOrderNotSupported }
         let type = try elementType(descr)
         guard shape.allSatisfy({ $0 >= 0 }) else { throw CuboError.notNPY("negative extent in 'shape'") }
-        // The element and byte counts must fit an Int (Gate B, 2026-10-15: an unchecked product trapped).
+        // The element and byte counts must fit an Int (an unchecked product trapped; CuboCoreTests holds the case).
         var bytes = type.byteSize
         for e in shape {
             let (product, overflow) = bytes.multipliedReportingOverflow(by: e)

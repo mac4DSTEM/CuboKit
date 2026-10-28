@@ -4,7 +4,7 @@ import CuboStrain
 
 /// The robust local fit, the basis helpers, basis-rounding indexing and the frame rotation that mac4DSTEM's strain map is
 /// built from, against hand transcriptions of the app's formulas on small synthetic lattices.
-/// Tolerances (D12): the Double helpers (score, tolerance, condition, rounding, frame rotation) 1e-9 relative; the robust
+/// Tolerances: the Double helpers (score, tolerance, condition, rounding, frame rotation) 1e-9 relative; the robust
 /// fit, whose arithmetic is Float32 like `fitIntensityOnce`, 1e-6 relative to the vector length (limit 1e-5);
 /// planted strain recovered through the Float32 fit to 1e-5 absolute.
 @Suite struct StrainRobustTests {

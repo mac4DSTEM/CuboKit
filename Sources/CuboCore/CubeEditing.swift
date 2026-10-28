@@ -286,7 +286,7 @@ private extension Float {
     var asDouble: Double { Double(self) }
 }
 
-// MARK: Fourier resampling (task 18; a self-contained addition beside the bilinear `resampleDetector`)
+// MARK: Fourier resampling (a self-contained addition beside the bilinear `resampleDetector`)
 
 /// How ``CubeEditing/resampleDetectorFourier(of:_:options:calibration:isCancelled:progress:)`` is told its size.
 public enum FourierResampleSpecification: Sendable, Equatable {

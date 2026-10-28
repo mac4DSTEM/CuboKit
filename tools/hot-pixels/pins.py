@@ -1,5 +1,5 @@
 """Actual pinned py4DSTEM DataCube.filter_hot_pixels; Float32 cube semantics.
-Run under a memory cap using the pinned isolated Python venv.
+Run with the pinned isolated Python venv (see the README).
 """
 from pathlib import Path
 import json, subprocess, platform

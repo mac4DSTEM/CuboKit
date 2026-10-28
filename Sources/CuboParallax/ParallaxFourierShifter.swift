@@ -78,7 +78,7 @@ public struct ParallaxFourierShifter: Sendable {
     public var supportsSingle: Bool { singleFFT != nil }
 
     /// ``shifted(_:by:)`` in Float32 (named apart so integer-literal arrays keep resolving to the Double form) on vDSP's Float DFT, for pipelines that hold their images in Float: agrees with the Double
-    /// shifter to 1e-4 px-equivalent (about 1e-5 relative to the image's range; D12 Float32) at about half the cost. Throws
+    /// shifter to 1e-4 px-equivalent (about 1e-5 relative to the image's range; the upstream float32 tolerance) at about half the cost. Throws
     /// ``ParallaxAlignmentError/invalidDimensions`` when ``supportsSingle`` is false.
     public func shiftedSingle(_ image: [Float], by shift: ParallaxShift) throws -> [Float] {
         guard let single = singleFFT else { throw ParallaxAlignmentError.invalidDimensions }

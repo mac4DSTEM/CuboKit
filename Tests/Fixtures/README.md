@@ -3,11 +3,11 @@
 One row per committed fixture file under `Tests/*/Fixtures/`: size, the script under `tools/` that names it (the generator or its
 pin script; a few scripts write a whole directory; a script found only by file-name prefix, tool-folder name or test module is marked so), and a note where the origin is not the kit's own pinned reference. 152 files.
 
-Licence: every fixture is generated from this kit's own code and the pinned Python reference (named in the README) and ships under the kit's GPL-3.0-or-later licence, except the rows marked *third party*. Nothing here is the owner's data: the committed text fixtures carry no owner path or name (checked by search), and real datasets are read from `$MACEM_DATA` and never copied into the repo.
+Licence: every fixture is generated from this kit's own code and the pinned Python reference (named in the README) and ships under the kit's GPL-3.0-or-later licence, except the rows marked *third party*. Nothing here is private data: the committed text fixtures carry no local path or name (checked by search), and real datasets are read from `$CUBOKIT_REAL_DATA` and never copied into the repo.
 
 ## Needs an origin line
 
-5 fixtures that no script under `tools/` names. They may be written by a directory-level script, by hand, or copied from an earlier kit; a Mac session with the pin scripts fills in the origin and removes the file from this list.
+5 fixtures that no script under `tools/` names. They may be written by a directory-level script, by hand, or copied from an earlier kit; whoever runs the pin scripts and finds the origin fills it in and removes the file from this list.
 
 - `CuboParallaxTests/Fixtures/legacy050.json`
 - `CuboVirtualTests/Fixtures/median_3x5.npy`

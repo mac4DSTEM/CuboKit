@@ -93,7 +93,7 @@ enum ConsensusNumerics {
             // Only positions that HAVE a non-central peak: the sentinel is
             // finite, so an `isFinite` test let every empty or central-only
             // position add 3.4e38, and at half the scan the median exploded
-            // and no basis was found (register D023, Gate D 2026-09-30).
+            // and no basis was found.
             if nearest < .greatestFiniteMagnitude { nearestRadii.append(nearest) }
         }
         guard let typicalRadius = median(nearestRadii) else { return nil }
@@ -155,7 +155,7 @@ enum ConsensusNumerics {
             }
         }
 
-        // DEVIATION (register: occupiedPositions, Gate D 2026-09-30): the 8 %
+        // DEVIATION (occupiedPositions): the 8 %
         // support bar is mac4DSTEM's own automation (py4DSTEM picks maxima of
         // the whole-scan vector histogram and has no per-position count), and
         // it is a fraction of the positions a cluster CAN be drawn from --

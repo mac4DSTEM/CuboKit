@@ -1,5 +1,5 @@
 """Pinned subpixel_alignment KDE oracle (bilinear and Lanczos deposition, Gaussian blur, sinc low-pass, default factor
-heuristic). Position correction is not pinned here. Run with the pinned venv, python -I -B, under a memory cap."""
+heuristic). Position correction is not pinned here. Run with the pinned venv, python -I -B."""
 import json, warnings
 from pathlib import Path
 src=Path(__file__).with_name('aberration_pins.py').read_text().split("cases=[]")[0]

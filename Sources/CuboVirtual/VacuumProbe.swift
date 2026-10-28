@@ -1,8 +1,8 @@
 //
 //  VacuumProbe.swift
-//  The vacuum probe and the cross-correlation kernels Bragg disk detection uses (registration slice 4, 3.5, 3.6):
+//  The vacuum probe and the cross-correlation kernels Bragg disk detection uses:
 //  py4DSTEM's DataCube.get_vacuum_probe (datacube/datacube.py 516 at f050d207), Probe.measure_disk (= get_probe_size,
-//  slice 2's ProbeSize.estimate), zero_vacuum, zero_vacuum_sinusoid, generate_synthetic_probe, get_probe_kernel_flat,
+//  the kit's ProbeSize.estimate), zero_vacuum, zero_vacuum_sinusoid, generate_synthetic_probe, get_probe_kernel_flat,
 //  get_probe_kernel_edge_gaussian and get_probe_kernel_edge_sigmoid (braggvectors/probe.py), CPU, Double.
 //
 //  A Float32 reference implementation builds kernels on wrapped coordinates with a cosine shoulder in place of

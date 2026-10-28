@@ -3,7 +3,7 @@ import CuboCore
 import Foundation
 
 /// The arithmetic of a ptychographic engine: `double` is the kit's reference path; `single` runs the heavy loops in Float32
-/// (vDSP's Float DFT, half the memory) and agrees with `double` to 1e-5 relative to the object's scale (D12 Float32).
+/// (vDSP's Float DFT, half the memory) and agrees with `double` to 1e-5 relative to the object's scale (the upstream float32 tolerance).
 public enum PtychographyPrecision: Sendable, Equatable {
     case double
     case single

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Planted-truth inputs for CuboKit tasks 17 and 18: polar cube, radial background, ellipse fit, Fourier resample.
+"""Planted-truth inputs for CuboKit's polar cube, radial background, ellipse fit, Fourier resample.
 
 numpy only. Writes `.npy` files and one `truth.json` into --out (default: ./out beside this script; do not commit the output).
 

@@ -1,7 +1,7 @@
 # Parity with py4DSTEM
 
 A checklist against py4DSTEM's documented API in the areas CuboKit holds or plans, at the pinned commit `f050d207`
-(0.14.19), so "complete" is a measured claim (suite ROADMAP, "Kits", phase 4). Updated at every tag. The areas are the
+(0.14.19), so "complete" is a measured claim. Updated at every tag. The areas are the
 `DataCube` (`datacube/`), the calibration of origins and probes (`process/calibration/`, `data/calibration.py`), the
 `Probe` class (`braggvectors/probe.py`), DPC and the phase base class's preprocessing (`process/phase/`), and the headline
 lists for strain, Bragg vectors and disk detection, parallax and ptychography. Crystallography (`Crystal`, orientation,
@@ -37,10 +37,10 @@ States: **present** (pinned against py4DSTEM or planted truth; numerics held to 
 | `get_virtual_image(mode, geometry)`: `point`, `circle`, `annulus`, `rectangle` | `VirtualImaging.image(of:geometry:)` | present (CPU and Metal) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
 | `get_virtual_image(mode="mask", geometry=array)` | `VirtualImaging.image(of:geometry:)` with a mask geometry | present (CPU and Metal) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
 | `get_virtual_image(return_mask=True)`, `make_detector` | `DetectorMask.make` | present | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
-| `get_virtual_image(centered=True)` | `VirtualImaging.image(of:geometry:centeredOn:)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
-| `get_virtual_image(calibrated=True)` | `VirtualImaging.image(of:geometry:pixelSize:)` | present (slice 3; centred and calibrated together refused) | study | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
-| `get_virtual_image(shift_center=True, subpixel=False)` | `shift: .rounded` | present (slice 3; CPU) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
-| `get_virtual_image(shift_center=True, subpixel=True)` | `shift: .bilinear` | present (slice 3; CPU) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(centered=True)` | `VirtualImaging.image(of:geometry:centeredOn:)` | present | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(calibrated=True)` | `VirtualImaging.image(of:geometry:pixelSize:)` | present (centred and calibrated together refused) | study | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(shift_center=True, subpixel=False)` | `shift: .rounded` | present (CPU) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
+| `get_virtual_image(shift_center=True, subpixel=True)` | `shift: .bilinear` | present (CPU) | useful | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
 | `get_calibrated_detector_geometry` | applied inside `VirtualImaging.image` | partial: not exposed as a function | study | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
 | `make_bragg_mask` | `BraggMasking.latticeMask(...)` | present (0.8.0; exact counts; `return_sum=False` is the loop over the lattice points) | study | no upstream test; np.allclose defaults on the Float64 reference; Metal against CPU 1e-5 |
 | `get_virtual_image(dask=True)`, `test_config` | — | not planned (Python-only; the lazy cube tiles instead) | not planned: Python-only; the lazy cube tiles instead | — |
@@ -52,14 +52,14 @@ States: **present** (pinned against py4DSTEM or planted truth; numerics held to 
 |---|---|---|---|---|
 | `get_dp_mean` | `VirtualDiffraction.mean` | present | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
 | `get_dp_max` | `VirtualDiffraction.max` | present | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
-| `get_dp_median` | `VirtualDiffraction.median(of:)` | present (slice 4; CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_dp_median` | `VirtualDiffraction.median(of:)` | present (CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
 | `get_virtual_diffraction(method="mean")`, `"max"` | `VirtualDiffraction.mean`, `max`, `meanAndMax` | present | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
-| `get_virtual_diffraction(method="median")` | `VirtualDiffraction.pattern(of:statistic: .median, scan:)` | present (slice 4; CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(method="median")` | `VirtualDiffraction.pattern(of:statistic: .median, scan:)` | present (CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
 | `get_virtual_diffraction(mask=)`, boolean or float real-space mask | `VirtualDiffraction.pattern(of:statistic:scan: .mask / .weights, path:)` | present (CPU compensated Double; Metal `cubo_weighted_pattern` for mean and max, 0.8.0, held to the CPU at 1e-5; `ResidentCube` reads in place) | study | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
 | `get_virtual_diffraction(mask=)`, complex mask | — | missing (not ported) | not planned: absent (not ported) | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
-| `get_virtual_diffraction(shift_center=True, subpixel=False)` (mean, max) | `VirtualDiffraction.meanAndMax(of:shift: .rounded)` | present (slice 3; CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
-| `get_virtual_diffraction(shift_center=True, subpixel=True)` (mean, max) | `shift: .fourier` | present (slice 3; CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
-| `get_virtual_diffraction(shift_center=True, mask=)` (mean, max) | `pattern(of:statistic:scan:shift:)` | present (slice 4; CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(shift_center=True, subpixel=False)` (mean, max) | `VirtualDiffraction.meanAndMax(of:shift: .rounded)` | present (CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(shift_center=True, subpixel=True)` (mean, max) | `shift: .fourier` | present (CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
+| `get_virtual_diffraction(shift_center=True, mask=)` (mean, max) | `pattern(of:statistic:scan:shift:)` | present (CPU) | useful | no upstream test; np.allclose defaults; sums Float64-compensated, NumPy Float32 gap < 1e-6 relative; Metal against CPU 1e-5 |
 
 ## `DataCube`: calibration-bound properties and coordinates (datacube/datacube.py)
 
@@ -86,19 +86,19 @@ States: **present** (pinned against py4DSTEM or planted truth; numerics held to 
 | `thin_R` | `CubeEditing.thinScan` | present (0.8.0; exact) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
 | `pad_Q` | `CubeEditing.padDetector` | present (0.8.0; exact; factor and output size) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
 | `resample_Q` (bilinear, `conserve_array_sums`, `method="fourier"`) | `CubeEditing.resampleDetector`, `CubeEditing.resampleDetectorFourier` | present (0.9.0; method="fourier": scalar scale or output size, the Q pixel size per `resample_data_diffraction`; the kit returns Float32 where py4DSTEM returns float64 unless the sums are conserved) | study | bilinear unchanged; fourier 1e-6 of the largest value (py4DSTEM is complex64); measured 2.1e-7 |
-| `filter_hot_pixels` (`thresh`, `ind_compare`, `return_mask`) | `HotPixelFilter.filter`, `.mask`, `.replacing` | present: eager Float32 cube, means/masks/pixels pinned exact today (D12); wrapped classification and clipped sequential replacement | useful | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
+| `filter_hot_pixels` (`thresh`, `ind_compare`, `return_mask`) | `HotPixelFilter.filter`, `.mask`, `.replacing` | present: eager Float32 cube, means/masks/pixels pinned exact today; wrapped classification and clipped sequential replacement | useful | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
 | `median_filter_masked_pixels` | `CubeEditing.medianFilterMaskedPixels` | present (0.8.0; exact for odd kernels, in place and row-major as upstream) | study | index moves exact; sums 1e-6 relative of max (NumPy Float32); resample 1e-6 (scipy Float32); no upstream test |
 
 ## `DataCube`: probe, beam stop and background methods (datacube/datacube.py)
 
 | py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
 |---|---|---|---|---|
-| `get_probe_size` (`thresh_lower`, `thresh_upper`, `N`) | `ProbeSize.estimate` | present (slice 2; exact today, D12) | useful | no upstream test; np.allclose defaults |
-| `get_vacuum_probe(ROI=boolean array)` | `VacuumProbe.measure(of:scanMask:)` | present (slice 4) | useful | no upstream test; np.allclose defaults |
+| `get_probe_size` (`thresh_lower`, `thresh_upper`, `N`) | `ProbeSize.estimate` | present (exact today) | useful | no upstream test; np.allclose defaults |
+| `get_vacuum_probe(ROI=boolean array)` | `VacuumProbe.measure(of:scanMask:)` | present | useful | no upstream test; np.allclose defaults |
 | `get_vacuum_probe(ROI=4-tuple)` | — | missing (not ported: pass the equivalent boolean ROI) | not planned: absent (not ported: pass the equivalent boolean ROI) | no upstream test; np.allclose defaults |
-| `get_vacuum_probe(align, zero_vacuum, mask)` | `VacuumProbe.measure(of:scanMask:align:zeroVacuum:detectorMask:)` | present (slice 4) | useful | no upstream test; np.allclose defaults |
-| `get_beamstop_mask` (`threshold`, `distance_edge`, `include_edges`, `sigma`, `scale_radial`) | `BeamstopMask.make(from:threshold:distanceEdge:includeEdges:sigma:scaleRadial:)` | present (slice 4) | useful | no upstream test; np.allclose defaults |
-| `get_beamstop_mask(use_max_dp=True)` | the caller passes the max pattern | present (slice 4; via the caller's pattern) | useful | no upstream test; np.allclose defaults |
+| `get_vacuum_probe(align, zero_vacuum, mask)` | `VacuumProbe.measure(of:scanMask:align:zeroVacuum:detectorMask:)` | present | useful | no upstream test; np.allclose defaults |
+| `get_beamstop_mask` (`threshold`, `distance_edge`, `include_edges`, `sigma`, `scale_radial`) | `BeamstopMask.make(from:threshold:distanceEdge:includeEdges:sigma:scaleRadial:)` | present | useful | no upstream test; np.allclose defaults |
+| `get_beamstop_mask(use_max_dp=True)` | the caller passes the max pattern | present (via the caller's pattern) | useful | no upstream test; np.allclose defaults |
 | `get_radial_bkgrnd` | `RadialBackground.background` | present (0.9.0; the lookup radius is on the major-axis scale while the polar bins are on the minor-axis scale: py4DSTEM's own, so a ring is stretched by a/b for a != b; a circle is exact) | study | no upstream test; np.allclose defaults; measured 4e-15 |
 | `get_radial_bksb_dp` | `RadialBackground.subtracted` | present (0.9.0) | study | no upstream test; np.allclose defaults; measured 2e-13 |
 | `get_local_ave_dp` (`radial_bksb`, `sigma`, `braggmask`) | `BraggMasking.localAverage`, `RadialBackground.localAverage` | present (0.9.0): `RadialBackground.localAverage` is `radial_bksb=True`, and with `keeping:` (a per-position mask, e.g. from `BraggMasking.mask`) the `radial_bksb` + `braggmask` branch (hand-composed, not pinned); plain and Bragg-masked without radial background as before | study | no upstream test; np.allclose defaults; measured 4e-13 |
@@ -139,22 +139,22 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
 |---|---|---|---|---|
 | `get_origin_single_dp` | the per-pattern step of `OriginMeasurement.measure` | partial: no single-pattern entry point | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `get_origin(r, rscale)` | `OriginMeasurement.measure(radius:radiusScale:)` | present (slice 3; CPU) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin(r, rscale)` | `OriginMeasurement.measure(radius:radiusScale:)` | present (CPU) | useful | no upstream test; np.allclose defaults on the Float64 reference |
 | `get_origin(dp_max=)` | the max pattern is computed internally | partial: no argument to pass it | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `get_origin(mask=)` | `OriginMeasurement.measure(of:scanMask:)` | present (slice 4; NaN outside the mask) | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `get_origin(fast_center=True)` | `OriginMeasurement.measure(of:scanMask:fastCenter:)` | present (slice 4) | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `get_origin(remove_NaN=True)` | `OriginMap.replacingNaNWithMean()` | present (slice 4) | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `get_origin_friedel(mask, upsample_factor)` | `FriedelOrigin.measure(of:mask:upsampleFactor:)`, `.origin(of:)` | present (slice 4; CPU only) | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `get_origin_friedel(device="gpu")` | — | missing (planned: a Metal path, later lane) | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `fit_origin(fitfunction="constant")` | `OriginFit.fit(model: .constant)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `fit_origin(fitfunction="plane")` | `OriginFit.fit(model: .plane)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `fit_origin(fitfunction="parabola")` | `OriginFit.fit(model: .parabola)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `fit_origin(fitfunction="bezier_two")` | `OriginFit.fit(model: .bezierTwo)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `fit_origin(robust, robust_steps, robust_thresh)` | `OriginFit.fit(robust:robustSteps:robustThreshold:)` | present (slice 3) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin(mask=)` | `OriginMeasurement.measure(of:scanMask:)` | present (NaN outside the mask) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin(fast_center=True)` | `OriginMeasurement.measure(of:scanMask:fastCenter:)` | present | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin(remove_NaN=True)` | `OriginMap.replacingNaNWithMean()` | present | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin_friedel(mask, upsample_factor)` | `FriedelOrigin.measure(of:mask:upsampleFactor:)`, `.origin(of:)` | present (CPU only) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_origin_friedel(device="gpu")` | — | missing (planned: a Metal path, later) | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(fitfunction="constant")` | `OriginFit.fit(model: .constant)` | present | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(fitfunction="plane")` | `OriginFit.fit(model: .plane)` | present | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(fitfunction="parabola")` | `OriginFit.fit(model: .parabola)` | present | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(fitfunction="bezier_two")` | `OriginFit.fit(model: .bezierTwo)` | present | useful | no upstream test; np.allclose defaults on the Float64 reference |
+| `fit_origin(robust, robust_steps, robust_thresh)` | `OriginFit.fit(robust:robustSteps:robustThreshold:)` | present | useful | no upstream test; np.allclose defaults on the Float64 reference |
 | `fit_origin(mask=)` | `OriginFit.fit` | partial: NaN entries are left out of the fit; no boolean mask argument | useful | no upstream test; np.allclose defaults on the Float64 reference |
 | mac4DSTEM trimmed fit (`fitOriginTrimmed`, MAD cut, up to three rounds) | `OriginFit.fitTrimmed` | named option beside `fit(robust:)`; mask and surfaces pinned to a Float32 transcription of the app source, the final fit also to `fit_origin(mask=kept)` (not counted twice) | useful | no upstream test; np.allclose defaults on the Float64 reference |
 | `fit_origin(returnfitp=True)` | — | missing (the fit coefficients are not returned) | useful | no upstream test; np.allclose defaults on the Float64 reference |
-| `get_probe_size` (`process/calibration/probe.py`) | `ProbeSize.estimate` | present (slice 2; exact today, D12) | study | no upstream test; np.allclose defaults on the Float64 reference |
+| `get_probe_size` (`process/calibration/probe.py`) | `ProbeSize.estimate` | present (exact today) | study | no upstream test; np.allclose defaults on the Float64 reference |
 | `fit_ellipse_1D` | `EllipseFit.fit1D` | present (0.9.0; default `fitRadii` repaired, upstream raises `TypeError`; `ignoring:` is upstream's `mask` with the same polarity) | useful | no upstream test; np.allclose defaults on the Float64 reference; the fit is compared at 1e-6 (the optimiser's own result moves by 1e-7 to 7e-4 for one ulp of start): measured 7e-10 relative |
 | `fit_ellipse_amorphous_ring` | `EllipseFit.fitAmorphousRing` | present (0.9.0; `keeping:` is upstream's `mask`, `true` = use, the opposite of `fit_ellipse_1D`; `initial:` is `p0`) | useful | as `fit_ellipse_1D`; measured 3e-8 relative, cost 4e-9 |
 | `ellipse_err`, `double_sided_gaussian`, `double_sided_gaussian_fiterr` | `EllipseFit.ellipseError`, `.doubleSidedGaussian`, `.doubleSidedGaussianFitError` | present (0.9.0) | study | np.allclose defaults on the Float64 reference; measured below 1e-7 |
@@ -168,48 +168,48 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 
 | py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
 |---|---|---|---|---|
-| `Probe(data)` with `probe`, `kernel`, `alpha`, `origin` | functions on a detector image | partial (slice 4): no stateful `Probe` object | study | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe(data)` with `probe`, `kernel`, `alpha`, `origin` | functions on a detector image | partial: no stateful `Probe` object | study | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
 | `Probe.from_vacuum_data` (`mask`, `threshold`, `expansion`, `opening`) | — | missing (planned: the Bragg-disk module) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.generate_synthetic_probe(radius, width, Qshape)` | `SyntheticProbe.make(radius:width:detectorRows:detectorColumns:)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.measure_disk` (`thresh_lower`, `thresh_upper`, `N`, `zero_vacuum`, `alpha_max`) | `ProbeSize.estimate` (the same algorithm), then `VacuumProbe.zeroVacuum` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.generate_synthetic_probe(radius, width, Qshape)` | `SyntheticProbe.make(radius:width:detectorRows:detectorColumns:)` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.measure_disk` (`thresh_lower`, `thresh_upper`, `N`, `zero_vacuum`, `alpha_max`) | `ProbeSize.estimate` (the same algorithm), then `VacuumProbe.zeroVacuum` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
 | `Probe.measure_disk(plot=True)` | — | not planned (plotting) | not planned: plotting | — |
-| `Probe.zero_vacuum` | `VacuumProbe.zeroVacuum(_:center:alpha:alphaMax:)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.zero_vacuum_sinusoid` (`s`, `w`, `p`) | `VacuumProbe.dampVacuum(_:center:alpha:start:width:power:)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.get_kernel(mode="flat")` | `ProbeKernel.flat` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.get_kernel(mode="gaussian", sigma)` | `ProbeKernel.gaussian` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.get_kernel(mode="sigmoid", radii)` | `ProbeKernel.sigmoid(profile: .sineSquared)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.get_kernel(mode="sigmoid_log", radii)` | `ProbeKernel.sigmoid(profile: .sineSquared)` (py4DSTEM dispatches this mode to the sine² trench; `.logistic` is `type="logistic"`) | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.get_probe_kernel_flat(origin, bilinear)` | `ProbeKernel.flat(_:origin:bilinear:)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.get_probe_kernel_edge_gaussian(sigma, origin, bilinear)` | `ProbeKernel.gaussian(_:sigma:origin:bilinear:)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.get_probe_kernel_edge_sigmoid(type="sine_squared")` | `ProbeKernel.sigmoid(_:innerRadius:outerRadius:profile: .sineSquared)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.get_probe_kernel_edge_sigmoid(type="logistic")` | `ProbeKernel.sigmoid(..., profile: .logistic)` | present (slice 4) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.zero_vacuum` | `VacuumProbe.zeroVacuum(_:center:alpha:alphaMax:)` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.zero_vacuum_sinusoid` (`s`, `w`, `p`) | `VacuumProbe.dampVacuum(_:center:alpha:start:width:power:)` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_kernel(mode="flat")` | `ProbeKernel.flat` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_kernel(mode="gaussian", sigma)` | `ProbeKernel.gaussian` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_kernel(mode="sigmoid", radii)` | `ProbeKernel.sigmoid(profile: .sineSquared)` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_kernel(mode="sigmoid_log", radii)` | `ProbeKernel.sigmoid(profile: .sineSquared)` (py4DSTEM dispatches this mode to the sine² trench; `.logistic` is `type="logistic"`) | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_probe_kernel_flat(origin, bilinear)` | `ProbeKernel.flat(_:origin:bilinear:)` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_probe_kernel_edge_gaussian(sigma, origin, bilinear)` | `ProbeKernel.gaussian(_:sigma:origin:bilinear:)` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_probe_kernel_edge_sigmoid(type="sine_squared")` | `ProbeKernel.sigmoid(_:innerRadius:outerRadius:profile: .sineSquared)` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.get_probe_kernel_edge_sigmoid(type="logistic")` | `ProbeKernel.sigmoid(..., profile: .logistic)` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
 
 ## DPC and the phase base class's preprocessing (process/phase/dpc.py, phase_base_class.py)
 
 | py4DSTEM | CuboKit | State | Mark | Tolerance (source) |
 |---|---|---|---|---|
 | `DPC(datacube, energy, ...)` | `CenterOfMass`, `CenterOfMassReference`, `RotationSolver`, `DPC` | partial: functions, no stateful reconstruction object | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `_calculate_intensities_center_of_mass` | `CenterOfMass.measure` | present (slice 2; CPU and Metal) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `_calculate_intensities_center_of_mass` | `CenterOfMass.measure` | present (CPU and Metal) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
 | `_extract_intensities_and_calibrations_from_datacube` (reciprocal sampling, mask) | `CenterOfMass.measure(mask:)`, `reciprocalSampling:` | partial: the calibration is passed in, not read from a cube | study | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.preprocess(dp_mask)` | `CenterOfMass.measure(mask:)` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.preprocess(fit_function="plane")`, `"constant"` | `CenterOfMassReference.planeFit`, `.constant` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(dp_mask)` | `CenterOfMass.measure(mask:)` | present | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(fit_function="plane")`, `"constant"` | `CenterOfMassReference.planeFit`, `.constant` | present | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
 | `DPC.preprocess(fit_function="parabola")`, `"bezier_two"` | `OriginFit` has them | partial: not wired into `CenterOfMassReference` | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.preprocess(force_com_shifts)` | `CenterOfMassReference.given` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.preprocess(force_com_measured)` | the measured `ScanVectorField` is an input | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.preprocess(rotation_angles_deg)` | `RotationSolver.solve(anglesDegrees:)` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.preprocess(maximize_divergence=False)`: curl | `RotationCriterion.minimizeCurl` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.preprocess(maximize_divergence=True)`: divergence | `RotationCriterion.maximizeDivergence` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.preprocess(force_com_rotation, force_com_transpose)` | `forceRotationDegrees:`, `forceTranspose:` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.preprocess(padding_factor)` | `DPC.reconstruct(paddingFactor:)` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| the rotation search curves (`plot_rotation` data) | `RotationSolution.curve`, `curveTransposed` | present (slice 2; the plot itself n/a) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(force_com_shifts)` | `CenterOfMassReference.given` | present | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(force_com_measured)` | the measured `ScanVectorField` is an input | present | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(rotation_angles_deg)` | `RotationSolver.solve(anglesDegrees:)` | present | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(maximize_divergence=False)`: curl | `RotationCriterion.minimizeCurl` | present | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(maximize_divergence=True)`: divergence | `RotationCriterion.maximizeDivergence` | present | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(force_com_rotation, force_com_transpose)` | `forceRotationDegrees:`, `forceTranspose:` | present | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.preprocess(padding_factor)` | `DPC.reconstruct(paddingFactor:)` | present | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| the rotation search curves (`plot_rotation` data) | `RotationSolution.curve`, `curveTransposed` | present (the plot itself n/a) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
 | `DPC.preprocess(vectorized_com_calculation, plot_*, device, clear_fft_cache)` | — | not planned (Python memory strategy, plotting, CuPy) | not planned: Python memory strategy, plotting, CuPy | — |
-| `DPC.reconstruct(max_iter, step_size, stopping_criterion, backtrack)` | `DPC.reconstruct(maxIterations:stepSize:stoppingCriterion:backtrack:)` | present (slice 2; CPU, Double) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.reconstruct(gaussian_filter_sigma, gaussian_filter)` | — | missing (planned: DPC filters, later lane) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.reconstruct(q_lowpass, q_highpass, butterworth_order, butterworth_filter)` | — | missing (planned: DPC filters, later lane) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.reconstruct(max_iter, step_size, stopping_criterion, backtrack)` | `DPC.reconstruct(maxIterations:stepSize:stoppingCriterion:backtrack:)` | present (CPU, Double) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.reconstruct(gaussian_filter_sigma, gaussian_filter)` | — | missing (planned: DPC filters, later) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.reconstruct(q_lowpass, q_highpass, butterworth_order, butterworth_filter)` | — | missing (planned: DPC filters, later) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
 | `DPC.reconstruct(store_iterations=True)` | `DPCReconstruction.errors`, `accepted` | partial: the error history is kept; the per-iteration objects are not | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
-| `DPC.reconstruct(device="gpu")` | — | missing (planned: a Metal DPC, later lane) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| `DPC.reconstruct(device="gpu")` | — | missing (planned: a Metal DPC, later) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
 | `DPC.reconstruct(reset, progress_bar)` | — | not planned (Python state and progress bar) | not planned: Python state and progress bar | — |
-| result: `object_phase`, `error`, `sampling`, rotation and transpose | `DPCReconstruction.phase`, `errors`, `RotationSolution` | present (slice 2) | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
+| result: `object_phase`, `error`, `sampling`, rotation and transpose | `DPCReconstruction.phase`, `errors`, `RotationSolution` | present | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
 | `DPC.visualize`, `show_complex_CoM`, `to_h5` | — | not planned (plotting; FormatoKit) | not planned: plotting; FormatoKit | — |
 | complex CoM magnitude and angle (`show_complex_CoM` data) | `DPCViews.magnitude`, `.angle` | not counted (derived views): py4DSTEM's `row + i column` direction or the image-frame `atan2(row, column)`, wrapped to [0, 2 pi); NumPy-pinned (`tools/dpcviews/pins.py`), `RotationConvention` states the sign flip between conventions | useful | none upstream (`test/` holds no phase test); np.allclose defaults |
 | `set_device`, `set_storage`, `clear_device_mem`, `attach_datacube`, `reinitialize_parameters`, `set_save_defaults` | — | not planned (Python object plumbing) | not planned: Python object plumbing | — |
@@ -244,7 +244,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 | `find_Bragg_disks(radial_bksb)` | — | missing (planned: with `get_radial_bksb_dp`) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
 | `find_Bragg_disks(subpixel="none"/"poly"/"multicorr", upsample_factor)` | `BraggDiskOptions.subpixel` (`.pixel`, `.parabolic`, `.multicorr`), `upsampleFactor` | present: pinned, factors 3, 8, 16; a factor of 2 or less for multicorr is refused (py4DSTEM asserts) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
 | `find_Bragg_disks(minAbsoluteIntensity, minRelativeIntensity, relativeToPeak, minPeakSpacing, edgeBoundary, maxNumPeaks)` | the same six options | present: pinned; `BraggMaxima.find` is `get_maxima_2D` | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
-| `find_Bragg_disks(CUDA, CUDA_batched)` | — | missing (planned: a Metal path, later lane) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
+| `find_Bragg_disks(CUDA, CUDA_batched)` | — | missing (planned: a Metal path, later) | useful | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
 | `find_Bragg_disks(distributed, ML, ml_*)`, the `diskdetection_parallel`, `_aiml`, `_cuda` variants | — | not planned (Python parallel tooling, TensorFlow) | not planned: Python parallel tooling, TensorFlow | — |
 | `BraggVectors` (`raw`, `cal`, `setcal`, `calibrate`, `get_vectors`, `shape`, `qx`, `qy`, `I`) | `BraggVectors` (peaks per scan position) | partial: the raw value container only; no calibration state | study | `test_braggvectors.py`, `test_workflow/test_disk_detection_*.py` (counts and shapes); positions np.allclose defaults |
 | `BraggVectors.get_virtual_image` | `BraggVectors.virtualImage(detector:)` | present (0.9.0): `.allPeaks`, `.circle`, `.annulus` over vectors already in detector coordinates; the four calibration flags are the caller's | useful | `test_braggvectors.py` (counts and shapes); np.allclose defaults, measured 0 |
@@ -328,7 +328,7 @@ Source: an AST walk of the public functions and methods of `datacube`, `preproce
 | `process.phase.utils.fourier_ring_correlation`, `return_1D_profile`, `fourier_rotate_real_volume`, `fft_shift`, `fourier_translation_operator`, `spatial_frequencies`, `generate_batches`, `subdivide_into_batches`, `array_slice` | `FFT2D`, `ParallaxFourierShifter` cover `fft_shift`; the rest missing | partial | useful | none upstream |
 | `process.phase.utils` periodic gradients, divergence and the 3-D Poisson/Nesterov helpers (`compute_gradient_periodic`, `compute_divergence_periodic`, `preconditioned_poisson_solver_periodic_3D`, `nesterov_*`) | `IDPC` (2-D Poisson only) | missing | not planned: 3-D tomography is outside the kit until multislice ptychography is registered | — |
 | `process.phase.parameter_optimize.PtychographyOptimizer` (`grid_search`, `optimize`) | — | missing | useful | none upstream |
-| `braggvectors.find_Bragg_disks_aiml*`, `_CUDA`, `_ipp`, `_dask`, `beta_parallel_disk_detection` | the learned detector stays in the app (D13, ADR 071); `BraggDisks.detectAll` tiles in process | not planned | not planned: ML, CUDA and cluster backends | — |
+| `braggvectors.find_Bragg_disks_aiml*`, `_CUDA`, `_ipp`, `_dask`, `beta_parallel_disk_detection` | the learned detector stays in the app; `BraggDisks.detectAll` tiles in process | not planned | not planned: ML, CUDA and cluster backends | — |
 | `BraggVectors.set_raw_vectors`, `BraggVectorMap.pixelsize/pixelunits` | `BraggScanResult`, no map object | partial | useful | exact |
 | `BraggVectorClassification.__init__` (`braggpeaks`, `Qx`, `Qy`, `X_is_boolean`, `max_dist`), `get_braggpeak_labels_by_scan_position` | `BraggVectorClassification.init(vectors:referenceRows:referenceColumns:booleanData:maximumDistance:)`, `.peakLabels(...)` | present (0.9.0): labels and X exact (rows are `qx`) | useful | none upstream; labels exact, X exact |
 | `get_initial_classes`, `get_initial_classes_by_cooccurrence`, `get_initial_classes_from_images` | `.initialClasses(...)`, `.setInitialClassesByCooccurrence(...)`, `.setInitialClasses(images:)` | present (0.9.0): class sets exact, W exact, H by minimum-norm least squares (Jacobi SVD against `lstsq`) | useful | none upstream; np.allclose defaults, measured 3.5e-8 of the bound |
@@ -374,7 +374,7 @@ Study rows: 53, of which 47 present, 5 partial, 1 missing.
 
 - `RotationSolver` gains `curve(_:anglesDegrees:criterion:transpose:isCancelled:)` (py4DSTEM computes the same curve inside
   `DPC.preprocess`) and runs the grid in parallel; the CPU centre of mass runs positions in parallel; both bit identical.
-- The Metal centre of mass agrees with the CPU path where |S| ≥ 1e-3 · Σ|wP| (slice 2): Float32's absolute noise floor on
+- The Metal centre of mass agrees with the CPU path where |S| ≥ 1e-3 · Σ|wP|: Float32's absolute noise floor on
   a Metal reduction is about 3e-10 of the total intensity, so a pattern whose weighted sum is far below its total is
   outside the claim. py4DSTEM has no GPU centre of mass to compare with.
 - The counts above are unchanged by 0.2.0 (no new py4DSTEM method).
@@ -396,7 +396,7 @@ iterative `DPC`. Absolute phase tolerance `1e-12` rad; details in `docs/idpc.md`
 
 This refines the preprocessing row above (not counted twice). Generator
 `tools/hot-pixels/pins.py` calls the actual pinned method. Eight fixtures (30,403 bytes)
-pin means, masks and every cleaned sample exactly today (measured gap 0; D12 allows a written tolerance).
+pin means, masks and every cleaned sample exactly today (measured gap 0; a tolerance against py4DSTEM would be allowed).
 Supported input and numerical details: `docs/hot-pixels.md`.
 
 ## CPU ptychography details (refines the headline above; not counted twice)

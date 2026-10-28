@@ -1,7 +1,7 @@
 //
 //  Slice4Tests.swift
 //  The median pattern, virtual diffraction over a selection, origins with a scan mask, the Friedel origin, the beamstop
-//  mask, the vacuum probe and its kernels (registration slice 4) against py4DSTEM f050d207 and planted truth:
+//  mask, the vacuum probe and its kernels against py4DSTEM f050d207 and planted truth:
 //  slice-4-pins.json and, on this machine, the real-data exports (<name>-s4-pins.json).
 //
 
@@ -18,7 +18,7 @@ import CuboVirtual
         try await S4.check(e, cube: try MappedCube(npy: Fixtures.url("\(name).npy")))
     }
 
-    /// 5: the median is the closed form; one outlier position moves it at most one rank.
+    /// The median is the closed form; one outlier position moves it at most one rank.
     @Test func testMedianTruth() async throws {
         for t in S4.pins["median_truth"] as! [[String: Any]] {
             let nm = t["cube"] as! String
@@ -31,7 +31,7 @@ import CuboVirtual
         }
     }
 
-    /// 5: one selected position gives its pattern; weights all one give the mean; one-hot weights give the pattern and max(P, 0).
+    /// One selected position gives its pattern; weights all one give the mean; one-hot weights give the pattern and max(P, 0).
     @Test func testSelectionTruth() async throws {
         let cube = try MappedCube(npy: Fixtures.url("counts16.npy"))
         let shape = cube.shape, N = shape.scanCount
@@ -54,7 +54,7 @@ import CuboVirtual
         #expect(try await VirtualDiffraction.pattern(of: cube, statistic: .max).values == mx.values)
     }
 
-    /// 3.1, 3.3, 3.4, 3.6: the refusals where py4DSTEM returns NaN or ∞ or raises.
+    /// The refusals where py4DSTEM returns NaN or ∞ or raises.
     @Test func testRefusals() async throws {
         let cube = try MappedCube(npy: Fixtures.url("counts16.npy"))
         let N = cube.shape.scanCount
@@ -119,10 +119,10 @@ import CuboVirtual
         #expect(hole.indices.filter { hole[$0] } == [0])
     }
 
-    /// Gate B on bc41094 (registration 9): the refusals for an all-false Friedel mask, an upsampling factor above 1024 and
+    /// Cases a review found on bc41094: the refusals for an all-false Friedel mask, an upsampling factor above 1024 and
     /// an empty pattern or probe (each trapped or was ill-posed); NumPy's keep-first rule for equal maxima (±0); the
     /// kernels' messages name the normalisation that failed.
-    @Test func testGateBRegressions() async throws {
+    @Test func testReviewRegressions() async throws {
         let cube = try MappedCube(npy: Fixtures.url("friedel_plain.npy"))
         await #expect(throws: CuboVirtualError.invalidInput("the mask keeps no pixel of the pattern")) {
             try await FriedelOrigin.measure(of: cube, mask: Array(repeating: false, count: 32 * 34))
@@ -148,7 +148,7 @@ import CuboVirtual
         #expect(mx.values[0].sign == .plus && mx.values[1].sign == .minus, "\(mx.values.map(\.sign))")
     }
 
-    /// 5: the fast centre of the planted disk cube is the planted centre; excluded positions are NaN, selected ones
+    /// The fast centre of the planted disk cube is the planted centre; excluded positions are NaN, selected ones
     /// equal the unmasked run exactly; remove_NaN fills with the mean of the rest.
     @Test func testOriginsTruth() async throws {
         let s3 = (S3.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == "planted_f32" }!
@@ -171,7 +171,7 @@ import CuboVirtual
         #expect(filled.meanRow.isFinite && some.meanRow.isNaN)
     }
 
-    /// 5: point-symmetric patterns give their centres; behind a planted beamstop the masked form keeps the peak at twice
+    /// Point-symmetric patterns give their centres; behind a planted beamstop the masked form keeps the peak at twice
     /// the centre; Gaussians at fractional centres within 0.05 px with u = 16.
     @Test func testFriedelTruth() async throws {
         let t = S4.pins["friedel_truth"] as! [String: Any]
@@ -200,7 +200,7 @@ import CuboVirtual
         #expect(one.row == masked.row.values[1] && one.column == masked.column.values[1])
     }
 
-    /// 5: the planted beamstop mask by hand: the arm and the border dilated by 2, the hole filled, the speck removed.
+    /// The planted beamstop mask by hand: the arm and the border dilated by 2, the hole filled, the speck removed.
     @Test func testBeamstopTruth() throws {
         let t = S4.pins["beamstop_truth"] as! [String: Any]
         let shape = t["shape"] as! [Int]
@@ -210,7 +210,7 @@ import CuboVirtual
         #expect(!got[11 * 24 + 6 + 12] && got[11 * 24 + 6], "the speck is under the mask, the region beside the arm is not")
     }
 
-    /// 5: copies of one disk rolled by known shifts: the aligned average is the disk at p₀; p₀'s hot pixel is absent;
+    /// Copies of one disk rolled by known shifts: the aligned average is the disk at p₀; p₀'s hot pixel is absent;
     /// without alignment the mean of p₁ … p_{L−1}; the damping and zeroing as pinned.
     @Test func testVacuumTruth() async throws {
         let t = S4.pins["vacuum_truth"] as! [String: Any]
@@ -237,7 +237,7 @@ import CuboVirtual
         print(log.joined(separator: "\n  "))
     }
 
-    /// 5: synthetic probes as py4DSTEM's (1/2 on the radius); the flat kernel sums to 1, the others to 0; the kernels pinned.
+    /// Synthetic probes as py4DSTEM's (1/2 on the radius); the flat kernel sums to 1, the others to 0; the kernels pinned.
     @Test func testKernelTruth() throws {
         let sps = S4.pins["synthetic_probes"] as! [[String: Any]]
         for sp in sps {

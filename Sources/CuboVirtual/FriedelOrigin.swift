@@ -1,6 +1,6 @@
 //
 //  FriedelOrigin.swift
-//  Per-position origins from Friedel symmetry (registration slice 4, 3.3): py4DSTEM's get_origin_friedel
+//  Per-position origins from Friedel symmetry: py4DSTEM's get_origin_friedel
 //  (process/calibration/origin.py 332 at f050d207) and its DFT upsampling (process/utils/multicorr.py
 //  upsampled_correlation 22, dftUpsample 145), CPU, Double. A pattern is centrosymmetric about the unscattered beam, so
 //  the correlation of the zero-padded pattern with its point reflection, Re(IFFT2(FFT2(im)²)), peaks at twice the origin.
@@ -66,7 +66,7 @@ public enum FriedelOrigin {
             if let mask, mask.count != qy * qx {
                 throw CuboVirtualError.maskLengthMismatch(expected: qy * qx, received: mask.count)
             }
-            if let mask, !mask.contains(true) {   // every masked correlation is then noise over noise (Gate B F1)
+            if let mask, !mask.contains(true) {   // every masked correlation is then noise over noise
                 throw CuboVirtualError.invalidInput("the mask keeps no pixel of the pattern")
             }
             self.qy = qy; self.qx = qx; ny = 2 * qy; nx = 2 * qx; self.u = u
@@ -89,7 +89,7 @@ public enum FriedelOrigin {
             for k in re.indices { let a = re[k], b = im[k]; re[k] = a * a - b * b; im[k] = 2 * a * b }
         }
 
-        /// The definition of 3.3 for one pattern (qy × qx, row-major).
+        /// The Friedel origin of one pattern (qy × qx, row-major).
         func origin(_ p: [Double]) -> (Double, Double) {
             let total = ny * nx
             var re = [Double](repeating: 0, count: total), im = re
@@ -124,7 +124,7 @@ public enum FriedelOrigin {
             return (Self.remainder(sx / 2, Double(qy)), Self.remainder(sy / 2, Double(qx)))
         }
 
-        /// py4DSTEM's upsampled_correlation(FFT2(cc), u, (sx, sy)) (3.3).
+        /// py4DSTEM's upsampled_correlation(FFT2(cc), u, (sx, sy)).
         func upsampled(_ cc: [Double], _ x: Double, _ y: Double) -> (Double, Double) {
             let ud = Double(u)
             let sx = (x * ud).rounded(.toNearestOrEven) / ud, sy = (y * ud).rounded(.toNearestOrEven) / ud

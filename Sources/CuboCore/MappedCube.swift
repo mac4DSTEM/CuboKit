@@ -1,7 +1,7 @@
 //
 //  MappedCube.swift
-//  The lazy cube: a file region mapped read-only and private; a read converts only the requested elements to Float32
-//  (registration 1.1, 3.5). Nothing is read until a pattern or a tile is asked for.
+//  The lazy cube: a file region mapped read-only and private; a read converts only the requested elements to Float32.
+//  Nothing is read until a pattern or a tile is asked for.
 //
 //  Conversions (all native little-endian): float32 is copied; float64 rounds to nearest even (vDSP_vdpsp, as NumPy's
 //  astype(np.float32)); the 8-, 16- and 32-bit integers convert with vDSP (exact up to 2^24); the 64-bit integers with a
@@ -129,7 +129,7 @@ public actor MappedCube: CubeSource {
         self.dataOffset = dataOffset
     }
 
-    /// The rank-4 array in a NumPy `.npy` file (registration 1.1): C order, little-endian, a supported element type.
+    /// The rank-4 array in a NumPy `.npy` file: C order, little-endian, a supported element type.
     public init(npy url: URL) throws {
         let header = try NPYFile.header(of: url)
         guard header.shape.count == 4 else { throw CuboError.wrongRank(expected: 4, received: header.shape.count) }

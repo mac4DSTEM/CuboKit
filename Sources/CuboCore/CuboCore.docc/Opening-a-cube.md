@@ -27,7 +27,7 @@ rounded to the nearest Float32 when it is read.
 
 Whole-cube passes walk the scan in tiles. ``ScanTiling/automatic`` takes the largest number of scan rows whose Float32
 tile fits in 64 MiB, and at least one row. It depends on the shape alone, not on the machine. ``ScanTiling/rows(_:)``
-fixes the count. On the CPU path a result does not depend on the tiling; the Metal path agrees with it within its
-registered tolerance.
+fixes the count. On the CPU path a result does not depend on the tiling; the Metal path agrees with it within relative
+1e-5.
 
 To build a cube in memory from an array, use ``MemoryCube/init(shape:values:)`` with the values in storage order.

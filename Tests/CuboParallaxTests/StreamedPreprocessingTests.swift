@@ -3,7 +3,7 @@ import Testing
 import CuboCore
 import CuboParallax
 
-/// Streamed preprocessing against the resident Double `prepare`: Float32 rounding only, relative 2e-5 (D12, Float32).
+/// Streamed preprocessing against the resident Double `prepare`: Float32 rounding only, relative 2e-5 (the float32 tolerance).
 @Suite struct StreamedPreprocessingTests {
     static let tolerance = 2e-5
     static let sampling = ParallaxShift(row: 0.05, column: 0.05)

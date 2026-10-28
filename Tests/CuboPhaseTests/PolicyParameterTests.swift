@@ -1,6 +1,6 @@
 //
 //  PolicyParameterTests.swift
-//  The generality pass (0.2.0): the plane fit's degeneracy tolerance is a parameter, 1e-12 by default (tier 2).
+//  The generality pass (0.2.0): the plane fit's degeneracy tolerance is a parameter, 1e-12 by default.
 //
 
 import Testing
@@ -20,7 +20,7 @@ import CuboPhase
         #expect(throws: CuboPhaseError.planeFitDegenerate) {
             try CenterOfMassReference.normalize(field, reference: .planeFit, degeneracyTolerance: 1)
         }
-        // refuter 0.2.0, F1: a negative tolerance hid a degenerate fit behind nan_to_num; refused now
+        // found in review of 0.2.0: a negative tolerance hid a degenerate fit behind nan_to_num; refused now
         for bad in [-1.0, -.infinity, .nan] {
             #expect(throws: CuboPhaseError.self) {
                 try CenterOfMassReference.normalize(field, reference: .planeFit, degeneracyTolerance: bad)

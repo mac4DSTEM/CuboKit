@@ -45,7 +45,7 @@ Python 3.12.4, NumPy 2.5.0, SciPy 1.18.0, py4DSTEM 0.14.19. Regenerate from the 
 Four small three-frame stacks cover integer/wrapped shifts (8 × 10), fractional shifts on odd axes
 (9 × 11), noisy fractional shifts with a running reference (10 × 12), and a public DM4 diffraction crop
 (12 × 14). The latter is `small_datacube.dm4[0,0,250:262,249:263]`; its source SHA-256 is in the fixture.
-Only that public test-data crop is committed; no owner's data is used. Seed: 20261016.
+Only that public test-data crop is committed; no private data is used. Seed: 20261016.
 Additional shift pins cover factors 3, 7, 16 and 64 for the first frame of each stack.
 
 Shifts, shifted pixels, aligned means and matrix-DFT patches are compared against direct Python outputs
@@ -136,7 +136,7 @@ lose their Nyquist component in the first fractional shift (the effect noted abo
 `endToEndEqualsChainedSteps` checks that `process` equals the chained single steps exactly (stack, shifts, image,
 errors, limits, upsampled image and probe offsets, with and without position correction and without the subpixel stage).
 
-### The application's asks (round 6, for 0.6.0)
+### The application's asks (for 0.6.0)
 
 mac4DSTEM's switch to CuboParallax 0.4.0 left six asks; each is an addition whose defaults keep 0.5.0 behaviour.
 `DefaultUnchangedTests` holds the 0.5.0 outputs (fixture `legacy050.json`, written by a throwaway generator run on

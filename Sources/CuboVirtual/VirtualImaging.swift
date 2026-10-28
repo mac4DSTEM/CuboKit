@@ -1,6 +1,6 @@
 //
 //  VirtualImaging.swift
-//  The public API of CuboVirtual (registration 1.2): virtual images, and the mean and maximum pattern, on the path the
+//  The public API of CuboVirtual: virtual images, and the mean and maximum pattern, on the path the
 //  caller chooses.
 //
 //  py4DSTEM f050d207: DataCube.get_virtual_image (virtualimage.py 67) with centered=False, calibrated=False,

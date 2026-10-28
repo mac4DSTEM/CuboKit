@@ -1,6 +1,6 @@
 //
 //  RadialBackground.swift
-//  The radial background of a diffraction pattern from its polar transform (task 17): py4DSTEM's `DataCube.get_radial_bkgrnd`,
+//  The radial background of a diffraction pattern from its polar transform: py4DSTEM's `DataCube.get_radial_bkgrnd`,
 //  `get_radial_bksb_dp` and `get_local_ave_dp(radial_bksb=True)` (datacube/datacube.py at f050d207), in Double on the CPU.
 //
 //  The background is the median over the angle of the valid polar cells at each radius (zero where none is valid), smoothed
@@ -12,7 +12,7 @@
 //      `sqrt(u^2 + v^2 / (b / a)^2)` with u, v along the axes, while ``PolarCube`` bins radii on the scale of the MINOR one
 //      (`(b / a) * hypot(...)`). py4DSTEM does exactly this, so a ring of the ellipse sits at `a` in the lookup and at `b` in
 //      the polar bins: for `a != b` the background is laid out stretched by `a / b` against the polar profile. It is ported as
-//      it is (D17); a circle is not affected. No ellipse in the calibration is the circle `(1, 1, 0)`, whatever the sampling
+//      it is; a circle is not affected. No ellipse in the calibration is the circle `(1, 1, 0)`, whatever the sampling
 //      says; the sampling's `elliptical: false` switches the polar transform only, as in py4DSTEM.
 //    - Patterns are Float32 in the cube; the subtraction runs in Double and zeroes negative values (NaN stays NaN).
 //    - `localAverage` clips the 3 x 3 Gaussian kernel at the scan edge and renormalises, as py4DSTEM does; py4DSTEM's own edge

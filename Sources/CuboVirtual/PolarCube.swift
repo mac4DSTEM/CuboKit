@@ -1,6 +1,6 @@
 //
 //  PolarCube.swift
-//  The polar-elliptical transform of every diffraction pattern (task 17): py4DSTEM's `DataCube.polar`, a `PolarDatacube`
+//  The polar-elliptical transform of every diffraction pattern: py4DSTEM's `DataCube.polar`, a `PolarDatacube`
 //  (process/polar/polar_datacube.py at f050d207), in Double on the CPU.
 //
 //  A pattern is binned (not interpolated) onto `annularCount x radialCount` cells: each detector pixel spreads its value over

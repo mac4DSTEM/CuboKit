@@ -1,7 +1,7 @@
 """Pins for the classification slice: py4DSTEM's Featurization (PCA, NMF, GMM, class patterns), the NMF and Gaussian mixture of
 scikit-learn they call, NumPy's RandomState draws, BraggVectorClassification and BraggVectors.get_virtual_image. Everything is
-produced by py4DSTEM itself on small planted inputs; no CuboKit Swift is used. Run from the CuboKit folder with the suite's
-reference environment under the memory cap:
+produced by py4DSTEM itself on small planted inputs; no CuboKit Swift is used. Run from the CuboKit folder with the
+pinned reference environment (see the README):
 
     ../References/python/py4dstem/bin/python -I -B tools/classification/pins.py [featurization|classification|virtualimage|all]
 
