@@ -22,6 +22,11 @@ is the median fill of non-finite pixels, public.
 ``BraggDiskOptions/detectorAdapted(detectorRows:detectorColumns:probeRadius:base:)``.
 ``ProbeRingHint`` is the app's suggestion for a ring-structured probe's radius.
 
+``BraggVectorClassification`` is py4DSTEM's `braggvectorclassification`: peaks labelled by the nearest reference vector,
+an NMF of the label matrix, then split, merge, accept and reject steps, and the class images and class patterns.
+``BraggVectors/virtualImage(detector:)`` sums the peaks inside a ``BraggVirtualDetector`` at each scan position
+(py4DSTEM's `get_virtual_image`) into a ``BraggVirtualImage``.
+
 ## Topics
 
 ### Essentials
@@ -48,6 +53,16 @@ is the median fill of non-finite pixels, public.
 - ``BraggTieOrder``
 - ``BraggNonFinitePixels``
 - ``BraggPrecision``
+
+### Classification
+
+- ``BraggVectorClassification``
+
+### Virtual images from Bragg vectors
+
+- ``BraggVirtualImage``
+- ``BraggVirtualDetector``
+- ``BraggDetectorCenter``
 
 ### Probe
 
