@@ -1,0 +1,38 @@
+# Releases: release-please keeps one Release PR open, built from the conventional-commit titles of the squash-merged PRs
+# since the last tag (feat: minor before 1.0, fix: patch, feat!: minor before 1.0; docs/ci/chore/test/refactor release nothing).
+# Merging the Release PR writes the CHANGELOG entry and the manifest version; the next run tags the merge commit and
+# creates the GitHub release. Tags are bare versions (0.9.1), never moved.
+#
+# A PR opened with GITHUB_TOKEN starts no workflows, so this job dispatches CI on the Release PR's branch: the required
+# `test` check then reports on its head commit. Needs "Allow GitHub Actions to create and approve pull requests".
+name: release-please
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - name: Run CI on the Release PR
+        if: steps.release.outputs.pr
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
+        env:
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
