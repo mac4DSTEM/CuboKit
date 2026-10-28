@@ -1,0 +1,45 @@
+# Weekly unused-code scan (Periphery). A copy of the suite's template; edit it there.
+# Builds the package and its tests, scans with --retain-public (a kit's public API is used by the apps), and keeps one
+# open issue, "Periphery weekly scan", up to date with the findings. Findings are for triage; nothing is deleted here.
+name: Periphery
+
+on:
+  schedule:
+    - cron: "17 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Periphery
+        run: brew install periphery && periphery version
+      - name: Build with the index store
+        run: swift build --build-system native --build-tests
+      - name: Scan
+        run: |
+          periphery scan --retain-public --skip-build --index-store-path .build/debug/index/store \
+            --format csv --relative-results > periphery.csv
+          echo "count=$(( $(wc -l < periphery.csv) - 1 ))" >> "$GITHUB_ENV"
+      - name: Update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Periphery weekly scan"
+          echo "Periphery $(periphery version), commit ${GITHUB_SHA::7}, $(date -u +%Y-%m-%d): **${count} findings** (run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})." > body.md
+          printf '\n| Kind | Name | Location | Hint |\n|---|---|---|---|\n' >> body.md
+          python3 - >> body.md <<'PY'
+          import csv
+          for r in list(csv.DictReader(open('periphery.csv')))[:100]:
+              print(f"| {r['Kind']} | `{r['Name']}` | {r['Location']} | {r['Hints']} |")
+          PY
+          [ "$count" -le 100 ] || echo "| … | $((count - 100)) more in the run's log | | |" >> body.md
+          cat periphery.csv
+          n=$(gh issue list --state open --search "in:title \"$title\"" --json number,title -q ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -n "$n" ]; then gh issue edit "$n" --body-file body.md; else gh issue create --title "$title" --body-file body.md; fi

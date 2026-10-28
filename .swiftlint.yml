@@ -1,0 +1,33 @@
+# The suite's one SwiftLint config. tools/lint/sync.sh copies it to every Swift repo as .swiftlint.yml; edit it here only.
+# Rules that catch a mistake or keep files tidy, all fixable without touching a number or a name. Not enabled, on purpose:
+# identifier_name and type_name (the ported Python names: nx, q, E0), line_length (the house style runs to about 150 columns),
+# force_unwrapping and force_try (tests and fixtures), identical_operands (`x != x` is a NaN test in numeric code),
+# orphaned_doc_comment (a `// delete at` note between a doc comment and its declaration is the house idiom).
+excluded:
+  - .build
+  - build
+  - References
+  - DerivedData
+only_rules:
+  - duplicate_imports
+  - duplicate_enum_cases
+  - duplicated_key_in_dictionary_literal
+  - duplicate_conditions
+  - unused_optional_binding
+  - unused_setter_value
+  - discarded_notification_center_observer
+  - unneeded_override
+  - control_statement
+  - void_return
+  - trailing_whitespace
+  - trailing_newline
+  - leading_whitespace
+  - vertical_whitespace
+  - comment_spacing
+  - return_arrow_whitespace
+  - legacy_constructor
+  - legacy_cggeometry_functions
+  - legacy_nsgeometry_functions
+  - superfluous_disable_command
+  - blanket_disable_command
+  - invalid_swiftlint_command

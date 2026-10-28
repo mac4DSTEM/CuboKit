@@ -9,7 +9,6 @@ import CuboCore
 import CuboVirtual
 import CuboKitTestSupport
 
-
 @Suite(.serialized) struct Slice4RealDataTests {
     static func run(_ name: String) async throws {
         let dir = Fixtures.realData

@@ -10,7 +10,6 @@ import CuboKitTestSupport
 import CuboCore
 import CuboVirtual
 
-
 @Suite struct Slice3Tests {
     @Test(arguments: ["planted_f32", "planted_u16", "gaussian", "counts16"])
     func testSlice3PinsOnSyntheticCubes(_ name: String) async throws {

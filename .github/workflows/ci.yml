@@ -54,3 +54,13 @@ jobs:
           if git grep -n -I -E '_archive|CLAUDE\.md|memcap|macEM-suite|setup-python-refs' -- ':!.gitignore' ':!.github/workflows/ci.yml'; then
             echo "Private references above; this repo is public."; exit 1
           fi
+
+  lint:
+    name: Lint (shared SwiftLint and SwiftFormat config)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: SwiftLint
+        run: docker run --rm -v "$PWD:/work" -w /work --entrypoint swiftlint ghcr.io/realm/swiftlint:0.65.1 lint --strict --quiet
+      - name: SwiftFormat
+        run: docker run --rm -v "$PWD:/work" -w /work --entrypoint swiftformat ghcr.io/nicklockwood/swiftformat:0.64.4 --lint .

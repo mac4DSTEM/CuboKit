@@ -12,7 +12,6 @@ import CuboCore
 import CuboPhase
 import CuboVirtual
 
-
 @Suite struct CuboPhasePinsTests {
     /// The full chain from the kit's own centre of mass on the synthetic cubes (plane fit, as py4DSTEM's default).
     @Test func testChainOnCubesAgreesWithTheFloat64ChainAndPy4DSTEM() async throws {
