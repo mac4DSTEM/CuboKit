@@ -82,7 +82,7 @@ import Testing
         #expect(try LatticeStrain.chooseBasisConsensus([]) == nil)
     }
 
-    // MARK: - Round 6: consensus diagnostics, cancellation, MAD inliers
+    // MARK: - Consensus diagnostics, cancellation, MAD inliers
 
     final class Counter: @unchecked Sendable {
         private let lock = NSLock(); private var n = 0

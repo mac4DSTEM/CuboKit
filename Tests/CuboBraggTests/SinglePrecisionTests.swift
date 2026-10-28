@@ -362,7 +362,7 @@ import Testing
     }
 }
 
-/// The tolerances of the `.single` path, written per quantity (D12) from the maxima measured in this suite (docs/bragg.md).
+/// The tolerances of the `.single` path, written per quantity from the maxima measured in this suite (docs/bragg.md).
 /// The Float32 transform has an absolute error of about 1e-6 of the correlation maximum, so a peak's accuracy falls with its
 /// height: peaks above 1e-3 of the brightest (every peak of the pins' default cascade) are held to 5e-5 px and 5e-6 (the app's
 /// own tolerance against py4DSTEM is 2e-4 px); fainter ones (the pins with the spacing filter off reach 4e-5 of the brightest) to 1e-3 px and 5e-4. Phase correlation

@@ -1,8 +1,7 @@
 //
 //  CuboPhaseTests.swift
-//  The centre-of-mass reference, the R–Q rotation and DPC against py4DSTEM f050d207 and planted truth (registration
-//  slice 2, 3.2–3.4, 4, 5). The pins are CuboVirtualTests/Fixtures/slice-2-pins.json; the real data are slice 2's
-//  exports in $CUBOKIT_REAL_DATA.
+//  The centre-of-mass reference, the R–Q rotation and DPC against py4DSTEM f050d207 and planted truth. The pins are
+//  CuboVirtualTests/Fixtures/slice-2-pins.json; the real data are slice 2's exports in $CUBOKIT_REAL_DATA.
 //
 
 import Foundation
@@ -39,7 +38,7 @@ import CuboVirtual
 }
 
 @Suite struct CuboPhaseTruthTests {
-    /// 5.1: the reconstruction of a known phase gradient correlates with the phase at ≥ 0.99.
+    /// The reconstruction of a known phase gradient correlates with the phase at ≥ 0.99.
     @Test func testKnownPhaseIsReconstructed() throws {
         for f in Pins2.pins["fields"] as! [[String: Any]] where f["theta"] as! Double == 0 {
             let shape = f["shape"] as! [Int]
@@ -122,8 +121,8 @@ import CuboVirtual
         #expect(off.accepted.allSatisfy { $0 } && off.finalStepSize == 8)
     }
 
-    /// Gate B F3: degrees become radians as NumPy's deg2rad and Python's math.radians do, deg · (π/180), asserted exact today
-    /// (deg · π / 180 differs by an ulp for 38 of the 179 default angles); F4: a non-finite field is refused.
+    /// Degrees become radians as NumPy's deg2rad and Python's math.radians do, deg · (π/180), asserted exact today
+    /// (deg · π / 180 differs by an ulp for 38 of the 179 default angles); a non-finite field is refused.
     @Test func testRadiansAndNonFiniteFields() throws {
         let f = (Pins2.pins["fields"] as! [[String: Any]]).first { $0["theta"] as! Double == 23 }!
         let shape = f["shape"] as! [Int]

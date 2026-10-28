@@ -26,13 +26,13 @@ package enum S3 {
     package static let fitModels: [String: OriginFitModel] = ["constant": .constant, "plane": .plane, "parabola": .parabola,
                                                       "bezier_two": .bezierTwo]
 
-    /// Every claim of section 4 on one pinned cube; prints what it measured.
+    /// Every pinned claim on one cube; prints what it measured.
     package static func check(_ e: [String: Any], cube: MappedCube, integer: Bool) async throws {
         let name = e["cube"] as! String
         let shape = cube.shape
         let r = Double(e["radius"] as! String)!
         var log = ["slice3 \(name)"]
-        // origins: the default radius is the probe size of the max pattern, asserted exact today (D12); origins 1e-9 px
+        // origins: the default radius is the probe size of the max pattern, asserted exact today; origins 1e-9 px
         let (measured, radius) = try await OriginMeasurement.measure(of: cube)
         #expect(radius.bitPattern == r.bitPattern, "\(name): radius \(radius) vs \(r)")
         let orow = d(e["origin_row"]), ocol = d(e["origin_column"])
@@ -79,7 +79,7 @@ package enum S3 {
             let pm = pats[key]!
             if key == "rounded" {
                 assertRelative(mean.values, d(pm["mean"]), 1e-10, "\(name) \(key) mean")
-            } else {   // the Fourier shift's error is normwise (amendment): |Δ| ≤ 1e-12 · max|want|
+            } else {   // the Fourier shift's error is normwise: |Δ| ≤ 1e-12 · max|want|
                 let want = d(pm["mean"]), top = want.map(abs).max()!
                 #expect(zip(mean.values, want).allSatisfy { abs($0 - $1) <= 1e-12 * top }, "\(name) fourier mean")
             }

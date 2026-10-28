@@ -1,6 +1,6 @@
 //
 //  TruthTests.swift
-//  Planted truth independent of py4DSTEM (registration 5.5) and the refusals of 3.1.
+//  Planted truth independent of py4DSTEM, and the virtual detectors' refusals.
 //
 
 import Foundation
@@ -122,7 +122,7 @@ import CuboVirtual
         }
     }
 
-    /// Registration 3.1 and the DEVIATION in the refusing direction.
+    /// The detector refusals, and the DEVIATION in the refusing direction.
     @Test func testRefusals() {
         func refuses(_ g: DetectorGeometry, _ want: CuboVirtualError,
                      sourceLocation: SourceLocation = SourceLocation(fileID: #fileID, filePath: #filePath,

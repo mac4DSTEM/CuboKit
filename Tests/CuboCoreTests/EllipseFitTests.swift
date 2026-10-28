@@ -1,6 +1,6 @@
 //
 //  EllipseFitTests.swift
-//  The ellipse fits (task 18) against py4DSTEM 0.14.19 (tools/polar-ellipse/pins.py) and against the planted ellipses of
+//  The ellipse fits against py4DSTEM 0.14.19 (tools/polar-ellipse/pins.py) and against the planted ellipses of
 //  tools/polar-ellipse/planted.py. py4DSTEM has no test for these functions: the direct evaluations are held to
 //  `assert_allclose`'s Float64 default (rtol 1e-7); an iterative fit is compared with py4DSTEM's result at the convergence
 //  tolerance of the optimiser both run (`leastsq`: xtol = 1.49012e-8, relative to the parameter, floor 1), and with the planted

@@ -1,7 +1,7 @@
 //
 //  PolicyParameterTests.swift
 //  The generality pass (0.2.0): a policy the kit used to fix is a parameter whose default is the old value. The default
-//  path is pinned by the slice tests (D12); these check that the parameter takes effect and is validated (tier 2).
+//  path is pinned by the slice tests; these check that the parameter takes effect and is validated.
 //
 
 import Testing

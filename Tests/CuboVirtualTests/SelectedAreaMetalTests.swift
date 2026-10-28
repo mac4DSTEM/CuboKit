@@ -17,7 +17,7 @@ private func testCube(rows: Int, columns: Int, qr: Int, qc: Int, seed: UInt64) t
     return try MemoryCube(shape: shape, values: v)
 }
 
-// Metal against CPU: relative 1e-5 (the registered Metal tolerance; py4DSTEM states none for its float32 paths).
+// Metal against CPU: relative 1e-5 (the kit's Metal tolerance; py4DSTEM states none for its float32 paths).
 @Suite(.enabled(if: VirtualDiffraction.metalIsAvailable, "no Metal device on this machine"))
 struct SelectedAreaMetalTests {
     private func selection(_ n: Int) -> (mask: [Bool], weights: [Double]) {

@@ -3,7 +3,7 @@ import Testing
 import CuboParallax
 
 /// 0.7.0: the Double FFT runs on vDSP_DFT_zop where vDSP takes the length (checked here against a naive DFT, with a length it
-/// does not take beside them), and the Float32 shifter agrees with the Double one (D12 Float32: 1e-5 of the image range, written
+/// does not take beside them), and the Float32 shifter agrees with the Double one (the float32 tolerance: 1e-5 of the image range, written
 /// per test).
 @Suite struct DFTAndSingleShifterTests {
     private func image(_ rows: Int, _ columns: Int) -> [Double] {

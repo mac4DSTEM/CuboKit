@@ -59,7 +59,7 @@ package func checkChain(measured: ScanVectorField, reference: CenterOfMassRefere
     if case .planeFit = reference {
         near(fitted.row, Pins2.doubles(ch["fitted_x"]), 1e-10, "\(name) fitted row")
         near(fitted.column, Pins2.doubles(ch["fitted_y"]), 1e-10, "\(name) fitted column")
-        // py4DSTEM's curve_fit plane is recorded, not asserted (amendment 2026-10-15: up to 8.3e-6 px from the exact
+        // py4DSTEM's curve_fit plane is recorded, not asserted (up to 8.3e-6 px from the exact
         // least-squares plane of the same input; its stopping tolerance, not the definition).
         print("slice2 \(name): py4DSTEM curve_fit plane vs least squares of its own input \(ch["fit_distance_py4dstem_vs_lstsq_px"] ?? "n/a") px")
     }

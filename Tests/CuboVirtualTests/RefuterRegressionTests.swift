@@ -1,7 +1,7 @@
 //
 //  RefuterRegressionTests.swift
-//  The Gate B refuter's cases on 85318cd (2026-10-15; registration section 9), kept so they gate. F1: the Metal path missed
-//  the registered relative 1e-5 (floor 1e-6 · max) by up to 8e-3 on zero-mean, dark-subtracted noise and on cancelling
+//  Cases an adversarial review found on 85318cd (2026-10-15), kept so they gate. F1: the Metal path missed
+//  relative 1e-5 (floor 1e-6 · max) by up to 8e-3 on zero-mean, dark-subtracted noise and on cancelling
 //  data; fixed by compensated kernels. F3 and F4: the CPU mean turned ±∞ into NaN and dropped the sign of −0; Metal
 //  dropped NaN from the maximum.
 //
@@ -33,7 +33,7 @@ struct RefuterRegressionTests {
     static let noiseShapes: [[Int]] = [[32, 32, 64, 64], [128, 128, 32, 32], [20, 20, 128, 128]]
 
     /// F1: pure N(0, 500) noise, no signal; plain and randomly weighted detectors; Metal within 1e-5 of the CPU path
-    /// under the registered floor, the max exact.
+    /// under the 1e-6 · max floor, the max exact.
     @Test(arguments: noiseShapes)
     func testMetalMeetsTheToleranceOnZeroMeanNoise(_ extents: [Int]) async throws {
         let shape = try CubeShape(extents)

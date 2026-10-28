@@ -89,7 +89,7 @@ public enum FriedelOrigin {
             for k in re.indices { let a = re[k], b = im[k]; re[k] = a * a - b * b; im[k] = 2 * a * b }
         }
 
-        /// The definition of 3.3 for one pattern (qy × qx, row-major).
+        /// The Friedel origin of one pattern (qy × qx, row-major).
         func origin(_ p: [Double]) -> (Double, Double) {
             let total = ny * nx
             var re = [Double](repeating: 0, count: total), im = re
@@ -124,7 +124,7 @@ public enum FriedelOrigin {
             return (Self.remainder(sx / 2, Double(qy)), Self.remainder(sy / 2, Double(qx)))
         }
 
-        /// py4DSTEM's upsampled_correlation(FFT2(cc), u, (sx, sy)) (3.3).
+        /// py4DSTEM's upsampled_correlation(FFT2(cc), u, (sx, sy)).
         func upsampled(_ cc: [Double], _ x: Double, _ y: Double) -> (Double, Double) {
             let ud = Double(u)
             let sx = (x * ud).rounded(.toNearestOrEven) / ud, sy = (y * ud).rounded(.toNearestOrEven) / ud

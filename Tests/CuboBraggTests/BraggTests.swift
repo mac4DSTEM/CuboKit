@@ -68,7 +68,7 @@ func gaps(_ a: [BraggPeak], _ b: [BraggPeak]) -> (position: Double, intensity: D
     let fixture: Fixture
     init() throws { fixture = try Fixture() }
 
-    /// Every py4DSTEM case: same peaks, same order, to the registered tolerance.
+    /// Every py4DSTEM case: same peaks, same order, to the stated tolerance.
     @Test func matchesPy4DSTEM() throws {
         var worstPosition = 0.0, worstIntensity = 0.0, checked = 0
         for c in fixture.cases where (c["reference"] as! String) == "py4dstem" {

@@ -1,6 +1,6 @@
 //
 //  Slice2Tests.swift
-//  Centre of mass and probe size against py4DSTEM f050d207 and planted truth (registration slice 2, 3.1, 3.5, 4, 5),
+//  Centre of mass and probe size against py4DSTEM f050d207 and planted truth,
 //  read from slice-2-pins.json (tools/slice-2/pins.py, run before any Swift).
 //
 
@@ -34,7 +34,7 @@ enum Slice2 {
         #expect(Slice2.com.count == 24 && Slice2.probe.count == 20)
     }
 
-    /// 3.1, 4: the sums within 1e-10 of the float64 definition (integer cubes exact today, D12), the centre of mass within
+    /// The sums within 1e-10 of the float64 definition (integer cubes exact today), the centre of mass within
     /// 1e-9 px where the denominator is conditioned; py4DSTEM's own float32 distance printed.
     @Test func testCenterOfMassAgreesWithTheFloat64Definition() async throws {
         for e in Slice2.com {
@@ -52,7 +52,7 @@ enum Slice2 {
                 assertRelative(com.momentRow.values, Slice2.doubles(e["moment_row"]), 1e-10, "\(name)/\(mask) moment row")
                 assertRelative(com.momentColumn.values, Slice2.doubles(e["moment_column"]), 1e-10, "\(name)/\(mask) moment col")
             }
-            // conditioned (registration 4): |S| ≥ 1e-6 · Σ|w P|, from the cube itself
+            // conditioned: |S| ≥ 1e-6 · Σ|w P|, from the cube itself
             let eager = try await MemoryCube(loading: cube)
             let n = cube.shape.detectorCount
             let w = try DetectorMask.make(Slice2.mask(e) ?? .mask([Float](repeating: 1, count: n)), shape: cube.shape)
@@ -85,7 +85,7 @@ enum Slice2 {
         }
     }
 
-    /// 3.5: py4DSTEM's get_probe_size is float64 on these patterns, so the test asserts it exactly today (D12: a tolerance is allowed); where it
+    /// Py4DSTEM's get_probe_size is float64 on these patterns, so the test asserts it exactly today (a tolerance would be allowed); where it
     /// returns NaN the kit refuses.
     @Test func testProbeSizeIsPy4DSTEMsBitForBit() async throws {
         for e in Slice2.probe {
@@ -115,7 +115,7 @@ enum Slice2 {
 }
 
 @Suite struct Slice2TruthTests {
-    /// 5.1: two pixels a at (i0, j0) and b at (i0+1, j0+1): row = i0 + b/(a+b), column = j0 + b/(a+b).
+    /// Two pixels a at (i0, j0) and b at (i0+1, j0+1): row = i0 + b/(a+b), column = j0 + b/(a+b).
     @Test func testPlantedShiftIsRecovered() async throws {
         let cube = try MappedCube(npy: Slice2.cubeURL("shift"))
         let truth = Slice2.pins["shift_truth"] as! [String: Any]
@@ -126,7 +126,7 @@ enum Slice2 {
         }
     }
 
-    /// 5.1: a uniform disk: radius sqrt(n/π), centre exactly the disk's, on a pixel and a half-pixel.
+    /// A uniform disk: radius sqrt(n/π), centre exactly the disk's, on a pixel and a half-pixel.
     @Test func testUniformDiskProbeTruth() throws {
         for e in Slice2.probe where (e["cube"] as! String).hasPrefix("disk_") {
             let shape = e["shape"] as! [Int]
@@ -157,10 +157,10 @@ enum Slice2 {
     }
 }
 
-/// The Gate B refuter's slice-2 cases on 84815c9 (registration slice 2, section 9), kept so they gate.
+/// Slice-2 cases an adversarial review found on 84815c9, kept so they gate.
 @Suite(.enabled(if: VirtualDiffraction.metalIsAvailable, "no Metal device on this machine"))
 struct Slice2RefuterRegressionTests {
-    /// F1: on a 1024² detector the row moment of an integer cube passes 3e10; the first Metal kernel's Float32 correction
+    /// On a 1024² detector the row moment of an integer cube passes 3e10; the first Metal kernel's Float32 correction
     /// lost it (2e-4 px). Integer cubes are exact on Metal now (renormalised double-float sums, exact to 2^48).
     @Test func testMetalCenterOfMassIsExactOnLargeIntegerCubes() async throws {
         let shape = try CubeShape([2, 2, 1024, 1024])
@@ -178,8 +178,8 @@ struct Slice2RefuterRegressionTests {
         #expect(cpu.momentRow.values.max()! > 3e10)
     }
 
-    /// F1: dark-subtracted data (a blob minus a wider blob plus noise): Metal within 1e-9 px of the CPU where
-    /// |S| ≥ 1e-3 · Σ|w P| (the Metal condition of the amendment).
+    /// Dark-subtracted data (a blob minus a wider blob plus noise): Metal within 1e-9 px of the CPU where
+    /// |S| ≥ 1e-3 · Σ|w P| (the Metal path's conditioning bar).
     @Test func testMetalCenterOfMassOnDarkSubtractedData() async throws {
         let q = 128, shape = try CubeShape([3, 3, q, q])
         var g = Normals(state: 31)

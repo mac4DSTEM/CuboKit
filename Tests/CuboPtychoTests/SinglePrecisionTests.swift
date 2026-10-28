@@ -4,7 +4,7 @@ import CuboPtycho
 
 /// 0.7.0: the Float32 single-slice engine against the Double engine, on amplitudes that come from a known object (a smooth
 /// phase object read through a Gaussian probe, naive DFT), so the data is consistent and the iteration is well conditioned.
-/// Tolerances (D12 Float32, measured 2.9e-5 object / 1.5e-6 probe after 3 iterations on a unit-modulus object): object 1e-4
+/// Tolerances (float32, measured 2.9e-5 object / 1.5e-6 probe after 3 iterations on a unit-modulus object): object 1e-4
 /// absolute, probe 1e-5 absolute, error history 1e-5 relative.
 @Suite struct SinglePrecisionTests {
     static let d = 32, objectSize = 80, count = 36

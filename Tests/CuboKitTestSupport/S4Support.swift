@@ -41,7 +41,7 @@ package enum S4 {
         return worst
     }
 
-    /// Every claim of section 4 on one pinned cube; prints what it measured.
+    /// Every pinned claim on one cube; prints what it measured.
     package static func check(_ e: [String: Any], cube: MappedCube) async throws {
         let name = e["cube"] as! String, integer = e["integer"] as! Bool
         let shape = cube.shape, qy = shape.detectorRows, qx = shape.detectorColumns
@@ -57,7 +57,7 @@ package enum S4 {
                 if stat == .mean {
                     assertRelative(got, want, 1e-10, "\(name) \(key) mean")
                     if !own.isEmpty, key == "weights" { assertRelative(got, own, 1e-10, "\(name) \(key) mean vs py4DSTEM") }
-                    if integer, key == "mask" {    // exact sums of integers, one division: exact today (D12)
+                    if integer, key == "mask" {    // exact sums of integers, one division: exact today
                         assertIdentical(got, want, "\(name) \(key) mean (integer)")
                         assertIdentical(got, own, "\(name) \(key) mean vs py4DSTEM (integer)")
                     }

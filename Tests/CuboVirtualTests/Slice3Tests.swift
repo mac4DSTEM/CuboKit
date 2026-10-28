@@ -1,6 +1,6 @@
 //
 //  Slice3Tests.swift
-//  Per-position origins, fits, centred, calibrated and shifted virtual imaging (registration slice 3) against py4DSTEM
+//  Per-position origins, fits, centred, calibrated and shifted virtual imaging against py4DSTEM
 //  f050d207 and planted truth: slice-3-pins.json and, on this machine, the real-data exports (<name>-s3-pins.json).
 //
 
@@ -17,7 +17,7 @@ import CuboVirtual
         try await S3.check(e, cube: try MappedCube(npy: Fixtures.url("\(name).npy")), integer: name == "planted_u16" || name == "counts16")
     }
 
-    /// 5: the origins of the planted cubes are the planted centres; the rounded shifted mean is the unshifted disk.
+    /// The origins of the planted cubes are the planted centres; the rounded shifted mean is the unshifted disk.
     @Test(arguments: ["planted_f32", "planted_u16"])
     func testPlantedBeamShiftIsRecovered(_ name: String) async throws {
         let e = (S3.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == name }!
@@ -34,7 +34,7 @@ import CuboVirtual
         #expect(mean.values == disk)
     }
 
-    /// 5: exact surfaces recovered by their own model; one outlier removed by the robust fit.
+    /// Exact surfaces recovered by their own model; one outlier removed by the robust fit.
     @Test func testFitTruth() throws {
         for (key, t) in S3.pins["fit_truth"] as! [String: [String: Any]] {
             let model = S3.fitModels[key]!, shape = t["shape"] as! [Int]
@@ -70,7 +70,7 @@ import CuboVirtual
         #expect(abs(b.row.values[0] - m / s) <= 1e-12, "\(b.row.values[0]) vs \(m / s)")
     }
 
-    /// 3.3: shifts of exactly ±0.5 round half to even (to 0): the rounded shifted image is the unshifted one.
+    /// Shifts of exactly ±0.5 round half to even (to 0): the rounded shifted image is the unshifted one.
     @Test func testHalfShiftsRoundToEven() async throws {
         let cube = try MappedCube(npy: Fixtures.url("gaussian.npy"))
         let rows = (0..<30).map { Double($0 % 2) }          // mean 0.5: every shift is ±0.5
@@ -82,8 +82,8 @@ import CuboVirtual
         assertRelative(shifted.values, plain.values, 1e-12, "half shifts")
     }
 
-    /// Gate B (slice 3) F1: a mirror-symmetric pattern filters to exactly symmetric values in scipy's order, so the first
-    /// of the tied maxima wins: a disk centred at (11.5, 12.5) has its origin at (11, 12) — the refuter's case.
+    /// A mirror-symmetric pattern filters to exactly symmetric values in scipy's order, so the first
+    /// of the tied maxima wins: a disk centred at (11.5, 12.5) has its origin at (11, 12).
     @Test func testSymmetricTiesKeepTheFirstArgmax() async throws {
         let q = (24, 25)
         let values: [Float] = (0..<(q.0 * q.1)).map { k in
@@ -110,7 +110,7 @@ import CuboVirtual
     @Test func testKernelCentringAndRefusals() async throws {
         let k = try GaussianFilter(sigma: 2.6).kernel
         #expect(abs(k.reduce(0, +) - 1) <= 1e-15 && k == k.reversed() && k.count == 2 * Int(4 * 2.6 + 0.5) + 1)
-        // scipy's radius int(4σ + 0.5): σ = 1.7 gives 7, where int(4σ) would give 6 (mutant G1)
+        // scipy's radius int(4σ + 0.5): σ = 1.7 gives 7, where int(4σ) would give 6
         #expect(try GaussianFilter(sigma: 1.7).radius == 7)
         #expect(try GaussianFilter(sigma: 2.6).radius == 10)
         let flat = try GaussianFilter(sigma: 1.7).apply(Array(repeating: 3.25, count: 63), rows: 7, columns: 9)
