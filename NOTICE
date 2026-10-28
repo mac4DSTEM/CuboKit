@@ -127,5 +127,41 @@ ProbeRingHint.swift at c809679c8ee23a355da6af4f63665aaf64f90d0d; type names, uni
 columns, Double) and structure were rewritten, Float32 arithmetic and app-specific validation,
 provenance and orchestration excluded. tools/bragg/pins.py records the source fingerprints.
 
+MINPACK (the least-squares fits):
+MINPACKLeastSquares (CuboCore) is a Swift transcription of MINPACK's lmdif,
+fdjac2, qrfac, lmpar, qrsolv and enorm, the routines behind
+scipy.optimize.leastsq, which py4DSTEM's ellipse fits call. MINPACK's licence
+asks for this acknowledgment: "This product includes software developed by the
+University of Chicago, as Operator of Argonne National Laboratory."
+Minpack Copyright Notice (1999) University of Chicago. All rights reserved.
+Full terms: Licenses/MINPACK.txt.
+
+scikit-learn (NMF and the Gaussian mixture):
+CuboEmbedding's NMF (solver "cd", NNDSVD initialisations, the coordinate descent
+of _cdnmf_fast.pyx) and GaussianMixture (k-means++ initialisation, the four
+covariance types, the EM loop and bic) are ports of scikit-learn 1.9.1
+sklearn/decomposition/_nmf.py, _cdnmf_fast.pyx and sklearn/mixture/
+(_gaussian_mixture.py, _base.py), as py4DSTEM's Featurization and
+BraggVectorClassification call them. CuboBragg's ClassificationNumerics uses the
+same NMF update. scikit-learn is BSD-3-Clause.
+Copyright (c) 2007-2026 The scikit-learn developers. Full terms:
+Licenses/scikit-learn-BSD-3-Clause.txt.
+
+NumPy (RandomState, pairwise summation, the .npy format):
+NumPyRandomState (CuboEmbedding) ports NumPy's legacy RandomState: the MT19937
+Mersenne Twister seeded as init_genrand, random_sample, randint, uniform, the
+polar-method standard_normal and choice, pinned against NumPy 2.5.4. NumPySum
+and the pairwise mean follow NumPy's pairwise_sum. NumPy is BSD-3-Clause.
+Copyright (c) 2005-2025, NumPy Developers. Full terms:
+Licenses/NumPy-BSD-3-Clause.txt.
+
+SciPy (filters and interpolation):
+SciPyKernels (CuboCore) and the filters built on it reproduce SciPy 1.18.1
+ndimage.gaussian_filter1d / correlate1d (NI_Correlate1D, the boundary modes),
+interpolate.interp1d (linear) and the parts of optimize.leastsq around MINPACK,
+operation by operation. SciPy is BSD-3-Clause.
+Copyright (c) 2001-2002 Enthought, Inc. 2003, SciPy Developers. Full terms:
+Licenses/SciPy-BSD-3-Clause.txt.
+
 Licence note: CuboKit is GPL-3.0. Anyone who links it into an app or tool must license the combined work under GPL-3.0 or a
 compatible licence.

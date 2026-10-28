@@ -17,16 +17,17 @@ differs.
 
 | Module | Scope | State |
 |---|---|---|
-| `CuboCore` | the cube: `CubeShape` (scan rows and columns, detector rows and columns), `CubeSource`, the eager `MemoryCube`, the lazy memory-mapped `MappedCube` (ten element types, converted to Float32 on read), NumPy's `.npy` container | first release |
-| `CuboVirtual` | py4DSTEM's virtual detectors (point, circle, annulus, rectangle, any mask), virtual bright- and dark-field images, the mean and maximum diffraction pattern, on `.cpu` or `.metal` | first release |
-| `CuboVirtual` (centre of mass) | the centre of mass per position (`.cpu` and `.metal`), py4DSTEM's probe size | first release |
-| `CuboPhase` | the centre-of-mass reference (plane fit, constant, given origins), the R–Q rotation by curl or divergence, py4DSTEM's iterative DPC, Fourier iDPC with explicit boundary/calibration | centre of mass and iterative DPC; Fourier iDPC added in 0.3.0 |
-| `CuboVirtual` (origins) | per-position origins (`get_origin`), centred, calibrated and centre-shifted virtual images and patterns; `CuboCore`'s `OriginFit` (`fit_origin`) | first release |
-| `CuboVirtual` (median, Friedel origin, probes) | the median pattern and virtual diffraction over a real-space mask or weights (mean, max, median), `get_origin`'s scan mask and fast centre, the Friedel origin (`get_origin_friedel`, with a beamstop mask and DFT upsampling), the beamstop mask, the vacuum probe and the probe kernels (flat, Gaussian, sine² and logistic sigmoid) that Bragg disk detection uses | first release (CPU) |
+| `CuboCore` | the cube: `CubeShape` (scan rows and columns, detector rows and columns), `CubeSource`, the eager `MemoryCube`, the lazy memory-mapped `MappedCube` (ten element types, converted to Float32 on read), NumPy's `.npy` container; `Calibration`, the cube edits (`CubeEditing`: reshape, swaps, bin, thin, pad, bilinear and Fourier resampling), `HotPixelFilter`, the ellipse fits (`EllipseFit`) | py4DSTEM pins |
+| `CuboVirtual` | py4DSTEM's virtual detectors (point, circle, annulus, rectangle, any mask), virtual bright- and dark-field images, the mean and maximum diffraction pattern, on `.cpu` or `.metal`; `ResidentCube` (the cube held in one Metal buffer, with `availability(of:)`) | py4DSTEM pins; Metal within 1e-5 of the CPU |
+| `CuboVirtual` (centre of mass) | the centre of mass per position (`.cpu` and `.metal`), py4DSTEM's probe size | py4DSTEM pins |
+| `CuboPhase` | the centre-of-mass reference (plane fit, constant, given origins), the R–Q rotation by curl or divergence, py4DSTEM's iterative DPC, Fourier iDPC with explicit boundary/calibration | centre of mass and iterative DPC; Fourier iDPC |
+| `CuboVirtual` (origins) | per-position origins (`get_origin`), centred, calibrated and centre-shifted virtual images and patterns; `CuboCore`'s `OriginFit` (`fit_origin`) | py4DSTEM pins (CPU) |
+| `CuboVirtual` (median, Friedel origin, probes) | the median pattern and virtual diffraction over a real-space mask or weights (mean, max, median), `get_origin`'s scan mask and fast centre, the Friedel origin (`get_origin_friedel`, with a beamstop mask and DFT upsampling), the beamstop mask, the vacuum probe and the probe kernels (flat, Gaussian, sine² and logistic sigmoid) that Bragg disk detection uses | py4DSTEM pins (CPU) |
 | `CuboParallax` | matrix-DFT cross-correlation alignment, periodic Fourier shifts and fixed/running-reference image stacks (Double, CPU; default factor 8), constant-order preprocessing, aberration fit and correction, depth sectioning, subpixel upsampling with position correction | py4DSTEM pins; `docs/parallax-alignment.md` |
 | `CuboStrain` | basis selection from histogram maxima, measured-direction indexing, lattice fits, references and rotated strain tensors | CPU Double primary path; three original-source compatibility options; `docs/strain.md` |
-| `CuboEmbedding` | PCA and Lloyd k-means on row-major matrices; binned diffraction feature vectors | CPU Double, scikit-learn 1.4.2 pins; mac4DSTEM variants as named options; `docs/embedding.md` |
-| `CuboBragg` | py4DSTEM's `find_Bragg_disks`: hybrid cross-correlation with a probe kernel, maxima, the filter cascade, parabolic and multicorr refinement, per pattern, stack or cube; the app's `ProbeRingHint` | CPU Double; mac4DSTEM differences as named options; py4DSTEM and app-source pins; `docs/bragg.md` |
+| `CuboVirtual` (polar) | py4DSTEM's polar-elliptical cube (`PolarCube`) and radial background (`RadialBackground`) | py4DSTEM pins (CPU, Double) |
+| `CuboEmbedding` | PCA and Lloyd k-means on row-major matrices; binned diffraction feature vectors; py4DSTEM's `Featurization` with NMF and Gaussian mixtures | CPU Double; scikit-learn 1.4.2 (PCA, k-means) and 1.9.1 (NMF, GMM) pins; mac4DSTEM variants as named options; `docs/embedding.md` |
+| `CuboBragg` | py4DSTEM's `find_Bragg_disks`: hybrid cross-correlation with a probe kernel, maxima, the filter cascade, parabolic and multicorr refinement, per pattern, stack or cube; the app's `ProbeRingHint`; `BraggVectorClassification`, virtual images from Bragg vectors, Bragg masks | CPU Double; mac4DSTEM differences as named options; py4DSTEM and app-source pins; `docs/bragg.md` |
 | `CuboPtycho` | CPU probe construction and full-batch single-slice complex-object gradient descent from preprocessed amplitudes | fixed positions; selected constraints; py4DSTEM pins |
 
 `CuboCore` also provides `HotPixelFilter.filter` for eager Float32 cubes, plus
@@ -140,9 +141,9 @@ Double reference chain. Numbers are held to the Python reference within its own 
 - Tiles larger than Metal's maximum buffer length, and Float32 overflow in Metal sums of huge finite values: not tested.
 - `.npy` files with an unaligned data offset are refused.
 - Friedel origins with upsampling factors of 1e4 and above, or on detectors of 1024 pixels and more: not refuted.
-- `ResidentCube` holds the cube in one Metal buffer and refuses a cube larger than the device's maximum buffer length (`ResidentCube.fits`).
+- `ResidentCube` holds the cube in one Metal buffer and refuses a cube above half of the physical memory or larger than the device's maximum buffer length (`ResidentCube.availability(of:)` says which).
 - `Calibration` follows py4DSTEM: the edits change pixel sizes, not the origin in detector pixels.
-- `resample_Q` is the bilinear method only; the Fourier method, the ellipse fits and the radial background (needs a polar cube) are missing (`docs/open-items.md`).
+- The polar cube, the radial background and the ellipse fits run on the CPU only; `docs/open-items.md` lists what is open.
 - Nothing here is validated on a microscope.
 
 ## Platform
@@ -172,10 +173,10 @@ so `tools/test.sh` runs everywhere; with the data present it runs more.
 
 ## Versioning
 
-Semantic versions in the 0.x series, tagged; the current release is **0.3.0**. Add it to a package with
+Semantic versions in the 0.x series, tagged; the current release is **0.9.0**. Add it to a package with
 
-```swift
-.package(url: "https://github.com/mac4DSTEM/CuboKit.git", exact: "0.3.0")
+```
+.package(url: "https://github.com/mac4DSTEM/CuboKit.git", exact: "0.9.0")
 ```
 
 and list the products you use (`CuboCore`, `CuboVirtual`, `CuboPhase`, `CuboParallax`, `CuboStrain`, `CuboBragg`,
@@ -194,7 +195,8 @@ GPL-3.0 (`LICENSE`, `NOTICE`). The whole package is GPL-3.0, so anyone who links
   Please cite Savitzky et al., *py4DSTEM: A Software Package for Four-Dimensional Scanning Transmission Electron
   Microscopy Data Analysis*, Microscopy and Microanalysis 27, 712 (2021).
 - The `.npy` reader and writer follow NumPy's documented format (BSD-3-Clause); no NumPy code is copied.
-- `CuboEmbedding`'s PCA and k-means follow scikit-learn 1.4.2 (BSD-3-Clause), which is also the reference for their tests; no scikit-learn code is included.
+- `CuboEmbedding`'s PCA and k-means follow scikit-learn 1.4.2 (BSD-3-Clause), which is also the reference for their tests; no scikit-learn code is included. Its NMF and Gaussian mixture are ports of scikit-learn 1.9.1 (BSD-3-Clause), and `NumPyRandomState` ports NumPy's MT19937 `RandomState` (BSD-3-Clause).
+- `MINPACKLeastSquares` is a transcription of MINPACK's `lmdif` (University of Chicago licence, with its acknowledgment in `NOTICE`); the filter and interpolation kernels follow SciPy (BSD-3-Clause). The licence texts are under `Licenses/`.
 
 ## Please cite
 
