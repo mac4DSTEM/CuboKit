@@ -1,9 +1,22 @@
-# PCA and k-means (CuboEmbedding)
+# PCA, k-means and featurization (CuboEmbedding)
 
 `PCA` and `KMeans` take row-major Double matrices (`rows × columns`) and need no scan shape, settings, progress or
 provenance. Streaming a cube into a feature matrix stays with the caller; for data too large for memory the kit takes the
 covariance (below). All public values are Sendable.
 Reference: scikit-learn 1.4.2 (NumPy 2.5.0, SciPy 1.18.0, Python 3.12.4); a different scikit-learn is not a reference.
+
+## Featurization, NMF and Gaussian mixtures (0.9.0)
+
+`Featurization` is py4DSTEM 0.14.19's `process/classification/featurization.py` on a `FeatureMatrix` (one row per scan
+position): `pca`, `nmf` (`_nmf_single` with its merge of correlated weight columns), `gmm` (`_gmm_single`), `minMaxScaled`,
+`shiftedPositive`, `reduceFeatures`, `concatenate` and `classPatterns`. `NMF` and `GaussianMixture` are scikit-learn
+1.9.1's, and `NumPyRandomState` is NumPy's legacy `RandomState`, bit identical, so seeded runs follow py4DSTEM's. Rows,
+states and tolerances are in `docs/parity.md` (Featurization).
+
+Not ported: `Featurization.from_braggvectors` (it needs the Bragg types; CuboEmbedding does not depend on CuboBragg), `ICA`,
+`RobustScaler`, `spatial_separation`, `consensus`, `add_features` and `delete_features`. The `nmf` and `gmm` branches of
+`get_class_DPs` are buggy upstream and not copied. Upstream `NMF(init=None)` with `random_state=None` is not bit
+repeatable (an unseeded randomised SVD); NNDSVD here uses an exact SVD.
 
 ## Primary path: scikit-learn
 

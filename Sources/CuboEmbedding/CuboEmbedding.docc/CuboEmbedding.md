@@ -1,6 +1,7 @@
 # ``CuboEmbedding``
 
-CPU principal component analysis and k-means, with scikit-learn behaviour as the primary API.
+CPU principal component analysis, k-means, NMF and Gaussian mixtures, with scikit-learn behaviour as the primary API,
+and py4DSTEM's featurization on top of them.
 
 Use ``PCA/fit(_:rows:columns:components:variant:)`` and ``KMeans/fit(_:rows:columns:initialCentroids:maxIterations:tolerance:isCancelled:)``
 for scikit-learn 1.4.2 conventions. ``PCA/Variant/diffractionEmbeddingApp``, ``KMeans/fitSeeded(_:rows:columns:groups:seed:maxIterations:isCancelled:)``
@@ -11,6 +12,11 @@ For data too large to hold, ``PCACovarianceAccumulator`` streams the mean and co
 ``PCA/fit(covariance:count:mean:components:)`` fits from it, and ``PCASignResolver`` gives the components scikit-learn's
 signs from a second pass. ``DiffractionFeatures/binnedVector(pattern:rows:columns:binnedSize:implementation:)`` has an
 Accelerate implementation, and ``KMeans`` takes an `isCancelled` closure.
+
+``Featurization`` is py4DSTEM's `process/classification/featurization.py` on a ``FeatureMatrix`` (one row per scan
+position): PCA, iterative NMF, Gaussian mixtures, scaling, feature reduction and class patterns. It rests on ``NMF`` and
+``GaussianMixture`` (scikit-learn 1.9.1) and on ``NumPyRandomState``, NumPy's legacy `RandomState`, bit identical, so
+seeded runs match py4DSTEM's. What is not ported is listed in <doc:Scope>.
 
 ## Topics
 
@@ -38,3 +44,17 @@ Accelerate implementation, and ``KMeans`` takes an `isCancelled` closure.
 
 - ``DiffractionFeatures``
 - ``DiffractionFeatures/Implementation``
+
+### Featurization
+
+- ``Featurization``
+- ``FeatureMatrix``
+- ``FeatureReduction``
+- ``FeaturizationNMFResult``
+- ``FeaturizationError``
+
+### NMF and Gaussian mixtures
+
+- ``NMF``
+- ``GaussianMixture``
+- ``NumPyRandomState``
