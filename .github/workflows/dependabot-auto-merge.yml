@@ -1,4 +1,4 @@
-# Dependabot PRs merge themselves once the required checks pass (mac4DSTEM/macEM-suite#73).
+# Dependabot PRs merge themselves once the required checks pass.
 # fetch-metadata names the update; only GitHub Actions updates are configured (dependabot.yml), so every Dependabot PR
 # qualifies. The merge waits for the branch's required checks; a person reviews everything else.
 name: Dependabot auto-merge
