@@ -9,8 +9,8 @@ tile to the GPU on every call; the `_resident` rows hold the cube in a `Resident
 
 Sizes (scan rows x columns x detector rows x columns): small 32x32x32x32 (1.0 M values), mid 64x64x32x32 (4.2 M), typical
 100x100x64x64 (41.9 M, 168 MB). The large size (330x330x64x64, 1.8 GB) and the Bragg, strain, DPC, parallax and ptychography
-functions are the nightly review's; this first table is what a Mac can measure while five other sessions use it.
-The machine was shared during the run (load average 5 to 11 from other sessions' builds), so the spreads are wider than on a quiet Mac.
+functions are not in this table.
+The machine was shared during the run (load average 5 to 11 from other builds), so the spreads are wider than on a quiet Mac.
 
 Machine: Apple M5 Pro, macOS 27.0.1; Swift 6.4; py4DSTEM 0.14.19, NumPy 2.5.4, Python 3.12.14.
 Float32 cubes, best of five after one warm-up; cells are best / median (spread) in ms.
@@ -95,7 +95,7 @@ Ratios are Python's time over the kit's (above 1 the kit is faster). `dp_mean` s
 and were no faster (the register variant was 1.5x slower: the strided reads between positions lose to row-contiguous ones).
 
 Numbers did not move. The hash of every result's bits is the same before and after for all six cases (`SpeedBench` prints it), so the
-results are bit identical to the earlier scalar loops, which are the CPU Float64/Double reference (D16). Against NumPy on the same
+results are bit identical to the earlier scalar loops, which are the CPU Float64/Double reference. Against NumPy on the same
 cube, mask and weights (`bench.py compare`; the largest difference relative to the largest value):
 
 | result | kit vs float64 truth | py4DSTEM/NumPy vs float64 truth | kit vs py4DSTEM |
@@ -109,7 +109,7 @@ cube, mask and weights (`bench.py compare`; the largest difference relative to t
 So the kit's means differ from NumPy by NumPy's own Float32 accumulation error, as before, and are closer to the exact value than
 NumPy is.
 
-## Backend decision per function (D16)
+## Backend decision per function
 
 The break-even is read off the three sizes above; between two measured sizes it is interpolated, and says so. The Mac was
 loaded (load average 10 to 11) during the final run, so a crossing near a tie moves with load.

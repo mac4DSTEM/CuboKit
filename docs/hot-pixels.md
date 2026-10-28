@@ -34,15 +34,14 @@ and adjacent hot pixels, sequential replacement, even clipped medians, wraparoun
 comparison indices 0/1/8/20, a one-row detector and noninteger Float32 mean sums. A 256-position 1×1 detector cancellation case pins
 NumPy's pairwise mean 0 where sequential summation gives 0.00390625.
 Mean samples, masks and every filtered pixel are asserted exact today (tolerance zero;
-D12 allows a written tolerance against py4DSTEM for the samples). There is no comparison against a transcribed replacement implementation.
+a tolerance against py4DSTEM would be allowed for the samples). There is no comparison against a transcribed replacement implementation.
 
 Measured gap: 0 for means, masks and filtered pixels, tested via Float32 bit patterns.
 Fixture size: 30,403 bytes. Three new Swift Testing tests failed against identity/
 zero placeholders (38 issues), then passed. The intermediate sequential-only mean
 implementation failed specifically on the 1×1 detector mean. The final pairwise
 path makes that fixture pass without changing its expected value or tolerance.
-The inherited Codex reviewer identified that case independently; Sonnet is not
-available in this session. No owner approval is claimed.
+An independent review identified that case as well.
 
 Two further actual-oracle fixtures pin negative-zero input medians on 1×1 and
 2×2 frames with a negative threshold so all pixels are selected. NumPy takes a

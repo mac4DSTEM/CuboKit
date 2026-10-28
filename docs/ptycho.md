@@ -45,8 +45,7 @@ The fixture therefore starts with a fixed weak random phase (documented in the
 generator). No numerical correction to py4DSTEM's operator is implemented.
 
 The red baseline returned a zero probe/unchanged object; both regression tests failed.
-Independent review used the available inherited Codex model; Sonnet is not available
-in this session. Review requested the extra constraint and rectangular pins, now added.
+An independent review requested the extra constraint and rectangular pins, now added.
 
 ## Probe constraints (centre of mass, amplitude)
 

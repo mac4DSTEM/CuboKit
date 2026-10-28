@@ -30,12 +30,11 @@ Fixtures cover 7×10 periodic with anisotropic sampling, 8×8 at 2× padding and
 regularization 1e-4, and 7×10 at 3× padding with calibrated gradient scale,
 anisotropic sampling and regularization 0.03. The odd rectangular padded grid
 checks centering, frequency ordering and crop/gauge. All input and output samples
-are committed; no owner data is included. Double precision throughout, absolute
+are committed; no private data is included. Double precision throughout, absolute
 phase tolerance 1e-12 radians. No bit-exact claim. No microscope validation.
 
 Measured maximum absolute gaps: periodic 7.772e-16 rad, 2× padded 2.221e-16 rad,
 3× physically calibrated padded 3.331e-16 rad. Fixture size 16,353 bytes.
 Two new Swift Testing tests cover all pins, periodic planted phase and invalid
 calibration/input/overflow cases. Both fail with the zero-output placeholder
-(10 issues), then pass after implementation. Independent pre-commit review uses
-the available Codex model; Sonnet is not exposed in this session.
+(10 issues), then pass after implementation.

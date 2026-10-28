@@ -43,7 +43,7 @@ The three compatibility options are independent:
   observation support. Pair ties prefer lower residual, then shorter vectors.
   Minimum noncentral radius defaults to 2. Empty/no-consensus inputs return nil.
 
-Result-returning variants (round 6, from the app's strain switch; the plain calls are unchanged and now delegate to them):
+Result-returning variants (0.6.0, from the app's strain switch; the plain calls are unchanged and now delegate to them):
 
 - `chooseBasisConsensusResult(_:origin:minimumRadius:isCancelled:)` returns `LatticeStrain.ConsensusBasis`: the `basis`
   (identical to `chooseBasisConsensus`), `observationCount` and `supportCount` (exact integers), and `residual` (RMS
@@ -63,10 +63,10 @@ printing is removed. The generator independently compiles the **original** helpe
 text from that commit, removing only access/isolation qualifiers and supplying
 minimal value shims. It never imports or executes CuboStrain to generate pins.
 
-Regenerate from a suite worktree:
+Regenerate from the package root, with the reference environment one level up (see the README):
 
 ```sh
-../../References/python/py4dstem/bin/python -I -B tools/strain/pins.py
+../References/python/py4dstem/bin/python -I -B tools/strain/pins.py
 ```
 
 The generator checks Python 3.12.4, NumPy 2.5.0, py4DSTEM 0.14.19, the reference

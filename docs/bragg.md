@@ -96,7 +96,7 @@ edge 10, spacing 12, sigma 2). Wall ms per pattern.
 | `.single` | **0.47** | **0.140** | 35.3 | 9.3 |
 | mac4DSTEM's Float path (open-items, 2026-10-20, its own scene) | 2.05 | 0.24 to 0.27 | | about 21 |
 
-The app was not re-run here (its working tree is read-only from this repository), so its row is the figure its lane measured
+The app was not re-run here (its working tree is read-only from this repository), so its row is the figure the app measured
 (4096 positions, 18 workers), not a same-run comparison; `.single` is ahead of it on `.parabolic` by a wide margin on this
 machine class. With `.multicorr` the time is the matrix-DFT refinement in Double (`CuboParallax`, about 4 ms per peak; a Float matrix DFT there is the next speed-up), not the
 correlation, which is why the two precisions are close there.
@@ -146,8 +146,8 @@ Measured gaps (peak counts and order equal in every case): py4DSTEM, position 1.
 gained an `Edge` mode (`reflect` is scipy's default and what `find_Bragg_disks` uses; `nearest` stays the default of the origin
 measurement), pinned to scipy in `GaussianEdgeTests`.
 
-Regenerate from a suite worktree:
+Regenerate from the package root, with the reference environment one level up (see the README):
 
 ```sh
-../../References/python/py4dstem/bin/python -I -B tools/bragg/pins.py
+../References/python/py4dstem/bin/python -I -B tools/bragg/pins.py
 ```
