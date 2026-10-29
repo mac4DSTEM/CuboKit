@@ -78,7 +78,7 @@ let package = Package(
         .testTarget(name: "CuboStrainTests", dependencies: ["CuboStrain", "CuboBragg"], exclude: ["Fixtures"], swiftSettings: settings),
         .testTarget(name: "CuboEmbeddingTests", dependencies: ["CuboEmbedding"], exclude: ["Fixtures"], swiftSettings: settings),
 
-        .testTarget(name: "CuboBraggTests", dependencies: ["CuboCore", "CuboVirtual", "CuboBragg"],
+        .testTarget(name: "CuboBraggTests", dependencies: ["CuboCore", "CuboVirtual", "CuboBragg", "CuboEmbedding"],
                     exclude: ["Fixtures"], swiftSettings: settings),
         .testTarget(name: "CuboPtychoTests", dependencies: ["CuboPtycho"], exclude: ["Fixtures"], swiftSettings: settings),
     ],
