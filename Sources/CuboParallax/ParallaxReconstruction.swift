@@ -279,10 +279,7 @@ public enum ParallaxReconstruction: Sendable {
         return fit
     }
 
-    private static func median(_ values: [Double]) -> Double {
-        let sorted = values.sorted(), middle = sorted.count / 2
-        return sorted.count % 2 == 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
-    }
+    private static func median(_ values: [Double]) -> Double { NumPyMedian.median(of: values) ?? .nan }
 
     /// `np.roll(image, (-rowOffset, -columnOffset), axis=(0, 1))`.
     private static func roll(_ image: [Double], rows: Int, columns: Int, rowOffset: Int, columnOffset: Int) -> [Double] {

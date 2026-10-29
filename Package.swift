@@ -54,7 +54,7 @@ let package = Package(
 
         // Bragg disk detection's numeric core: py4DSTEM's find_Bragg_disks (hybrid cross-correlation with a probe kernel, maxima,
         // the filter cascade, parabolic and multicorr subpixel refinement), Double, CPU, with the mac4DSTEM variants as named options.
-        .target(name: "CuboBragg", dependencies: ["CuboCore", "CuboVirtual", "CuboParallax"], swiftSettings: settings),
+        .target(name: "CuboBragg", dependencies: ["CuboCore", "CuboVirtual", "CuboParallax", "CuboEmbedding"], swiftSettings: settings),
         // CPU single-slice ptychography after py4DSTEM's SingleslicePtychography (probe construction, gradient descent).
         .target(name: "CuboPtycho", dependencies: ["CuboCore"], swiftSettings: settings),
         // The "first ten minutes" example: CuboCore and CuboVirtual only, ImageIO for the PNGs.

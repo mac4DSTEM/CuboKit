@@ -1,9 +1,9 @@
 //
 //  ClassificationNumerics.swift
 //  The numerical pieces `BraggVectorClassification` takes from NumPy, SciPy and scikit-learn: `np.linalg.lstsq` (minimum-norm
-//  solution by SVD, here one-sided Jacobi), scikit-learn's coordinate-descent NMF from a custom start, `scipy.ndimage`
-//  `gaussian_filter` and the binary morphology on a cross, `skimage.measure.label` with 8-connectivity, and `np.corrcoef`.
-//  All Double, CPU, package access.
+//  solution by SVD, here one-sided Jacobi), `scipy.ndimage`'s binary morphology on a cross, `skimage.measure.label` with
+//  8-connectivity, and `np.corrcoef`. All Double, CPU, package access. The coordinate-descent NMF is CuboEmbedding's
+//  `NMF.coordinateDescent` and `gaussian_filter` is CuboCore's `SciPyKernels.gaussianFilter2D`.
 //
 
 import CuboCore
@@ -82,97 +82,7 @@ enum ClassificationNumerics {
         return x
     }
 
-    // MARK: NMF
-
-    /// `NMF(n_components, init="custom", max_iter=maxIterations).fit_transform(X, W=w, H=h)` (solver "cd", tol 1e-4): returns the
-    /// factors. `x` is `n × d`, `w` `n × k`, `h` `k × d`.
-    static func coordinateDescentNMF(_ x: [Double], _ n: Int, _ d: Int, _ k: Int, _ w0: [Double], _ h0: [Double],
-                                     maxIterations: Int, tolerance: Double = 1e-4,
-                                     isCancelled: (@Sendable () -> Bool)?) throws -> (w: [Double], h: [Double]) {
-        var w = w0
-        var ht = [Double](repeating: 0, count: d * k)
-        for c in 0..<k { for j in 0..<d { ht[j * k + c] = h0[c * d + j] } }
-        var xt = [Double](repeating: 0, count: d * n)
-        for i in 0..<n { for j in 0..<d { xt[j * n + i] = x[i * d + j] } }
-        var violationInit = 0.0
-        for sweep in 1...max(1, maxIterations) {
-            if isCancelled?() == true { throw CancellationError() }
-            var violation = update(&w, n, k, other: ht, otherRows: d, data: x)
-            violation += update(&ht, d, k, other: w, otherRows: n, data: xt)
-            if sweep == 1 { violationInit = violation }
-            if violationInit == 0 || violation / violationInit <= tolerance { break }
-        }
-        var h = [Double](repeating: 0, count: k * d)
-        for c in 0..<k { for j in 0..<d { h[c * d + j] = ht[j * k + c] } }
-        return (w, h)
-    }
-
-    private static func update(_ target: inout [Double], _ m: Int, _ k: Int, other: [Double], otherRows p: Int,
-                               data: [Double]) -> Double {
-        var hht = [Double](repeating: 0, count: k * k)
-        for r in 0..<p { for a in 0..<k {
-            let value = other[r * k + a]
-            if value == 0 { continue }
-            for b in 0..<k { hht[a * k + b] += value * other[r * k + b] }
-        } }
-        var xht = [Double](repeating: 0, count: m * k)
-        for i in 0..<m { for j in 0..<p {
-            let value = data[i * p + j]
-            if value == 0 { continue }
-            for c in 0..<k { xht[i * k + c] += value * other[j * k + c] }
-        } }
-        var violation = 0.0
-        for t in 0..<k {
-            let hess = hht[t * k + t]
-            for i in 0..<m {
-                var grad = -xht[i * k + t]
-                for r in 0..<k { grad += hht[t * k + r] * target[i * k + r] }
-                let pg = target[i * k + t] == 0 ? min(0, grad) : grad
-                violation += abs(pg)
-                if hess != 0 { target[i * k + t] = max(target[i * k + t] - grad / hess, 0) }
-            }
-        }
-        return violation
-    }
-
     // MARK: scipy.ndimage
-
-    /// `scipy.ndimage.gaussian_filter(image, sigma)` (mode "reflect", truncate 4.0) on a `rows × columns` image: a 1-D
-    /// correlation along axis 0 then axis 1, the symmetric kernel summed outwards from the centre as SciPy's C loop does.
-    static func gaussianFilter(_ image: [Double], _ rows: Int, _ columns: Int, sigma: Double) -> [Double] {
-        guard sigma > 1e-15 else { return image }
-        let radius = Int(4.0 * sigma + 0.5)
-        let sigma2 = sigma * sigma
-        var kernel = (-radius...radius).map { exp(-0.5 / sigma2 * Double($0 * $0)) }
-        let total = NumPySum.pairwise(kernel)
-        kernel = kernel.map { $0 / total }
-        func reflect(_ i: Int, _ n: Int) -> Int {
-            if n == 1 { return 0 }
-            var j = i % (2 * n)
-            if j < 0 { j += 2 * n }
-            return j >= n ? 2 * n - 1 - j : j
-        }
-        func filter(_ line: [Double]) -> [Double] {
-            let n = line.count
-            return (0..<n).map { i in
-                var tmp = line[i] * kernel[radius]
-                if radius >= 1 {
-                    for ll in 1...radius { tmp += (line[reflect(i - ll, n)] + line[reflect(i + ll, n)]) * kernel[radius + ll] }
-                }
-                return tmp
-            }
-        }
-        var out = image
-        for c in 0..<columns {                                  // axis 0
-            let filtered = filter((0..<rows).map { out[$0 * columns + c] })
-            for r in 0..<rows { out[r * columns + c] = filtered[r] }
-        }
-        for r in 0..<rows {                                     // axis 1
-            let filtered = filter(Array(out[(r * columns)..<((r + 1) * columns)]))
-            for c in 0..<columns { out[r * columns + c] = filtered[c] }
-        }
-        return out
-    }
 
     /// One step of the cross-structured dilation (`erode == false`) or erosion of a binary image, the outside being false.
     private static func step(_ mask: [Bool], _ rows: Int, _ columns: Int, erode: Bool) -> [Bool] {
