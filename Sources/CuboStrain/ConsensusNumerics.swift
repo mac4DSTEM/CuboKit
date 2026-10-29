@@ -1,3 +1,4 @@
+import CuboCore
 import Foundation
 
 // Numerical compatibility routines from the pinned GPL source; see tools/strain/pins.py.
@@ -388,15 +389,7 @@ enum ConsensusNumerics {
         return (a: d * inv, b: -b * inv, c: -c * inv, d: a * inv)
     }
 
-    static func median(_ values: [Float]) -> Float? {
-        guard !values.isEmpty else { return nil }
-        let sorted = values.sorted()
-        let middle = sorted.count / 2
-        if sorted.count.isMultiple(of: 2) {
-            return (sorted[middle - 1] + sorted[middle]) / 2
-        }
-        return sorted[middle]
-    }
+    static func median(_ values: [Float]) -> Float? { NumPyMedian.median(of: values) }
 
     /// Solve a 3×3 system by Gaussian elimination with partial pivoting.
     static func solve3(_ aIn: [Double], _ bIn: [Double]) -> [Double]? {

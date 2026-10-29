@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import CuboCore
 import CuboBragg
+import CuboEmbedding
 
 // Pins from py4DSTEM 0.14.19 (BraggVectorClassification, classutils.get_class_DP) on a planted 12 x 14 scan of three phases and
 // nine reference points (tools/classification/pins.py). Labels, class sets and the 0/1 matrix W are compared exactly; every other
@@ -191,6 +192,27 @@ private func classification(booleanData: Bool = true, maximumDistance: Double? =
         #expect(c.classCount == 3)
         try c.split()
         #expect(c.candidate?.classCount == 4, "phase C lies in two separate patches")
+    }
+
+    /// The NMF step is scikit-learn's coordinate descent from a custom start, the sweeps `NMF.fit` runs: the same bits (#14).
+    @Test(arguments: [(false, 1, 0), (false, 200, 0), (true, 7, 3), (true, 60, 5)])
+    func nmfIsEmbeddingNMFBitForBit(_ intensity: Bool, _ iterations: Int, _ randomClasses: Int) throws {
+        var c = try classification(booleanData: !intensity)
+        if randomClasses > 0 {
+            var state: UInt64 = 0x9E3779B97F4A7C15
+            func next() -> Double { state = state &* 6364136223846793005 &+ 1442695040888963407; return Double(state >> 11) / 0x1p53 }
+            let k = randomClasses
+            try c.setClasses(w: (0..<(c.featureCount * k)).map { _ in next() }, h: (0..<(k * c.positionCount)).map { _ in next() },
+                             classCount: k)
+        } else {
+            try c.setInitialClassesByCooccurrence()
+        }
+        let reference = try NMF.fit(c.data, rows: c.featureCount, columns: c.positionCount, components: c.classCount,
+                                    initialization: .custom(w: c.w, h: c.h), maxIterations: iterations)
+        try c.nmf(maximumIterations: iterations)
+        let candidate = try #require(c.candidate)
+        #expect(candidate.w == reference.w)
+        #expect(candidate.h == reference.h)
     }
 
     @Test func mergeRefusesASingleClass() throws {

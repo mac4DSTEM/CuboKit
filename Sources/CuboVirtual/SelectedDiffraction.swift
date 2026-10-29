@@ -202,7 +202,7 @@ extension VirtualDiffraction {
             let medians = gathered.withUnsafeMutableBufferPointer { g -> [Double] in
                 let shared = SharedBuffer(base: g.baseAddress!)
                 return parallelMap(width) { i in
-                    medianInPlace(UnsafeMutableBufferPointer(start: shared.base + i * count, count: count))
+                    NumPyMedian.medianInPlace(UnsafeMutableBufferPointer(start: shared.base + i * count, count: count)) ?? .nan
                 }
             }
             for i in 0..<width { out[start + i] = medians[i] }
@@ -210,15 +210,6 @@ extension VirtualDiffraction {
         }
         return DetectorImage(detectorRows: shape.detectorRows, detectorColumns: shape.detectorColumns, values: out,
                              path: .cpu)
-    }
-
-    /// np.median of one pixel's values: NaN if any is NaN; else sorted, the middle one, or (a + b) / 2 of the two middle.
-    static func medianInPlace(_ column: UnsafeMutableBufferPointer<Double>) -> Double {
-        var v = column
-        if v.contains(where: \.isNaN) { return .nan }
-        v.sort()
-        let c = v.count
-        return c % 2 == 1 ? v[c / 2] : (v[c / 2 - 1] + v[c / 2]) / 2
     }
 
     /// The centre-shifted mean and max over a selection (py4DSTEM's shift_center with a mask): each selected pattern moved

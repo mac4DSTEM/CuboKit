@@ -1,4 +1,5 @@
 import Testing
+import CuboCore
 import CuboKitTestSupport
 @testable import CuboVirtual
 
@@ -19,5 +20,22 @@ import CuboKitTestSupport
         print("GaussianFilter edge gaps: reflect \(gapReflect), nearest \(gapNearest), tolerance 1e-13")
         #expect(gapReflect <= 1e-13 && gapNearest <= 1e-13)
         #expect(n == f.apply(image, rows: 3, columns: 4, edge: .nearest))
+    }
+}
+
+/// One Gaussian filter in the kit (#14): CuboCore's `SciPyKernels.gaussianFilter2D` (mode reflect) and the public
+/// `GaussianFilter.apply(edge: .reflect)` give the same bits, kernels wider and narrower than the image.
+@Suite struct GaussianIdentityTests {
+    @Test(arguments: [(3, 4, 1.7), (16, 11, 0.8), (9, 23, 2.6), (1, 7, 1.0), (5, 1, 3.3), (32, 32, 0.4)])
+    func reflectIsSciPyKernels(_ rows: Int, _ columns: Int, _ sigma: Double) throws {
+        var state: UInt64 = UInt64(rows * 131 + columns)
+        let image = (0..<(rows * columns)).map { _ in
+            state = state &* 6364136223846793005 &+ 1442695040888963407
+            return Double(state >> 11) / 0x1p53 * 100 - 20
+        }
+        let filter = try GaussianFilter(sigma: sigma)
+        #expect(filter.kernel == SciPyKernels.gaussianWeights(sigma: sigma))
+        #expect(filter.apply(image, rows: rows, columns: columns, edge: .reflect)
+                == SciPyKernels.gaussianFilter2D(image, rows: rows, columns: columns, sigma: sigma))
     }
 }

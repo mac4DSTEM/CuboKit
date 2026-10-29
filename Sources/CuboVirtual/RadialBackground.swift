@@ -32,7 +32,7 @@ public enum RadialBackground {
         for r in 0..<polar.radialCount {
             var column = [Double]()
             for t in 0..<polar.annularCount where polar.valid[t * polar.radialCount + r] { column.append(polar.values[t * polar.radialCount + r]) }
-            median[r] = SciPyKernels.median(of: column) ?? 0
+            median[r] = NumPyMedian.median(of: column) ?? 0
         }
         guard sigma > 0 else { return median }
         return SciPyKernels.gaussianFilter1D(median, sigma: sigma, boundary: .reflect)

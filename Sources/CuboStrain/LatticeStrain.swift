@@ -1,3 +1,4 @@
+import CuboCore
 import Foundation
 import CStrainLAPACK
 
@@ -237,7 +238,7 @@ public enum LatticeStrain {
     private static func finite(_ v:LatticeVector) -> Bool { v.row.isFinite && v.column.isFinite }
     private static func valid(_ p:[LatticePeak]) -> Bool { p.allSatisfy { finite($0.vector) && $0.intensity.isFinite && $0.intensity >= 0 && $0.h.isFinite && $0.k.isFinite } }
     private static func representable(_ a:[Double]) -> Bool { a.allSatisfy { Float($0).isFinite && abs($0) < 1e10 } }
-    private static func median(_ a:[Double]) -> Double { let v=a.sorted(), i=v.count/2; return v.count%2 == 1 ? v[i] : (v[i-1]+v[i])/2 }
+    private static func median(_ a:[Double]) -> Double { NumPyMedian.median(of: a) ?? .nan }
     private static func solve(_ design:[[Double]], _ rhs:[Double]) throws -> [Double] {
         let m=design.count, n=design[0].count
         guard m <= Int(Int32.max), n <= Int(Int32.max) else { throw LatticeStrainError.invalidInput }

@@ -86,22 +86,9 @@ public enum NMF {
         }
         guard x.allSatisfy(\.isFinite) else { throw FeaturizationError.nonFinite }
         guard !x.contains(where: { $0 < 0 }) else { throw FeaturizationError.negativeValues }
-        var (w, h) = try initialFactors(x, n, d, k, initialization)
-        var ht = transposed(h, k, d)                 // d × k
-        let xt = transposed(x, n, d)                 // d × n
-        var violationInit = 0.0
-        var iterations = 0
-        var converged = false
-        for sweep in 1...maxIterations {
-            if isCancelled?() == true { throw CancellationError() }
-            iterations = sweep
-            var violation = update(&w, n, k, other: ht, rows: d, data: x, dataColumns: d)
-            violation += update(&ht, d, k, other: w, rows: n, data: xt, dataColumns: n)
-            if sweep == 1 { violationInit = violation }
-            if violationInit == 0 { converged = true; break }
-            if violation / violationInit <= tolerance { converged = true; break }
-        }
-        h = transposed(ht, d, k)
+        let (w0, h0) = try initialFactors(x, n, d, k, initialization)
+        let (w, h, iterations, converged) = try coordinateDescent(x, n, d, k, w: w0, h: h0, tolerance: tolerance,
+                                                                  maxIterations: maxIterations, isCancelled: isCancelled)
         var squared = 0.0
         for i in 0..<n {
             for j in 0..<d {
@@ -116,6 +103,30 @@ public enum NMF {
     }
 
     // MARK: coordinate descent
+
+    /// The sweeps of `_fit_coordinate_descent` from the start `w` (`n × k`) and `h` (`k × d`), unchecked: each sweep updates `W`
+    /// then `H` and the loop stops when the summed projected-gradient violation has fallen to `tolerance` times its first-sweep
+    /// value, or after `maxIterations` (at least 1) sweeps. `NMF.fit` and CuboBragg's classification NMF both run this.
+    package static func coordinateDescent(_ x: [Double], _ n: Int, _ d: Int, _ k: Int, w w0: [Double], h h0: [Double],
+                                          tolerance: Double, maxIterations: Int, isCancelled: (@Sendable () -> Bool)?) throws
+        -> (w: [Double], h: [Double], iterations: Int, converged: Bool) {
+        var w = w0
+        var ht = transposed(h0, k, d)                // d × k
+        let xt = transposed(x, n, d)                 // d × n
+        var violationInit = 0.0
+        var iterations = 0
+        var converged = false
+        for sweep in 1...max(1, maxIterations) {
+            if isCancelled?() == true { throw CancellationError() }
+            iterations = sweep
+            var violation = update(&w, n, k, other: ht, rows: d, data: x, dataColumns: d)
+            violation += update(&ht, d, k, other: w, rows: n, data: xt, dataColumns: n)
+            if sweep == 1 { violationInit = violation }
+            if violationInit == 0 { converged = true; break }
+            if violation / violationInit <= tolerance { converged = true; break }
+        }
+        return (w, transposed(ht, d, k), iterations, converged)
+    }
 
     /// One `_update_coordinate_descent`: `target` (`m × k`) is moved one component at a time against
     /// `HHt = otherᵀ·other` and `XHt = data · other`, where `data` is `m × dataColumns` and `other` is `dataColumns × k`.
