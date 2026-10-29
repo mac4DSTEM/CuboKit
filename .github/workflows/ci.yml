@@ -25,7 +25,8 @@ env:
 
 jobs:
   test:
-    runs-on: macos-26
+    # The org's Mac runner while the org variable MACEM_MAC_RUNNER is set (never for a fork PR); else GitHub's macos-26.
+    runs-on: ${{ vars.MACEM_MAC_RUNNER && !github.event.pull_request.head.repo.fork && fromJSON(vars.MACEM_MAC_RUNNER) || 'macos-26' }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
@@ -40,7 +41,8 @@ jobs:
     name: Consumer checks and iOS build (after merge)
     # Not on pull requests: the free plan's macOS runners are scarce, so the extra builds run on main, tags and by hand.
     if: github.event_name != 'pull_request'
-    runs-on: macos-26
+    # The org's Mac runner while the org variable MACEM_MAC_RUNNER is set (never for a fork PR); else GitHub's macos-26.
+    runs-on: ${{ vars.MACEM_MAC_RUNNER && !github.event.pull_request.head.repo.fork && fromJSON(vars.MACEM_MAC_RUNNER) || 'macos-26' }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
