@@ -1,7 +1,8 @@
-# CuboKit CI: the test run (tools/test.sh = `swift test -c release`) and, on a tag, the CHANGELOG version check.
+# CuboKit CI: the test run (tools/test.sh = `swift test -c release`) on every pull request; after merge the consumer check,
+# the README consumer and an iOS Simulator build; on a tag, the CHANGELOG version check.
 #
-# Actions must be enabled on the repository. The package needs macOS 15 or later and a Swift 6.2 or later toolchain
-# (Package.swift: `.macOS(.v15)`, tools 6.2); `macos-latest` with its newest Xcode carries both.
+# The package needs macOS 15 / iOS 18 or later and a Swift 6.2 or later toolchain (Package.swift: tools 6.2); the
+# macos-26 image with Xcode 26.6, pinned below, carries both.
 # No real data in CI: RealDataTests skip by name when ~/Library/Caches/CuboKit/real-data is absent, so tools/test.sh is
 # green without it. No libhdf5 and no References/ (CuboKit has no package dependencies).
 # Never `swift build --build-tests -c release` (fails on this toolchain's Swift Build backend); tools/test.sh is the gate.
@@ -18,19 +19,37 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Pinned like the apps: the macos-26 image's Xcode 26.6 (Swift 6.3, macOS 26 SDK). Bump on purpose.
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
-      - name: Select the newest Xcode
+      - name: Toolchain on record
         run: |
-          xcode=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
-          sudo xcode-select -s "$xcode"
+          xcode-select -p
           swift --version
       - name: Gate (tools/test.sh, release)
         run: tools/test.sh
+
+  post-merge:
+    name: Consumer checks and iOS build (after merge)
+    # Not on pull requests: the free plan's macOS runners are scarce, so the extra builds run on main, tags and by hand.
+    if: github.event_name != 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - name: Consumer check (a separate package, the public API only)
+        run: tools/consumer-check/run.sh
+      - name: README consumer (a separate package compiling exactly the README's program, output checked)
+        run: tools/readme-consumer/run.sh
+      - name: Build the libraries for iOS (Simulator, not run)
+        run: xcodebuild -scheme CuboKit-Package -destination 'generic/platform=iOS Simulator' -quiet build
 
   version:
     name: CHANGELOG version matches the tag
@@ -59,7 +78,7 @@ jobs:
     name: Lint (shared SwiftLint and SwiftFormat config)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: SwiftLint
         run: docker run --rm -v "$PWD:/work" -w /work --entrypoint swiftlint ghcr.io/realm/swiftlint:0.65.1 lint --strict --quiet
       - name: SwiftFormat

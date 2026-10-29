@@ -23,16 +23,19 @@ concurrency:
   group: docs-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Pinned like the apps: the macos-26 image's Xcode 26.6 (Swift 6.3, macOS 26 SDK). Bump on purpose.
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - name: Select the newest Xcode
+      - name: Toolchain on record
         run: |
-          xcode=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
-          sudo xcode-select -s "$xcode"
+          xcode-select -p
           xcodebuild -version
       - name: Build the site
         run: tools/build-docs.sh .docs-site /CuboKit
