@@ -1,7 +1,7 @@
 //
 //  Slice2Tests.swift
 //  Centre of mass and probe size against py4DSTEM f050d207 and planted truth,
-//  read from slice-2-pins.json (tools/com-dpc/pins.py, run before any Swift).
+//  read from com-dpc-pins.json (tools/com-dpc/pins.py, run before any Swift).
 //
 
 import Foundation
@@ -12,7 +12,7 @@ import CuboVirtual
 
 enum Slice2 {
     nonisolated(unsafe) static let pins: [String: Any] = {
-        let data = try! Data(contentsOf: Fixtures.url("slice-2-pins.json"))
+        let data = try! Data(contentsOf: Fixtures.url("com-dpc-pins.json"))
         return try! JSONSerialization.jsonObject(with: data) as! [String: Any]
     }()
     static func doubles(_ any: Any?) -> [Double] { (any as? [String] ?? []).map { Double($0)! } }

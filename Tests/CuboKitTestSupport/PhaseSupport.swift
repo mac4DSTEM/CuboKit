@@ -12,7 +12,7 @@ import CuboPhase
 package enum Pins2 {
     package static let fixtures = FixtureDirs.fixtures(of: "CuboVirtualTests")
     package nonisolated(unsafe) static let pins: [String: Any] = {
-        try! JSONSerialization.jsonObject(with: Data(contentsOf: fixtures.appendingPathComponent("slice-2-pins.json")))
+        try! JSONSerialization.jsonObject(with: Data(contentsOf: fixtures.appendingPathComponent("com-dpc-pins.json")))
             as! [String: Any]
     }()
     package static func doubles(_ any: Any?) -> [Double] { (any as? [String] ?? []).map { Double($0)! } }

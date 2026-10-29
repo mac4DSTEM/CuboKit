@@ -2,7 +2,7 @@
 //  Slice4Tests.swift
 //  The median pattern, virtual diffraction over a selection, origins with a scan mask, the Friedel origin, the beamstop
 //  mask, the vacuum probe and its kernels against py4DSTEM f050d207 and planted truth:
-//  slice-4-pins.json and, on this machine, the real-data exports (<name>-s4-pins.json).
+//  probes-pins.json and, on this machine, the real-data exports (<name>-s4-pins.json).
 //
 
 import Foundation

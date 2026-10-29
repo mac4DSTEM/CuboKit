@@ -3,7 +3,7 @@
     ../References/python/py4dstem/bin/python -I -B tools/origin-fit/pins.py synthetic
     ../References/python/py4dstem/bin/python -I -B tools/origin-fit/pins.py real [name ...]
 
-synthetic -> Tests/CuboVirtualTests/Fixtures/slice-3-pins.json (+ planted cubes as .npy), before any Swift;
+synthetic -> Tests/CuboVirtualTests/Fixtures/origin-fit-pins.json (+ planted cubes as .npy), before any Swift;
 real -> $CUBOKIT_REAL_DATA/<name>-s3-pins.json and <name>-s3-<quantity>.npy beside the exports of tools/virtual/pins.py.
 py4DSTEM's own results beside the float64 evaluation of each definition, which the kit is held to.
 """
@@ -295,7 +295,7 @@ def run_synthetic():
         check(f"robust {model} removes the outlier", np.max(np.abs(fit_f64(o, model, robust=True) - s)) < 1e-9)
         truth[model] = {"shape": [9, 11], "surface": arr(s), "with_outlier": arr(o)}
     out["fit_truth"] = truth
-    json.dump(out, open(os.path.join(FIX, "slice-3-pins.json"), "w"))
+    json.dump(out, open(os.path.join(FIX, "origin-fit-pins.json"), "w"))
     print(f"pins.py origin-fit synthetic: {len(out['cubes'])} cubes, {len(CHECKS)} self-checks passed")
     for e in out["cubes"]:
         ad = sum(a != b for a, b in zip(e["argmax"], e["argmax_py4dstem"]))

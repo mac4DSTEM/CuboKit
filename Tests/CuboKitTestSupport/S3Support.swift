@@ -11,7 +11,7 @@ import CuboPhase
 
 package enum S3 {
     package nonisolated(unsafe) static let pins: [String: Any] = {
-        try! JSONSerialization.jsonObject(with: Data(contentsOf: Fixtures.url("slice-3-pins.json"))) as! [String: Any]
+        try! JSONSerialization.jsonObject(with: Data(contentsOf: Fixtures.url("origin-fit-pins.json"))) as! [String: Any]
     }()
     package static func d(_ a: Any?) -> [Double] { (a as? [String] ?? []).map { Double($0)! } }
     package static func geometry(_ g: [String: Any]) -> DetectorGeometry {

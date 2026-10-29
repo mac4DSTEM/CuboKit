@@ -1,6 +1,6 @@
 //
 //  PinsTests.swift
-//  Agreement with py4DSTEM f050d207 on the synthetic cubes, read from slice-1-pins.json.
+//  Agreement with py4DSTEM f050d207 on the synthetic cubes, read from virtual-pins.json.
 //  Agreement is agreement, not truth (TruthTests); a difference is a failure of the port, never a tolerance to widen.
 //
 

@@ -6,7 +6,7 @@
 
 The watchdog thread below caps memory (8 GB by default). One worker at a time; almgsi and auref need --gb 16 (and CUBOKIT_PINS_MEM_GB=16).
 
-synthetic -> Tests/CuboVirtualTests/Fixtures/slice-4-pins.json (+ planted cubes as .npy), before any Swift;
+synthetic -> Tests/CuboVirtualTests/Fixtures/probes-pins.json (+ planted cubes as .npy), before any Swift;
 export-bullseye -> $CUBOKIT_REAL_DATA/bullseye.npy (20 vacuum-probe images of your own as a 1 x 20 x 250 x 250 cube);
 real -> $CUBOKIT_REAL_DATA/<name>-s4-pins.json beside the exports of tools/virtual/pins.py.
 py4DSTEM's own results beside the float64 evaluation of each definition, which the kit is held to.
@@ -629,7 +629,7 @@ def run_synthetic():
     for nm in ("planted_f32", "planted_u16", "gaussian", "counts16"):
         cube = np.load(os.path.join(FIX, nm + ".npy"))
         out["cubes"].append(pin_cube(nm, cube))
-    json.dump(out, open(os.path.join(FIX, "slice-4-pins.json"), "w"))
+    json.dump(out, open(os.path.join(FIX, "probes-pins.json"), "w"))
     print(f"pins.py probes synthetic: {len(out['cubes'])} cubes, {len(CHECKS)} self-checks passed")
     for e in out["cubes"]:
         summary(e)

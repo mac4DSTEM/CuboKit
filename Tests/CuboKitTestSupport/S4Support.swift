@@ -11,7 +11,7 @@ import CuboPhase
 
 package enum S4 {
     package nonisolated(unsafe) static let pins: [String: Any] = {
-        try! JSONSerialization.jsonObject(with: Data(contentsOf: Fixtures.url("slice-4-pins.json"))) as! [String: Any]
+        try! JSONSerialization.jsonObject(with: Data(contentsOf: Fixtures.url("probes-pins.json"))) as! [String: Any]
     }()
     package static func d(_ a: Any?) -> [Double] { (a as? [String] ?? []).map { Double($0)! } }
     package static func b(_ a: Any?) -> [Bool] { (a as? [Int] ?? []).map { $0 != 0 } }

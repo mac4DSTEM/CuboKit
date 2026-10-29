@@ -51,9 +51,9 @@ package struct Pins: Decodable, Sendable {
 
     package static let shared: Pins = {
         do {
-            let data = try Data(contentsOf: Fixtures.url("slice-1-pins.json"))
+            let data = try Data(contentsOf: Fixtures.url("virtual-pins.json"))
             return try JSONDecoder().decode(Pins.self, from: data)
-        } catch { fatalError("slice-1-pins.json: \(error)") }
+        } catch { fatalError("virtual-pins.json: \(error)") }
     }()
 
     package func cube(_ name: String) throws -> CubePin {

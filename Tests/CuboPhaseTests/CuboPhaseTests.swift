@@ -1,7 +1,7 @@
 //
 //  CuboPhaseTests.swift
 //  The centre-of-mass reference, the R–Q rotation and DPC against py4DSTEM f050d207 and planted truth. The pins are
-//  CuboVirtualTests/Fixtures/slice-2-pins.json; the real data are slice 2's exports in $CUBOKIT_REAL_DATA.
+//  CuboVirtualTests/Fixtures/com-dpc-pins.json; the real data are slice 2's exports in $CUBOKIT_REAL_DATA.
 //
 
 import Foundation

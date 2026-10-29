@@ -5,7 +5,7 @@ Run with the pinned oracle, from any directory:
     ../References/python/py4dstem/bin/python -I -B tools/virtual/pins.py synthetic
     ../References/python/py4dstem/bin/python -I -B tools/virtual/pins.py real [name ...]
 
-`synthetic` writes Tests/CuboVirtualTests/Fixtures/<cube>.npy and slice-1-pins.json (committed) BEFORE any Swift exists.
+`synthetic` writes Tests/CuboVirtualTests/Fixtures/<cube>.npy and virtual-pins.json (committed) BEFORE any Swift exists.
 `real` exports your own cubes and py4DSTEM's test datacube as .npy into the real-data
 directory, $CUBOKIT_REAL_DATA (default ~/Library/Caches/CuboKit/real-data), outside the repository, and writes beside
 each <name>-pins.json plus its float64 arrays as <name>-<quantity>.npy.
@@ -312,7 +312,7 @@ def run_synthetic():
           set(map(tuple, np.argwhere(m))) == {(0, 2), (0, 3), (1, 2), (1, 3)})
     check("boundary cube: the Float32 predicate disagrees", disagreeing >= 1)
 
-    pins = os.path.join(FIXTURES, "slice-1-pins.json")
+    pins = os.path.join(FIXTURES, "virtual-pins.json")
     with open(pins, "w") as f:
         json.dump(out, f, indent=1)
         f.write("\n")

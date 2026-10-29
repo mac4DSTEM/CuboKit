@@ -165,9 +165,9 @@ Licence: every fixture is generated from this kit's own code and the pinned Pyth
 | `CuboVirtualTests/Fixtures/planted_f32.npy` | 70.4 KB | `tools/origin-fit/pins.py`, `tools/probes/pins.py` |  |
 | `CuboVirtualTests/Fixtures/planted_u16.npy` | 35.3 KB | `tools/origin-fit/pins.py`, `tools/probes/pins.py` |  |
 | `CuboVirtualTests/Fixtures/shift.npy` | 5.8 KB | `tools/com-dpc/pins.py` |  |
-| `CuboVirtualTests/Fixtures/slice-1-pins.json` | 204.9 KB | `tools/virtual/pins.py`, `tools/com-dpc/pins.py` |  |
-| `CuboVirtualTests/Fixtures/slice-2-pins.json` | 596.1 KB | `tools/com-dpc/pins.py` |  |
-| `CuboVirtualTests/Fixtures/slice-3-pins.json` | 324.2 KB | `tools/origin-fit/pins.py` |  |
-| `CuboVirtualTests/Fixtures/slice-4-pins.json` | 1.7 MB | `tools/probes/pins.py` |  |
+| `CuboVirtualTests/Fixtures/virtual-pins.json` | 204.9 KB | `tools/virtual/pins.py`, `tools/com-dpc/pins.py` |  |
+| `CuboVirtualTests/Fixtures/com-dpc-pins.json` | 596.1 KB | `tools/com-dpc/pins.py` |  |
+| `CuboVirtualTests/Fixtures/origin-fit-pins.json` | 324.2 KB | `tools/origin-fit/pins.py` |  |
+| `CuboVirtualTests/Fixtures/probes-pins.json` | 1.7 MB | `tools/probes/pins.py` |  |
 | `CuboVirtualTests/Fixtures/thirds.npy` | 640 B | `tools/virtual/pins.py` |  |
 | `CuboVirtualTests/Fixtures/vacuum_planted.npy` | 24.1 KB | `tools/probes/pins.py` |  |

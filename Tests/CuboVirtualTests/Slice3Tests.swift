@@ -1,7 +1,7 @@
 //
 //  Slice3Tests.swift
 //  Per-position origins, fits, centred, calibrated and shifted virtual imaging against py4DSTEM
-//  f050d207 and planted truth: slice-3-pins.json and, on this machine, the real-data exports (<name>-s3-pins.json).
+//  f050d207 and planted truth: origin-fit-pins.json and, on this machine, the real-data exports (<name>-s3-pins.json).
 //
 
 import Foundation
