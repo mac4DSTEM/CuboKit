@@ -317,32 +317,6 @@ enum ConsensusNumerics {
         )
     }
 
-    /// One reweighted pass removes a peak that happened to fall inside the
-    /// coarse indexing gate but is inconsistent with the local lattice fit.
-    static func robustFitLattice(
-        _ peaks: [(h: Float, k: Float, x: Float, y: Float, wgt: Float)],
-        minNumPeaks: Int
-    ) -> (originX: Float, originY: Float,
-          g1x: Float, g1y: Float, g2x: Float, g2y: Float,
-          residual: Float)? {
-        guard let initial = fitLattice(peaks) else { return nil }
-        let residuals = peaks.map { peak in
-            hypot(
-                peak.x - initial.originX - peak.h * initial.g1x - peak.k * initial.g2x,
-                peak.y - initial.originY - peak.h * initial.g1y - peak.k * initial.g2y
-            )
-        }
-        guard let center = median(residuals) else { return initial }
-        let deviations = residuals.map { abs($0 - center) }
-        let mad = median(deviations) ?? 0
-        let threshold = max(0.35, center + 3 * max(1.4826 * mad, 0.05))
-        let inliers = zip(peaks, residuals).compactMap { peak, residual in
-            residual <= threshold ? peak : nil
-        }
-        guard inliers.count >= minNumPeaks, inliers.count < peaks.count else { return initial }
-        return fitLattice(inliers) ?? initial
-    }
-
     /// DEVIATION from py4DSTEM: `get_reference_g1g2` (process/strain/latticevectors.py)
     /// takes the plain component-wise median of every position inside the caller's
     /// mask. This is called first, and discards candidates whose fitted (g1, g2)

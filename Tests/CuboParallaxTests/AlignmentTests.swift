@@ -26,7 +26,7 @@ private struct StackPin: Decodable {
     let running: Bool
 }
 private func pins() throws -> Pins {
-    let url = try #require(Bundle.module.url(forResource: "alignment", withExtension: "json", subdirectory: "Fixtures"))
+    let url = try #require(parallaxFixture("alignment"))
     return try JSONDecoder().decode(Pins.self, from: Data(contentsOf: url))
 }
 

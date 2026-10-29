@@ -13,7 +13,7 @@ import CuboParallax
         let usedFactor, bfLimit, dfLimit: Double; let shape: [Int]; let output: [Double]
     }
     @Test func pinnedKernelDensity() throws {
-        let p = try JSONDecoder().decode(Pin.self, from: Data(contentsOf: Bundle.module.url(forResource: "subpixel", withExtension: "json", subdirectory: "Fixtures")!))
+        let p = try JSONDecoder().decode(Pin.self, from: Data(contentsOf: parallaxFixture("subpixel")!))
         let n = p.rows * p.columns
         let images = (0..<p.count).map { Array(p.stack[$0 * n..<($0 + 1) * n]) }
         let shifts = stride(from: 0, to: p.shifts.count, by: 2).map { ParallaxShift(row: p.shifts[$0], column: p.shifts[$0 + 1]) }
@@ -30,7 +30,7 @@ import CuboParallax
         }
     }
     @Test func pinnedPositionCorrection() throws {
-        let p = try JSONDecoder().decode(Pin.self, from: Data(contentsOf: Bundle.module.url(forResource: "subpixel", withExtension: "json", subdirectory: "Fixtures")!))
+        let p = try JSONDecoder().decode(Pin.self, from: Data(contentsOf: parallaxFixture("subpixel")!))
         let n = p.rows * p.columns
         let images = (0..<p.count).map { Array(p.stack[$0 * n..<($0 + 1) * n]) }
         let shifts = stride(from: 0, to: p.shifts.count, by: 2).map { ParallaxShift(row: p.shifts[$0], column: p.shifts[$0 + 1]) }

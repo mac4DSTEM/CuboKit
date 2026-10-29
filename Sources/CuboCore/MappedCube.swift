@@ -28,6 +28,7 @@ public enum ElementType: String, Sendable, Hashable, CaseIterable, Codable {
 
     /// Whether every value of this type converts to Float32 exactly (the integers up to 2^24 do; this answers for the
     /// whole type, not for a particular cube).
+    @available(*, deprecated, message: "unused; will be removed")
     public var convertsExactlyToFloat32: Bool {
         switch self {
         case .float32, .uint8, .int8, .uint16, .int16: true

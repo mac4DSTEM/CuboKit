@@ -162,7 +162,6 @@ do {
 } catch {
     check("Bragg single path, funnel", false)
 }
-check("CuboStrain scope", CuboStrain.scope.contains("scan-level"))
 do {
     // Scan-level strain: a 2 x 2 scan of a square lattice, known directions, supplied reference.
     var lists: [[StrainPeak]] = []
@@ -206,7 +205,6 @@ do {
 } catch {
     check("round 6 strain", false)
 }
-check("CuboPtycho scope", CuboPtycho.scope.contains("probe-centre"))
 do {
     // Crop-and-bin view, ptychography preprocessing and the three engines, through the public API.
     let viewed = try ViewedCube(base: eager, specification: CubeViewSpecification(

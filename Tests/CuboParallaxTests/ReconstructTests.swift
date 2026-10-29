@@ -55,7 +55,7 @@ import CuboCore
     struct Sub: Decodable { let kde_upsample_factor: Double?; let kde_sigma_px: Double?; let position_correction_num_iter: Int?; let position_correction_checkerboard_steps: Bool? }
 
     static func pin() throws -> Pin {
-        let url = try #require(Bundle.module.url(forResource: "reconstruct", withExtension: "json", subdirectory: "Fixtures"))
+        let url = try #require(parallaxFixture("reconstruct"))
         return try JSONDecoder().decode(Pin.self, from: Data(contentsOf: url))
     }
 
