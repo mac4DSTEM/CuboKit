@@ -74,7 +74,7 @@ Licence: every fixture is generated from this kit's own code and the pinned Pyth
 | `CuboStrainTests/Fixtures/appFits.f64` | 224 B | `tools/strain/pins.py` |  |
 | `CuboStrainTests/Fixtures/appReference.f64` | 32 B | `tools/strain/pins.py` |  |
 | `CuboStrainTests/Fixtures/consensus.f64` | 480 B | `tools/strain/pins.py` |  |
-| `CuboStrainTests/Fixtures/fits.f64` | 224 B | `tools/slice-3/pins.py`, `tools/strain/mapping_pins.py`, `tools/strain/pins.py` (name prefix) |  |
+| `CuboStrainTests/Fixtures/fits.f64` | 224 B | `tools/origin-fit/pins.py`, `tools/strain/mapping_pins.py`, `tools/strain/pins.py` (name prefix) |  |
 | `CuboStrainTests/Fixtures/indexInputs.f64` | 144 B | `tools/strain/pins.py` |  |
 | `CuboStrainTests/Fixtures/indexOutputs.f64` | 48 B | `tools/strain/pins.py` |  |
 | `CuboStrainTests/Fixtures/input0.f64` | 360 B | `tools/strain/mapping_pins.py`, `tools/strain/pins.py` (module only) |  |
@@ -149,25 +149,25 @@ Licence: every fixture is generated from this kit's own code and the pinned Pyth
 | `CuboStrainTests/Fixtures/strain0.f64` | 128 B | `tools/strain/mapping_pins.py`, `tools/strain/pins.py` (name prefix) |  |
 | `CuboStrainTests/Fixtures/strain1.f64` | 128 B | `tools/strain/mapping_pins.py`, `tools/strain/pins.py` (name prefix) |  |
 | `CuboStrainTests/Fixtures/strain_mapping.json` | 5.9 KB | `tools/strain/mapping_pins.py` |  |
-| `CuboVirtualTests/Fixtures/boundary.npy` | 4.1 KB | `tools/idpc/pins.py`, `tools/slice-1/pins.py`, `tools/strain/pins.py` |  |
-| `CuboVirtualTests/Fixtures/counts16.npy` | 6.9 KB | `tools/slice-1/pins.py`, `tools/slice-3/pins.py`, `tools/slice-4/pins.py` |  |
-| `CuboVirtualTests/Fixtures/counts32.npy` | 3.9 KB | `tools/slice-1/pins.py` |  |
-| `CuboVirtualTests/Fixtures/digits.npy` | 968 B | `tools/parallax/reconstruct_pins.py`, `tools/ptycho/engines_pins.py`, `tools/slice-1/pins.py` |  |
-| `CuboVirtualTests/Fixtures/friedel_gauss.npy` | 18.9 KB | `tools/slice-4/pins.py` |  |
-| `CuboVirtualTests/Fixtures/friedel_masked.npy` | 25.6 KB | `tools/slice-4/pins.py` |  |
-| `CuboVirtualTests/Fixtures/friedel_plain.npy` | 25.6 KB | `tools/slice-4/pins.py` |  |
+| `CuboVirtualTests/Fixtures/boundary.npy` | 4.1 KB | `tools/idpc/pins.py`, `tools/virtual/pins.py`, `tools/strain/pins.py` |  |
+| `CuboVirtualTests/Fixtures/counts16.npy` | 6.9 KB | `tools/virtual/pins.py`, `tools/origin-fit/pins.py`, `tools/probes/pins.py` |  |
+| `CuboVirtualTests/Fixtures/counts32.npy` | 3.9 KB | `tools/virtual/pins.py` |  |
+| `CuboVirtualTests/Fixtures/digits.npy` | 968 B | `tools/parallax/reconstruct_pins.py`, `tools/ptycho/engines_pins.py`, `tools/virtual/pins.py` |  |
+| `CuboVirtualTests/Fixtures/friedel_gauss.npy` | 18.9 KB | `tools/probes/pins.py` |  |
+| `CuboVirtualTests/Fixtures/friedel_masked.npy` | 25.6 KB | `tools/probes/pins.py` |  |
+| `CuboVirtualTests/Fixtures/friedel_plain.npy` | 25.6 KB | `tools/probes/pins.py` |  |
 | `CuboVirtualTests/Fixtures/gaussian.npy` | 30.1 KB | `tools/bragg/pins.py`, `tools/parallax/app_pins.py`, `tools/parallax/subpixel_pins.py` +8 |  |
 | `CuboVirtualTests/Fixtures/median_3x5.npy` | 2.6 KB | none found |  |
 | `CuboVirtualTests/Fixtures/median_3x5_outlier.npy` | 2.6 KB | none found |  |
 | `CuboVirtualTests/Fixtures/median_4x4.npy` | 2.8 KB | none found |  |
 | `CuboVirtualTests/Fixtures/median_4x4_outlier.npy` | 2.8 KB | none found |  |
 | `CuboVirtualTests/Fixtures/negative.npy` | 272 B | `tools/dpcviews/pins.py`, `tools/embedding/pins.py`, `tools/ptycho/engines_pins.py` +3 |  |
-| `CuboVirtualTests/Fixtures/planted_f32.npy` | 70.4 KB | `tools/slice-3/pins.py`, `tools/slice-4/pins.py` |  |
-| `CuboVirtualTests/Fixtures/planted_u16.npy` | 35.3 KB | `tools/slice-3/pins.py`, `tools/slice-4/pins.py` |  |
-| `CuboVirtualTests/Fixtures/shift.npy` | 5.8 KB | `tools/slice-2/pins.py` |  |
-| `CuboVirtualTests/Fixtures/slice-1-pins.json` | 204.9 KB | `tools/slice-1/pins.py`, `tools/slice-2/pins.py` |  |
-| `CuboVirtualTests/Fixtures/slice-2-pins.json` | 596.1 KB | `tools/slice-2/pins.py` |  |
-| `CuboVirtualTests/Fixtures/slice-3-pins.json` | 324.2 KB | `tools/slice-3/pins.py` |  |
-| `CuboVirtualTests/Fixtures/slice-4-pins.json` | 1.7 MB | `tools/slice-4/pins.py` |  |
-| `CuboVirtualTests/Fixtures/thirds.npy` | 640 B | `tools/slice-1/pins.py` |  |
-| `CuboVirtualTests/Fixtures/vacuum_planted.npy` | 24.1 KB | `tools/slice-4/pins.py` |  |
+| `CuboVirtualTests/Fixtures/planted_f32.npy` | 70.4 KB | `tools/origin-fit/pins.py`, `tools/probes/pins.py` |  |
+| `CuboVirtualTests/Fixtures/planted_u16.npy` | 35.3 KB | `tools/origin-fit/pins.py`, `tools/probes/pins.py` |  |
+| `CuboVirtualTests/Fixtures/shift.npy` | 5.8 KB | `tools/com-dpc/pins.py` |  |
+| `CuboVirtualTests/Fixtures/slice-1-pins.json` | 204.9 KB | `tools/virtual/pins.py`, `tools/com-dpc/pins.py` |  |
+| `CuboVirtualTests/Fixtures/slice-2-pins.json` | 596.1 KB | `tools/com-dpc/pins.py` |  |
+| `CuboVirtualTests/Fixtures/slice-3-pins.json` | 324.2 KB | `tools/origin-fit/pins.py` |  |
+| `CuboVirtualTests/Fixtures/slice-4-pins.json` | 1.7 MB | `tools/probes/pins.py` |  |
+| `CuboVirtualTests/Fixtures/thirds.npy` | 640 B | `tools/virtual/pins.py` |  |
+| `CuboVirtualTests/Fixtures/vacuum_planted.npy` | 24.1 KB | `tools/probes/pins.py` |  |

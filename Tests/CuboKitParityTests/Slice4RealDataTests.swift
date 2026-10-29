@@ -15,16 +15,16 @@ import CuboKitTestSupport
         let e = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent("\(name)-s4-pins.json"))) as! [String: Any]
         try await S4.check(e, cube: try MappedCube(npy: dir.appendingPathComponent("\(name).npy")))
     }
-    @Test(.enabled(if: S4.realIsPresent("bullseye"), "real data absent: run tools/slice-4/pins.py export-bullseye and real"))
+    @Test(.enabled(if: S4.realIsPresent("bullseye"), "real data absent: run tools/probes/pins.py export-bullseye and real"))
     func testBullseyeVacuumProbeSlice4() async throws { try await Self.run("bullseye") }
-    @Test(.enabled(if: S4.realIsPresent("almgsi"), "real data absent: run tools/slice-4/pins.py real"))
+    @Test(.enabled(if: S4.realIsPresent("almgsi"), "real data absent: run tools/probes/pins.py real"))
     func testAlMgSiStudyCubeSlice4() async throws { try await Self.run("almgsi") }
-    @Test(.enabled(if: S4.realIsPresent("auref"), "real data absent: run tools/slice-4/pins.py real"))
+    @Test(.enabled(if: S4.realIsPresent("auref"), "real data absent: run tools/probes/pins.py real"))
     func testAuReferenceCubeSlice4() async throws { try await Self.run("auref") }
-    @Test(.enabled(if: S4.realIsPresent("simau"), "real data absent: run tools/slice-4/pins.py real"))
+    @Test(.enabled(if: S4.realIsPresent("simau"), "real data absent: run tools/probes/pins.py real"))
     func testSimulatedPolycrystallineGoldSlice4() async throws { try await Self.run("simau") }
-    @Test(.enabled(if: S4.realIsPresent("particle"), "real data absent: run tools/slice-4/pins.py real"))
+    @Test(.enabled(if: S4.realIsPresent("particle"), "real data absent: run tools/probes/pins.py real"))
     func testParticleCubeSlice4() async throws { try await Self.run("particle") }
-    @Test(.enabled(if: S4.realIsPresent("py4dstem_small"), "real data absent: run tools/slice-4/pins.py real"))
+    @Test(.enabled(if: S4.realIsPresent("py4dstem_small"), "real data absent: run tools/probes/pins.py real"))
     func testPy4DSTEMSmallDatacubeSlice4() async throws { try await Self.run("py4dstem_small") }
 }

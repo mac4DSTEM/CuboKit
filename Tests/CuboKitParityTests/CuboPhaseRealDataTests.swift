@@ -73,14 +73,14 @@ import CuboKitTestSupport
         print(log.joined(separator: "\n  "))
     }
 
-    @Test(.enabled(if: Pins2.realIsPresent("almgsi"), "real data absent: run tools/slice-2/pins.py real"))
+    @Test(.enabled(if: Pins2.realIsPresent("almgsi"), "real data absent: run tools/com-dpc/pins.py real"))
     func testAlMgSiStudyCubeSlice2() async throws { try await Self.check("almgsi") }
-    @Test(.enabled(if: Pins2.realIsPresent("auref"), "real data absent: run tools/slice-2/pins.py real"))
+    @Test(.enabled(if: Pins2.realIsPresent("auref"), "real data absent: run tools/com-dpc/pins.py real"))
     func testAuReferenceCubeSlice2() async throws { try await Self.check("auref") }
-    @Test(.enabled(if: Pins2.realIsPresent("simau"), "real data absent: run tools/slice-2/pins.py real"))
+    @Test(.enabled(if: Pins2.realIsPresent("simau"), "real data absent: run tools/com-dpc/pins.py real"))
     func testSimulatedPolycrystallineGoldSlice2() async throws { try await Self.check("simau") }
-    @Test(.enabled(if: Pins2.realIsPresent("particle"), "real data absent: run tools/slice-2/pins.py real"))
+    @Test(.enabled(if: Pins2.realIsPresent("particle"), "real data absent: run tools/com-dpc/pins.py real"))
     func testParticleCubeSlice2() async throws { try await Self.check("particle") }
-    @Test(.enabled(if: Pins2.realIsPresent("py4dstem_small"), "real data absent: run tools/slice-2/pins.py real"))
+    @Test(.enabled(if: Pins2.realIsPresent("py4dstem_small"), "real data absent: run tools/com-dpc/pins.py real"))
     func testPy4DSTEMSmallDatacubeSlice2() async throws { try await Self.check("py4dstem_small") }
 }

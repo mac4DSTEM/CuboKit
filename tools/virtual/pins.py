@@ -1,9 +1,9 @@
-"""CuboKit slice 1: the pin generator.
+"""CuboKit virtual images and patterns (detectors, virtual images, mean and max patterns): the pin generator.
 
 Run with the pinned oracle, from any directory:
 
-    ../References/python/py4dstem/bin/python -I -B tools/slice-1/pins.py synthetic
-    ../References/python/py4dstem/bin/python -I -B tools/slice-1/pins.py real [name ...]
+    ../References/python/py4dstem/bin/python -I -B tools/virtual/pins.py synthetic
+    ../References/python/py4dstem/bin/python -I -B tools/virtual/pins.py real [name ...]
 
 `synthetic` writes Tests/CuboVirtualTests/Fixtures/<cube>.npy and slice-1-pins.json (committed) BEFORE any Swift exists.
 `real` exports your own cubes and py4DSTEM's test datacube as .npy into the real-data

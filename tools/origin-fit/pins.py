@@ -1,10 +1,10 @@
-"""CuboKit slice 3: the pin generator.
+"""CuboKit origins, origin fits and shifted imaging: the pin generator.
 
-    ../References/python/py4dstem/bin/python -I -B tools/slice-3/pins.py synthetic
-    ../References/python/py4dstem/bin/python -I -B tools/slice-3/pins.py real [name ...]
+    ../References/python/py4dstem/bin/python -I -B tools/origin-fit/pins.py synthetic
+    ../References/python/py4dstem/bin/python -I -B tools/origin-fit/pins.py real [name ...]
 
 synthetic -> Tests/CuboVirtualTests/Fixtures/slice-3-pins.json (+ planted cubes as .npy), before any Swift;
-real -> $CUBOKIT_REAL_DATA/<name>-s3-pins.json and <name>-s3-<quantity>.npy beside slice 1's exports.
+real -> $CUBOKIT_REAL_DATA/<name>-s3-pins.json and <name>-s3-<quantity>.npy beside the exports of tools/virtual/pins.py.
 py4DSTEM's own results beside the float64 evaluation of each definition, which the kit is held to.
 """
 import datetime, json, math, os, platform, sys, warnings
@@ -296,7 +296,7 @@ def run_synthetic():
         truth[model] = {"shape": [9, 11], "surface": arr(s), "with_outlier": arr(o)}
     out["fit_truth"] = truth
     json.dump(out, open(os.path.join(FIX, "slice-3-pins.json"), "w"))
-    print(f"pins.py slice 3 synthetic: {len(out['cubes'])} cubes, {len(CHECKS)} self-checks passed")
+    print(f"pins.py origin-fit synthetic: {len(out['cubes'])} cubes, {len(CHECKS)} self-checks passed")
     for e in out["cubes"]:
         ad = sum(a != b for a, b in zip(e["argmax"], e["argmax_py4dstem"]))
         print(f"  {e['cube']}: r {float(e['radius']):.4f}, origin own-vs-f64 {e['origin_distance_py4dstem_own_vs_f64_px']:.2e} px, argmax differ {ad}, "
@@ -310,7 +310,7 @@ def run_real(names):
         cube = np.load(os.path.join(REAL, f"{name}.npy"))
         e, orow, ocol = pin_cube(name, cube)
         json.dump(e, open(os.path.join(REAL, f"{name}-s3-pins.json"), "w"))
-        print(f"pins.py slice 3 real {name}: r {float(e['radius']):.4f}, origin own-vs-f64 {e['origin_distance_py4dstem_own_vs_f64_px']:.2e} px, "
+        print(f"pins.py origin-fit real {name}: r {float(e['radius']):.4f}, origin own-vs-f64 {e['origin_distance_py4dstem_own_vs_f64_px']:.2e} px, "
               f"argmax differ {sum(a != b for a, b in zip(e['argmax'], e['argmax_py4dstem']))}, "
               f"bilinear own {e['images'][0]['bilinear_distance_py4dstem']:.1e}, fourier mean own {e['patterns']['fourier']['mean_distance_py4dstem']:.1e}; "
               f"{(datetime.datetime.now() - t0).total_seconds():.0f} s")

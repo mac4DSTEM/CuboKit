@@ -1,6 +1,6 @@
 //
 //  TestSupport.swift
-//  The fixtures directory (read by #filePath, not as resources), the pins written by tools/slice-1/pins.py before any
+//  The fixtures directory (read by #filePath, not as resources), the pins written by tools/virtual/pins.py before any
 //  Swift existed, the real-data directory (outside the repository), and the relative
 //  comparison: relative `t` with the floor 1e-6 · max|want| over the image.
 //

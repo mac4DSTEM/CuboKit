@@ -1,7 +1,7 @@
 //
 //  Slice2Tests.swift
 //  Centre of mass and probe size against py4DSTEM f050d207 and planted truth,
-//  read from slice-2-pins.json (tools/slice-2/pins.py, run before any Swift).
+//  read from slice-2-pins.json (tools/com-dpc/pins.py, run before any Swift).
 //
 
 import Foundation
