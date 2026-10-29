@@ -1,5 +1,5 @@
 //
-//  Slice2Tests.swift
+//  CenterOfMassProbeSizeTests.swift
 //  Centre of mass and probe size against py4DSTEM f050d207 and planted truth,
 //  read from com-dpc-pins.json (tools/com-dpc/pins.py, run before any Swift).
 //
@@ -10,7 +10,7 @@ import CuboKitTestSupport
 import CuboCore
 import CuboVirtual
 
-enum Slice2 {
+enum CenterOfMassPins {
     nonisolated(unsafe) static let pins: [String: Any] = {
         let data = try! Data(contentsOf: Fixtures.url("com-dpc-pins.json"))
         return try! JSONSerialization.jsonObject(with: data) as! [String: Any]
@@ -26,36 +26,36 @@ enum Slice2 {
     static let integerCubes: Set<String> = ["counts16", "counts32"]
 }
 
-@Suite struct Slice2PinsTests {
-    @Test func testSlice2PinsCarryTheirVersions() {
-        let v = Slice2.pins["versions"] as! [String: String]
+@Suite struct CenterOfMassPinsTests {
+    @Test func testPinsCarryTheirVersions() {
+        let v = CenterOfMassPins.pins["versions"] as! [String: String]
         #expect(v["py4dstem_commit"] == "f050d207851f8accd3aa550365baaf1f38230428")
         #expect(v["numpy"] == "2.5.0")
-        #expect(Slice2.com.count == 24 && Slice2.probe.count == 20)
+        #expect(CenterOfMassPins.com.count == 24 && CenterOfMassPins.probe.count == 20)
     }
 
     /// The sums within 1e-10 of the float64 definition (integer cubes exact today), the centre of mass within
     /// 1e-9 px where the denominator is conditioned; py4DSTEM's own float32 distance printed.
     @Test func testCenterOfMassAgreesWithTheFloat64Definition() async throws {
-        for e in Slice2.com {
+        for e in CenterOfMassPins.com {
             let name = e["cube"] as! String, mask = e["mask"] as! String
-            let cube = try MappedCube(npy: Slice2.cubeURL(name))
-            let com = try await CenterOfMass.measure(of: cube, mask: Slice2.mask(e))
-            let s = Slice2.doubles(e["intensity"]), r = Slice2.doubles(e["row"]), c = Slice2.doubles(e["column"])
-            if Slice2.integerCubes.contains(name) {
+            let cube = try MappedCube(npy: CenterOfMassPins.cubeURL(name))
+            let com = try await CenterOfMass.measure(of: cube, mask: CenterOfMassPins.mask(e))
+            let s = CenterOfMassPins.doubles(e["intensity"]), r = CenterOfMassPins.doubles(e["row"]), c = CenterOfMassPins.doubles(e["column"])
+            if CenterOfMassPins.integerCubes.contains(name) {
                 assertIdentical(com.intensity.values, s, "\(name)/\(mask) intensity")
-                assertIdentical(com.momentRow.values, Slice2.doubles(e["moment_row"]), "\(name)/\(mask) moment row")
+                assertIdentical(com.momentRow.values, CenterOfMassPins.doubles(e["moment_row"]), "\(name)/\(mask) moment row")
                 assertIdentical(com.row.values, r, "\(name)/\(mask) row")
                 assertIdentical(com.column.values, c, "\(name)/\(mask) column")
             } else {
                 assertRelative(com.intensity.values, s, 1e-10, "\(name)/\(mask) intensity")
-                assertRelative(com.momentRow.values, Slice2.doubles(e["moment_row"]), 1e-10, "\(name)/\(mask) moment row")
-                assertRelative(com.momentColumn.values, Slice2.doubles(e["moment_column"]), 1e-10, "\(name)/\(mask) moment col")
+                assertRelative(com.momentRow.values, CenterOfMassPins.doubles(e["moment_row"]), 1e-10, "\(name)/\(mask) moment row")
+                assertRelative(com.momentColumn.values, CenterOfMassPins.doubles(e["moment_column"]), 1e-10, "\(name)/\(mask) moment col")
             }
             // conditioned: |S| ≥ 1e-6 · Σ|w P|, from the cube itself
             let eager = try await MemoryCube(loading: cube)
             let n = cube.shape.detectorCount
-            let w = try DetectorMask.make(Slice2.mask(e) ?? .mask([Float](repeating: 1, count: n)), shape: cube.shape)
+            let w = try DetectorMask.make(CenterOfMassPins.mask(e) ?? .mask([Float](repeating: 1, count: n)), shape: cube.shape)
             var worst = 0.0, ill = 0
             for k in r.indices {
                 var absSum = 0.0
@@ -65,18 +65,18 @@ enum Slice2 {
                 worst = max(worst, abs(com.row.values[k] - r[k]), abs(com.column.values[k] - c[k]))
             }
             #expect(worst <= 1e-9, "\(name)/\(mask): worst CoM distance \(worst) px")
-            print("slice2 com \(name)/\(mask): kit vs float64 \(worst) px (ill-conditioned \(ill)); py4DSTEM own vs float64 \(e["com_distance_py4dstem_own_vs_f64_px"] ?? "n/a") px")
+            print("com-dpc com \(name)/\(mask): kit vs float64 \(worst) px (ill-conditioned \(ill)); py4DSTEM own vs float64 \(e["com_distance_py4dstem_own_vs_f64_px"] ?? "n/a") px")
         }
     }
 
     @Test(.enabled(if: VirtualDiffraction.metalIsAvailable, "no Metal device on this machine"))
     func testCenterOfMassMetalAgreesWithTheCPU() async throws {
-        for e in Slice2.com {
+        for e in CenterOfMassPins.com {
             let name = e["cube"] as! String
-            let cube = try MappedCube(npy: Slice2.cubeURL(name))
+            let cube = try MappedCube(npy: CenterOfMassPins.cubeURL(name))
             for tiling in [ScanTiling.automatic, .rows(1)] {
-                let cpu = try await CenterOfMass.measure(of: cube, mask: Slice2.mask(e), path: .cpu, tiling: tiling)
-                let gpu = try await CenterOfMass.measure(of: cube, mask: Slice2.mask(e), path: .metal, tiling: tiling)
+                let cpu = try await CenterOfMass.measure(of: cube, mask: CenterOfMassPins.mask(e), path: .cpu, tiling: tiling)
+                let gpu = try await CenterOfMass.measure(of: cube, mask: CenterOfMassPins.mask(e), path: .metal, tiling: tiling)
                 #expect(gpu.row.path == .metal)
                 assertRelative(gpu.intensity.values, cpu.intensity.values, 1e-10, "\(name) metal intensity")
                 assertRelative(gpu.momentRow.values, cpu.momentRow.values, 1e-10, "\(name) metal moment row")
@@ -88,15 +88,15 @@ enum Slice2 {
     /// Py4DSTEM's get_probe_size is float64 on these patterns, so the test asserts it exactly today (a tolerance would be allowed); where it
     /// returns NaN the kit refuses.
     @Test func testProbeSizeIsPy4DSTEMsBitForBit() async throws {
-        for e in Slice2.probe {
+        for e in CenterOfMassPins.probe {
             let name = e["cube"] as! String, kind = e["pattern"] as! String
             let pattern: DetectorImage
             if kind == "given" {
                 let shape = e["shape"] as! [Int]
                 pattern = DetectorImage(detectorRows: shape[0], detectorColumns: shape[1],
-                                        values: Slice2.doubles(e["pattern_values"]), path: .cpu)
+                                        values: CenterOfMassPins.doubles(e["pattern_values"]), path: .cpu)
             } else {
-                let cube = try MappedCube(npy: Slice2.cubeURL(name))
+                let cube = try MappedCube(npy: CenterOfMassPins.cubeURL(name))
                 let (mean, max) = try await VirtualDiffraction.meanAndMax(of: cube)
                 pattern = kind == "mean" ? mean : max
             }
@@ -106,35 +106,35 @@ enum Slice2 {
                 continue
             }
             let p = try ProbeSize.estimate(pattern, lowerThreshold: lower, upperThreshold: upper, count: count)
-            #expect(p.radius.bitPattern == Slice2.double(e["radius"]).bitPattern, "\(name)/\(kind) radius \(p.radius) vs \(Slice2.double(e["radius"]))")
-            #expect(p.centerRow.bitPattern == Slice2.double(e["center_row"]).bitPattern, "\(name)/\(kind) row \(p.centerRow)")
-            #expect(p.centerColumn.bitPattern == Slice2.double(e["center_column"]).bitPattern, "\(name)/\(kind) column")
-            #expect(p.threshold.bitPattern == Slice2.double(e["threshold"]).bitPattern, "\(name)/\(kind) threshold \(p.threshold)")
+            #expect(p.radius.bitPattern == CenterOfMassPins.double(e["radius"]).bitPattern, "\(name)/\(kind) radius \(p.radius) vs \(CenterOfMassPins.double(e["radius"]))")
+            #expect(p.centerRow.bitPattern == CenterOfMassPins.double(e["center_row"]).bitPattern, "\(name)/\(kind) row \(p.centerRow)")
+            #expect(p.centerColumn.bitPattern == CenterOfMassPins.double(e["center_column"]).bitPattern, "\(name)/\(kind) column")
+            #expect(p.threshold.bitPattern == CenterOfMassPins.double(e["threshold"]).bitPattern, "\(name)/\(kind) threshold \(p.threshold)")
         }
     }
 }
 
-@Suite struct Slice2TruthTests {
+@Suite struct CenterOfMassTruthTests {
     /// Two pixels a at (i0, j0) and b at (i0+1, j0+1): row = i0 + b/(a+b), column = j0 + b/(a+b).
     @Test func testPlantedShiftIsRecovered() async throws {
-        let cube = try MappedCube(npy: Slice2.cubeURL("shift"))
-        let truth = Slice2.pins["shift_truth"] as! [String: Any]
+        let cube = try MappedCube(npy: CenterOfMassPins.cubeURL("shift"))
+        let truth = CenterOfMassPins.pins["shift_truth"] as! [String: Any]
         for path in VirtualDiffraction.metalIsAvailable ? [ComputePath.cpu, .metal] : [.cpu] {
             let com = try await CenterOfMass.measure(of: cube, path: path)
-            assertRelative(com.row.values, Slice2.doubles(truth["row"]), 1e-12, "shift row \(path)")
-            assertRelative(com.column.values, Slice2.doubles(truth["column"]), 1e-12, "shift column \(path)")
+            assertRelative(com.row.values, CenterOfMassPins.doubles(truth["row"]), 1e-12, "shift row \(path)")
+            assertRelative(com.column.values, CenterOfMassPins.doubles(truth["column"]), 1e-12, "shift column \(path)")
         }
     }
 
     /// A uniform disk: radius sqrt(n/π), centre exactly the disk's, on a pixel and a half-pixel.
     @Test func testUniformDiskProbeTruth() throws {
-        for e in Slice2.probe where (e["cube"] as! String).hasPrefix("disk_") {
+        for e in CenterOfMassPins.probe where (e["cube"] as! String).hasPrefix("disk_") {
             let shape = e["shape"] as! [Int]
             let p = try ProbeSize.estimate(DetectorImage(detectorRows: shape[0], detectorColumns: shape[1],
-                                                         values: Slice2.doubles(e["pattern_values"]), path: .cpu))
-            #expect(abs(p.radius - Slice2.double(e["truth_radius"])) <= 1e-12)
-            #expect(abs(p.centerRow - Slice2.double(e["truth_row"])) <= 1e-12)
-            #expect(abs(p.centerColumn - Slice2.double(e["truth_column"])) <= 1e-12)
+                                                         values: CenterOfMassPins.doubles(e["pattern_values"]), path: .cpu))
+            #expect(abs(p.radius - CenterOfMassPins.double(e["truth_radius"])) <= 1e-12)
+            #expect(abs(p.centerRow - CenterOfMassPins.double(e["truth_row"])) <= 1e-12)
+            #expect(abs(p.centerColumn - CenterOfMassPins.double(e["truth_column"])) <= 1e-12)
         }
     }
 
@@ -159,7 +159,7 @@ enum Slice2 {
 
 /// Slice-2 cases an adversarial review found on 84815c9, kept so they gate.
 @Suite(.enabled(if: VirtualDiffraction.metalIsAvailable, "no Metal device on this machine"))
-struct Slice2RefuterRegressionTests {
+struct CenterOfMassMetalRegressionTests {
     /// On a 1024² detector the row moment of an integer cube passes 3e10; the first Metal kernel's Float32 correction
     /// lost it (2e-4 px). Integer cubes are exact on Metal now (renormalised double-float sums, exact to 2^48).
     @Test func testMetalCenterOfMassIsExactOnLargeIntegerCubes() async throws {

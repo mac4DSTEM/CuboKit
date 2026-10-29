@@ -1,6 +1,6 @@
 //
-//  S3Support.swift
-//  Role: Slice 3 pins and the check of one pinned cube, shared by the fast tests and the real-data parity suites.
+//  OriginFitSupport.swift
+//  Role: The origin-fit pins (origin-fit-pins.json) and the check of one pinned cube, shared by the fast tests and the real-data parity suites.
 //
 
 import Foundation
@@ -9,7 +9,7 @@ import CuboCore
 import CuboVirtual
 import CuboPhase
 
-package enum S3 {
+package enum OriginFitPins {
     package nonisolated(unsafe) static let pins: [String: Any] = {
         try! JSONSerialization.jsonObject(with: Data(contentsOf: Fixtures.url("origin-fit-pins.json"))) as! [String: Any]
     }()
@@ -31,7 +31,7 @@ package enum S3 {
         let name = e["cube"] as! String
         let shape = cube.shape
         let r = Double(e["radius"] as! String)!
-        var log = ["slice3 \(name)"]
+        var log = ["origin-fit \(name)"]
         // origins: the default radius is the probe size of the max pattern, asserted exact today; origins 1e-9 px
         let (measured, radius) = try await OriginMeasurement.measure(of: cube)
         #expect(radius.bitPattern == r.bitPattern, "\(name): radius \(radius) vs \(r)")

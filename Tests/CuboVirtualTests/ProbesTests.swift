@@ -1,5 +1,5 @@
 //
-//  Slice4Tests.swift
+//  ProbesTests.swift
 //  The median pattern, virtual diffraction over a selection, origins with a scan mask, the Friedel origin, the beamstop
 //  mask, the vacuum probe and its kernels against py4DSTEM f050d207 and planted truth:
 //  probes-pins.json and, on this machine, the real-data exports (<name>-s4-pins.json).
@@ -11,21 +11,21 @@ import CuboKitTestSupport
 import CuboCore
 import CuboVirtual
 
-@Suite struct Slice4Tests {
+@Suite struct ProbesTests {
     @Test(arguments: ["planted_f32", "planted_u16", "gaussian", "counts16"])
-    func testSlice4PinsOnSyntheticCubes(_ name: String) async throws {
-        let e = (S4.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == name }!
-        try await S4.check(e, cube: try MappedCube(npy: Fixtures.url("\(name).npy")))
+    func testPinsOnSyntheticCubes(_ name: String) async throws {
+        let e = (ProbesPins.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == name }!
+        try await ProbesPins.check(e, cube: try MappedCube(npy: Fixtures.url("\(name).npy")))
     }
 
     /// The median is the closed form; one outlier position moves it at most one rank.
     @Test func testMedianTruth() async throws {
-        for t in S4.pins["median_truth"] as! [[String: Any]] {
+        for t in ProbesPins.pins["median_truth"] as! [[String: Any]] {
             let nm = t["cube"] as! String
             let m = try await VirtualDiffraction.median(of: try MappedCube(npy: Fixtures.url("\(nm).npy")))
-            assertIdentical(m.values, S4.d(t["median"]), "\(nm) median")
+            assertIdentical(m.values, ProbesPins.d(t["median"]), "\(nm) median")
             let o = try await VirtualDiffraction.median(of: try MappedCube(npy: Fixtures.url("\(nm)_outlier.npy")))
-            assertIdentical(o.values, S4.d(t["median_outlier"]), "\(nm) median with an outlier")
+            assertIdentical(o.values, ProbesPins.d(t["median_outlier"]), "\(nm) median with an outlier")
             let mean = try await VirtualDiffraction.mean(of: try MappedCube(npy: Fixtures.url("\(nm)_outlier.npy")))
             #expect(mean.values.allSatisfy { $0 > 1e27 }, "the outlier moves the mean")
         }
@@ -49,7 +49,7 @@ import CuboVirtual
         let mean = try await VirtualDiffraction.mean(of: cube)
         assertRelative(ones.values, mean.values, 1e-15, "weights all one")
         let all = try await VirtualDiffraction.pattern(of: cube, statistic: .mean, scan: .all)
-        #expect(all.values == mean.values, "the .all mean is slice 1's, exactly")
+        #expect(all.values == mean.values, "the .all mean is VirtualDiffraction.mean, exactly")
         let mx = try await VirtualDiffraction.max(of: cube)
         #expect(try await VirtualDiffraction.pattern(of: cube, statistic: .max).values == mx.values)
     }
@@ -72,17 +72,17 @@ import CuboVirtual
             var w = [Double](repeating: 1, count: N); w[2] = .nan
             return try await VirtualDiffraction.pattern(of: cube, statistic: .max, scan: .weights(w))
         }
-        let map = try S4.map(Array(repeating: 3, count: N), Array(repeating: 4, count: N), cube.shape)
+        let map = try ProbesPins.map(Array(repeating: 3, count: N), Array(repeating: 4, count: N), cube.shape)
         await #expect(throws: CuboVirtualError.self) {
             try await VirtualDiffraction.pattern(of: cube, statistic: .median, shift: .rounded(map))
         }
         await #expect(throws: CuboVirtualError.self) { try await FriedelOrigin.measure(of: cube, upsampleFactor: 2) }
         await #expect(throws: CuboVirtualError.self) { try await FriedelOrigin.measure(of: cube, upsampleFactor: 0) }
-        let flat = S4.image(Array(repeating: 1, count: 64), 8, 8)
+        let flat = ProbesPins.image(Array(repeating: 1, count: 64), 8, 8)
         #expect(throws: CuboVirtualError.self) { try BeamstopMask.make(from: flat, threshold: 1.0) }
         #expect(throws: CuboVirtualError.self) { try BeamstopMask.make(from: flat, threshold: 0, includeEdges: false) }
         #expect(throws: CuboVirtualError.self) { try ProbeKernel.sigmoid(flat, innerRadius: 3, outerRadius: 3, origin: (row: 4, column: 4)) }
-        #expect(throws: CuboVirtualError.self) { try ProbeKernel.flat(S4.image(Array(repeating: 0, count: 64), 8, 8), origin: (row: 4, column: 4)) }
+        #expect(throws: CuboVirtualError.self) { try ProbeKernel.flat(ProbesPins.image(Array(repeating: 0, count: 64), 8, 8), origin: (row: 4, column: 4)) }
         await #expect(throws: CuboVirtualError.self) {
             try await VacuumProbe.measure(of: cube, scanMask: Array(repeating: false, count: N))
         }
@@ -105,17 +105,17 @@ import CuboVirtual
         // row refinement is −40/880 and the origin row (−40/880)/2 lands at 8 − 1/44 modulo the detector
         var p = [Double](repeating: 0, count: 64)
         p[3] = 10; p[4] = 10; p[11] = -1; p[12] = -1
-        let o = try FriedelOrigin.origin(of: S4.image(p, 8, 8))
+        let o = try FriedelOrigin.origin(of: ProbesPins.image(p, 8, 8))
         #expect(abs(o.row - (8 - 40.0 / 880 / 2)) <= 1e-9 && abs(o.column - 3.5) <= 1e-9, "\(o)")
         // N · threshold = 2.5: index 2 (half to even), the cut at the third-dimmest pixel
         var b = [Double](repeating: 100, count: 64)
         b[0] = 1; b[1] = 2; b[2] = 3
-        let half = try BeamstopMask.make(from: S4.image(b, 8, 8), threshold: 2.5 / 64, distanceEdge: 0.5, includeEdges: false)
+        let half = try BeamstopMask.make(from: ProbesPins.image(b, 8, 8), threshold: 2.5 / 64, distanceEdge: 0.5, includeEdges: false)
         #expect(half.indices.filter { half[$0] } == [0, 1])
         // a dark pixel touching the dark corner only diagonally is a hole (4-connectivity): filled
         var h = [Double](repeating: 100, count: 64)
         h[0] = 1; h[9] = 1
-        let hole = try BeamstopMask.make(from: S4.image(h, 8, 8), threshold: 0.5, distanceEdge: 0.5, includeEdges: false)
+        let hole = try BeamstopMask.make(from: ProbesPins.image(h, 8, 8), threshold: 0.5, distanceEdge: 0.5, includeEdges: false)
         #expect(hole.indices.filter { hole[$0] } == [0])
     }
 
@@ -129,14 +129,14 @@ import CuboVirtual
         }
         await #expect(throws: CuboVirtualError.self) { try await FriedelOrigin.measure(of: cube, upsampleFactor: 1025) }
         _ = try await FriedelOrigin.measure(of: cube, upsampleFactor: 3)
-        let empty = S4.image([], 0, 5)
+        let empty = ProbesPins.image([], 0, 5)
         #expect(throws: CuboVirtualError.self) { try FriedelOrigin.origin(of: empty) }
         #expect(throws: CuboVirtualError.self) { try ProbeKernel.gaussian(empty, sigma: 2, origin: (row: 0, column: 0)) }
         #expect(throws: CuboVirtualError.self) {
             try ProbeKernel.sigmoid(empty, innerRadius: 1, outerRadius: 2, origin: (row: 0, column: 0))
         }
         do {   // a 1 × 1 probe: σ_q² = 0, the Gaussian's sum is NaN; the probe's sum (2.5) is fine
-            _ = try ProbeKernel.gaussian(S4.image([2.5], 1, 1), sigma: 1, origin: (row: 0, column: 0))
+            _ = try ProbeKernel.gaussian(ProbesPins.image([2.5], 1, 1), sigma: 1, origin: (row: 0, column: 0))
             Issue.record("a 1 × 1 Gaussian kernel must be refused")
         } catch let CuboVirtualError.invalidInput(why) {
             #expect(why.hasPrefix("the Gaussian sums to"), "\(why)")
@@ -151,10 +151,10 @@ import CuboVirtual
     /// The fast centre of the planted disk cube is the planted centre; excluded positions are NaN, selected ones
     /// equal the unmasked run exactly; remove_NaN fills with the mean of the rest.
     @Test func testOriginsTruth() async throws {
-        let s3 = (S3.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == "planted_f32" }!
+        let s3 = (OriginFitPins.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == "planted_f32" }!
         let cube = try MappedCube(npy: Fixtures.url("planted_f32.npy"))
         let (fast, _) = try await OriginMeasurement.measure(of: cube, scanMask: nil, fastCenter: true)
-        #expect(fast.row.values == S3.d(s3["truth_row"]) && fast.column.values == S3.d(s3["truth_column"]))
+        #expect(fast.row.values == OriginFitPins.d(s3["truth_row"]) && fast.column.values == OriginFitPins.d(s3["truth_column"]))
         let N = cube.shape.scanCount
         let mask = (0..<N).map { $0 % 3 != 1 }
         let (all, _) = try await OriginMeasurement.measure(of: cube)
@@ -174,21 +174,21 @@ import CuboVirtual
     /// Point-symmetric patterns give their centres; behind a planted beamstop the masked form keeps the peak at twice
     /// the centre; Gaussians at fractional centres within 0.05 px with u = 16.
     @Test func testFriedelTruth() async throws {
-        let t = S4.pins["friedel_truth"] as! [String: Any]
+        let t = ProbesPins.pins["friedel_truth"] as! [String: Any]
         let centres = (t["centres"] as! [[NSNumber]]).map { ($0[0].doubleValue, $0[1].doubleValue) }
         let plain = try await FriedelOrigin.measure(of: try MappedCube(npy: Fixtures.url("friedel_plain.npy")))
         for (k, c) in centres.enumerated() {
             #expect(abs(plain.row.values[k] - c.0) <= 1e-9 && abs(plain.column.values[k] - c.1) <= 1e-9, "centre \(k)")
         }
         let maskedCube = try MappedCube(npy: Fixtures.url("friedel_masked.npy"))
-        let m = S4.b(t["mask"])
+        let m = ProbesPins.b(t["mask"])
         let masked = try await FriedelOrigin.measure(of: maskedCube, mask: m)
         let unmasked = try await FriedelOrigin.measure(of: maskedCube)
         let dm = (masked.row.values.map { abs($0 - 15.5) } + masked.column.values.map { abs($0 - 16.5) }).max()!
         let du = (unmasked.row.values.map { abs($0 - 15.5) } + unmasked.column.values.map { abs($0 - 16.5) }).max()!
         #expect(dm <= 0.04 && du >= 1, "behind the beamstop: masked \(dm) px, unmasked \(du) px")
         #expect(t["masked_peak_is_twice_centre"] as! Bool)
-        let g = S4.pins["friedel_gauss"] as! [String: Any]
+        let g = ProbesPins.pins["friedel_gauss"] as! [String: Any]
         let gc = (g["centres"] as! [[NSNumber]]).map { ($0[0].doubleValue, $0[1].doubleValue) }
         let gauss = try await FriedelOrigin.measure(of: try MappedCube(npy: Fixtures.url("friedel_gauss.npy")), upsampleFactor: 16)
         for (k, c) in gc.enumerated() {
@@ -196,16 +196,16 @@ import CuboVirtual
         }
         // the single-pattern entry equals the cube's
         let p = try await maskedCube.readPattern(row: 0, column: 1)
-        let one = try FriedelOrigin.origin(of: S4.image(p.values.map(Double.init), 32, 34), mask: m)
+        let one = try FriedelOrigin.origin(of: ProbesPins.image(p.values.map(Double.init), 32, 34), mask: m)
         #expect(one.row == masked.row.values[1] && one.column == masked.column.values[1])
     }
 
     /// The planted beamstop mask by hand: the arm and the border dilated by 2, the hole filled, the speck removed.
     @Test func testBeamstopTruth() throws {
-        let t = S4.pins["beamstop_truth"] as! [String: Any]
+        let t = ProbesPins.pins["beamstop_truth"] as! [String: Any]
         let shape = t["shape"] as! [Int]
-        let got = try BeamstopMask.make(from: S4.image(S4.d(t["pattern"]), shape[0], shape[1]))
-        #expect(got == S4.b(t["mask"]))
+        let got = try BeamstopMask.make(from: ProbesPins.image(ProbesPins.d(t["pattern"]), shape[0], shape[1]))
+        #expect(got == ProbesPins.b(t["mask"]))
         #expect(got.filter { $0 }.count == (t["count"] as! Int))
         #expect(!got[11 * 24 + 6 + 12] && got[11 * 24 + 6], "the speck is under the mask, the region beside the arm is not")
     }
@@ -213,45 +213,45 @@ import CuboVirtual
     /// Copies of one disk rolled by known shifts: the aligned average is the disk at p₀; p₀'s hot pixel is absent;
     /// without alignment the mean of p₁ … p_{L−1}; the damping and zeroing as pinned.
     @Test func testVacuumTruth() async throws {
-        let t = S4.pins["vacuum_truth"] as! [String: Any]
+        let t = ProbesPins.pins["vacuum_truth"] as! [String: Any]
         let cube = try MappedCube(npy: Fixtures.url("vacuum_planted.npy"))
         let a = try await VacuumProbe.measure(of: cube, zeroVacuum: false)
-        assertRelative(a.averaged.values, S4.d(t["disk"]), 1e-13, "aligned average is the disk")
+        assertRelative(a.averaged.values, ProbesPins.d(t["disk"]), 1e-13, "aligned average is the disk")
         #expect(a.averaged.values[2 * 32 + 28] == 0, "the hot pixel of p₀ is absent")
         let u = try await VacuumProbe.measure(of: cube, align: false, zeroVacuum: false)
-        assertRelative(u.averaged.values, S4.d(t["plain_mean"]), 1e-14, "unaligned: the mean of p₁ … p_{L−1}")
-        var log = ["slice4 vacuum truth"]
+        assertRelative(u.averaged.values, ProbesPins.d(t["plain_mean"]), 1e-14, "unaligned: the mean of p₁ … p_{L−1}")
+        var log = ["probes vacuum truth"]
         for key in ["aligned", "aligned_damped", "unaligned", "detector_mask"] {
-            try await S4.checkVacuum(t[key] as! [String: Any], cube: cube, name: "planted \(key)", log: &log)
+            try await ProbesPins.checkVacuum(t[key] as! [String: Any], cube: cube, name: "planted \(key)", log: &log)
         }
-        let avg = S4.image(S4.d((t["aligned_damped"] as! [String: Any])["averaged"]), 32, 32)
+        let avg = ProbesPins.image(ProbesPins.d((t["aligned_damped"] as! [String: Any])["averaged"]), 32, 32)
         let z = t["zero_vacuum"] as! [String: Any], c = z["center"] as! [NSNumber]
-        let zv = VacuumProbe.zeroVacuum(avg, center: (row: c[0].doubleValue, column: c[1].doubleValue), alpha: S4.n(z["alpha"]), alphaMax: 1.2)
-        assertRelative(zv.values, S4.d(z["value"]), 1e-12, "zero_vacuum")
-        assertRelative(zv.values, S4.d(z["value_py4dstem"]), 1e-12, "zero_vacuum vs py4DSTEM")
+        let zv = VacuumProbe.zeroVacuum(avg, center: (row: c[0].doubleValue, column: c[1].doubleValue), alpha: ProbesPins.n(z["alpha"]), alphaMax: 1.2)
+        assertRelative(zv.values, ProbesPins.d(z["value"]), 1e-12, "zero_vacuum")
+        assertRelative(zv.values, ProbesPins.d(z["value_py4dstem"]), 1e-12, "zero_vacuum vs py4DSTEM")
         let dv = t["damp_vacuum"] as! [String: Any], dc = dv["center"] as! [NSNumber]
-        let dd = VacuumProbe.dampVacuum(avg, center: (row: dc[0].doubleValue, column: dc[1].doubleValue), alpha: S4.n(dv["alpha"]),
-                                        start: S4.n(dv["s"]), width: S4.n(dv["w"]), power: S4.n(dv["p"]))
-        assertRelative(dd.values, S4.d(dv["value"]), 1e-12, "zero_vacuum_sinusoid")
-        assertRelative(dd.values, S4.d(dv["value_py4dstem"]), 1e-12, "zero_vacuum_sinusoid vs py4DSTEM")
+        let dd = VacuumProbe.dampVacuum(avg, center: (row: dc[0].doubleValue, column: dc[1].doubleValue), alpha: ProbesPins.n(dv["alpha"]),
+                                        start: ProbesPins.n(dv["s"]), width: ProbesPins.n(dv["w"]), power: ProbesPins.n(dv["p"]))
+        assertRelative(dd.values, ProbesPins.d(dv["value"]), 1e-12, "zero_vacuum_sinusoid")
+        assertRelative(dd.values, ProbesPins.d(dv["value_py4dstem"]), 1e-12, "zero_vacuum_sinusoid vs py4DSTEM")
         print(log.joined(separator: "\n  "))
     }
 
     /// Synthetic probes as py4DSTEM's (1/2 on the radius); the flat kernel sums to 1, the others to 0; the kernels pinned.
     @Test func testKernelTruth() throws {
-        let sps = S4.pins["synthetic_probes"] as! [[String: Any]]
+        let sps = ProbesPins.pins["synthetic_probes"] as! [[String: Any]]
         for sp in sps {
             let shape = sp["shape"] as! [Int]
-            let p = try SyntheticProbe.make(radius: S4.n(sp["radius"]), width: S4.n(sp["width"]),
+            let p = try SyntheticProbe.make(radius: ProbesPins.n(sp["radius"]), width: ProbesPins.n(sp["width"]),
                                             detectorRows: shape[0], detectorColumns: shape[1])
-            #expect(S4.normwise(p.values, S4.d(sp["probe"])) <= 1e-12)
+            #expect(ProbesPins.normwise(p.values, ProbesPins.d(sp["probe"])) <= 1e-12)
         }
         let probe = try SyntheticProbe.make(radius: 6, width: 2, detectorRows: 32, detectorColumns: 30)
         #expect(probe[22, 15] == 0.5, "on the radius")
-        let kt = S4.pins["kernels"] as! [String: Any]
-        var log = ["slice4 kernel truth"]
-        try S4.checkKernels(kt["cases"] as! [[String: Any]], probe: probe, name: "synthetic", log: &log)
-        try S4.checkKernels(kt["cases_given_origin"] as! [[String: Any]], probe: probe, name: "synthetic, origin given", log: &log)
+        let kt = ProbesPins.pins["kernels"] as! [String: Any]
+        var log = ["probes kernel truth"]
+        try ProbesPins.checkKernels(kt["cases"] as! [[String: Any]], probe: probe, name: "synthetic", log: &log)
+        try ProbesPins.checkKernels(kt["cases_given_origin"] as! [[String: Any]], probe: probe, name: "synthetic, origin given", log: &log)
         #expect(abs(try ProbeKernel.flat(probe).values.reduce(0, +) - 1) <= 1e-12)
         #expect(abs(try ProbeKernel.gaussian(probe, sigma: 4).values.reduce(0, +)) <= 1e-12)
         #expect(abs(try ProbeKernel.sigmoid(probe, innerRadius: 6, outerRadius: 12).values.reduce(0, +)) <= 1e-12)

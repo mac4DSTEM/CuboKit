@@ -1,5 +1,5 @@
 //
-//  Slice3Tests.swift
+//  OriginFitTests.swift
 //  Per-position origins, fits, centred, calibrated and shifted virtual imaging against py4DSTEM
 //  f050d207 and planted truth: origin-fit-pins.json and, on this machine, the real-data exports (<name>-s3-pins.json).
 //
@@ -10,21 +10,21 @@ import CuboKitTestSupport
 import CuboCore
 import CuboVirtual
 
-@Suite struct Slice3Tests {
+@Suite struct OriginFitTests {
     @Test(arguments: ["planted_f32", "planted_u16", "gaussian", "counts16"])
-    func testSlice3PinsOnSyntheticCubes(_ name: String) async throws {
-        let e = (S3.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == name }!
-        try await S3.check(e, cube: try MappedCube(npy: Fixtures.url("\(name).npy")), integer: name == "planted_u16" || name == "counts16")
+    func testPinsOnSyntheticCubes(_ name: String) async throws {
+        let e = (OriginFitPins.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == name }!
+        try await OriginFitPins.check(e, cube: try MappedCube(npy: Fixtures.url("\(name).npy")), integer: name == "planted_u16" || name == "counts16")
     }
 
     /// The origins of the planted cubes are the planted centres; the rounded shifted mean is the unshifted disk.
     @Test(arguments: ["planted_f32", "planted_u16"])
     func testPlantedBeamShiftIsRecovered(_ name: String) async throws {
-        let e = (S3.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == name }!
+        let e = (OriginFitPins.pins["cubes"] as! [[String: Any]]).first { $0["cube"] as! String == name }!
         let cube = try MappedCube(npy: Fixtures.url("\(name).npy"))
         let (o, _) = try await OriginMeasurement.measure(of: cube)
-        let dr = zip(o.row.values, S3.d(e["truth_row"])).map { abs($0 - $1) }.max()!
-        let dc = zip(o.column.values, S3.d(e["truth_column"])).map { abs($0 - $1) }.max()!
+        let dr = zip(o.row.values, OriginFitPins.d(e["truth_row"])).map { abs($0 - $1) }.max()!
+        let dc = zip(o.column.values, OriginFitPins.d(e["truth_column"])).map { abs($0 - $1) }.max()!
         #expect(dr <= 1e-9 && dc <= 1e-9, "planted centres \(dr), \(dc)")
         let (mean, _) = try await VirtualDiffraction.meanAndMax(of: cube, shift: .rounded(o))
         let p0 = try await cube.readPattern(row: 0, column: 0)
@@ -36,9 +36,9 @@ import CuboVirtual
 
     /// Exact surfaces recovered by their own model; one outlier removed by the robust fit.
     @Test func testFitTruth() throws {
-        for (key, t) in S3.pins["fit_truth"] as! [String: [String: Any]] {
-            let model = S3.fitModels[key]!, shape = t["shape"] as! [Int]
-            let s = S3.d(t["surface"]), o = S3.d(t["with_outlier"])
+        for (key, t) in OriginFitPins.pins["fit_truth"] as! [String: [String: Any]] {
+            let model = OriginFitPins.fitModels[key]!, shape = t["shape"] as! [Int]
+            let s = OriginFitPins.d(t["surface"]), o = OriginFitPins.d(t["with_outlier"])
             let f = try OriginFit.fit(s, rows: shape[0], columns: shape[1], model: model)
             #expect(zip(f, s).allSatisfy { abs($0 - $1) <= 1e-10 }, "\(key)")
             let rf = try OriginFit.fit(o, rows: shape[0], columns: shape[1], model: model, robust: true)

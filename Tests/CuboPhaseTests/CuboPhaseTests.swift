@@ -1,7 +1,7 @@
 //
 //  CuboPhaseTests.swift
 //  The centre-of-mass reference, the R–Q rotation and DPC against py4DSTEM f050d207 and planted truth. The pins are
-//  CuboVirtualTests/Fixtures/com-dpc-pins.json; the real data are slice 2's exports in $CUBOKIT_REAL_DATA.
+//  CuboVirtualTests/Fixtures/com-dpc-pins.json; the real data are the exports of tools/com-dpc/pins.py in $CUBOKIT_REAL_DATA.
 //
 
 import Foundation
@@ -14,9 +14,9 @@ import CuboVirtual
 @Suite struct CuboPhasePinsTests {
     /// The full chain from the kit's own centre of mass on the synthetic cubes (plane fit, as py4DSTEM's default).
     @Test func testChainOnCubesAgreesWithTheFloat64ChainAndPy4DSTEM() async throws {
-        for e in (Pins2.pins["com"] as! [[String: Any]]) where e["chain"] != nil {
+        for e in (ComDPCPins.pins["com"] as! [[String: Any]]) where e["chain"] != nil {
             let name = e["cube"] as! String
-            let cube = try MappedCube(npy: Pins2.fixtures.appendingPathComponent("\(name).npy"))
+            let cube = try MappedCube(npy: ComDPCPins.fixtures.appendingPathComponent("\(name).npy"))
             let com = try await CenterOfMass.measure(of: cube)
             let measured = try ScanVectorField(scanRows: com.row.scanRows, scanColumns: com.row.scanColumns,
                                                row: com.row.values, column: com.column.values)
@@ -26,10 +26,10 @@ import CuboVirtual
 
     /// The planted fields (5.1): the solver returns the planted angle and transpose, as py4DSTEM does.
     @Test func testChainOnPlantedFields() throws {
-        for f in Pins2.pins["fields"] as! [[String: Any]] {
+        for f in ComDPCPins.pins["fields"] as! [[String: Any]] {
             let shape = f["shape"] as! [Int]
             let field = try ScanVectorField(scanRows: shape[0], scanColumns: shape[1],
-                                            row: Pins2.doubles(f["measured_x"]), column: Pins2.doubles(f["measured_y"]))
+                                            row: ComDPCPins.doubles(f["measured_x"]), column: ComDPCPins.doubles(f["measured_y"]))
             try checkChain(measured: field, reference: .none, pins: f, "field \(f["theta"]!)")
             let solution = try RotationSolver.solve(field)
             #expect(solution.degrees == f["theta"] as! Double && solution.transposed == f["transpose"] as! Bool)
@@ -40,12 +40,12 @@ import CuboVirtual
 @Suite struct CuboPhaseTruthTests {
     /// The reconstruction of a known phase gradient correlates with the phase at ≥ 0.99.
     @Test func testKnownPhaseIsReconstructed() throws {
-        for f in Pins2.pins["fields"] as! [[String: Any]] where f["theta"] as! Double == 0 {
+        for f in ComDPCPins.pins["fields"] as! [[String: Any]] where f["theta"] as! Double == 0 {
             let shape = f["shape"] as! [Int]
             let field = try ScanVectorField(scanRows: shape[0], scanColumns: shape[1],
-                                            row: Pins2.doubles(f["measured_x"]), column: Pins2.doubles(f["measured_y"]))
+                                            row: ComDPCPins.doubles(f["measured_x"]), column: ComDPCPins.doubles(f["measured_y"]))
             let phase = try DPC.reconstruct(field).phase
-            let phi = Pins2.doubles(f["phi"])
+            let phi = ComDPCPins.doubles(f["phi"])
             let mp = phase.reduce(0, +) / Double(phase.count), mq = phi.reduce(0, +) / Double(phi.count)
             var spq = 0.0, spp = 0.0, sqq = 0.0
             for k in phi.indices { let p = phase[k] - mp, q = phi[k] - mq; spq += p * q; spp += p * p; sqq += q * q }
@@ -58,10 +58,10 @@ import CuboVirtual
 
     /// The curl of an exact gradient vanishes at θ = 0 (to rounding); the divergence criterion picks the same angle.
     @Test func testCurlOfAGradientAndTheDivergenceCriterion() throws {
-        let f = (Pins2.pins["fields"] as! [[String: Any]]).first { $0["theta"] as! Double == 23 }!
+        let f = (ComDPCPins.pins["fields"] as! [[String: Any]]).first { $0["theta"] as! Double == 23 }!
         let shape = f["shape"] as! [Int]
         let field = try ScanVectorField(scanRows: shape[0], scanColumns: shape[1],
-                                        row: Pins2.doubles(f["measured_x"]), column: Pins2.doubles(f["measured_y"]))
+                                        row: ComDPCPins.doubles(f["measured_x"]), column: ComDPCPins.doubles(f["measured_y"]))
         let curl = try RotationSolver.solve(field)
         let k = curl.anglesDegrees.firstIndex(of: 23)!
         #expect(curl.curve[k] <= 1e-12 * curl.curve.max()!, "curl at the planted angle \(curl.curve[k])")
@@ -75,10 +75,10 @@ import CuboVirtual
 
     /// A pure plane is removed by the plane fit to rounding; `.constant` removes the mean; `.given` subtracts the field.
     @Test func testReferences() throws {
-        let p = Pins2.pins["plane"] as! [String: Any]
+        let p = ComDPCPins.pins["plane"] as! [String: Any]
         let shape = p["shape"] as! [Int]
-        let plane = try ScanVectorField(scanRows: shape[0], scanColumns: shape[1], row: Pins2.doubles(p["x"]),
-                                        column: Pins2.doubles(p["y"]))
+        let plane = try ScanVectorField(scanRows: shape[0], scanColumns: shape[1], row: ComDPCPins.doubles(p["x"]),
+                                        column: ComDPCPins.doubles(p["y"]))
         let n = try CenterOfMassReference.normalize(plane, reference: .planeFit).normalized
         #expect((n.row + n.column).allSatisfy { abs($0) <= 1e-12 })
         let c = try CenterOfMassReference.normalize(plane, reference: .constant, reciprocalSampling: 2).normalized
@@ -108,10 +108,10 @@ import CuboVirtual
     /// Backtracking halves the step: a step of 8 overshoots on the planted field, so iterations are rejected, the
     /// final step is 8 / 2^(rejections), and the accepted errors never increase.
     @Test func testBacktrackingHalvesTheStep() throws {
-        let f = (Pins2.pins["fields"] as! [[String: Any]]).first { $0["theta"] as! Double == 0 }!
+        let f = (ComDPCPins.pins["fields"] as! [[String: Any]]).first { $0["theta"] as! Double == 0 }!
         let shape = f["shape"] as! [Int]
         let field = try ScanVectorField(scanRows: shape[0], scanColumns: shape[1],
-                                        row: Pins2.doubles(f["measured_x"]), column: Pins2.doubles(f["measured_y"]))
+                                        row: ComDPCPins.doubles(f["measured_x"]), column: ComDPCPins.doubles(f["measured_y"]))
         let r = try DPC.reconstruct(field, maxIterations: 40, stepSize: 8)
         let rejected = r.accepted.filter { !$0 }.count
         #expect(rejected > 0, "a step of 8 must overshoot")
@@ -124,10 +124,10 @@ import CuboVirtual
     /// Degrees become radians as NumPy's deg2rad and Python's math.radians do, deg · (π/180), asserted exact today
     /// (deg · π / 180 differs by an ulp for 38 of the 179 default angles); a non-finite field is refused.
     @Test func testRadiansAndNonFiniteFields() throws {
-        let f = (Pins2.pins["fields"] as! [[String: Any]]).first { $0["theta"] as! Double == 23 }!
+        let f = (ComDPCPins.pins["fields"] as! [[String: Any]]).first { $0["theta"] as! Double == 23 }!
         let shape = f["shape"] as! [Int]
         let field = try ScanVectorField(scanRows: shape[0], scanColumns: shape[1],
-                                        row: Pins2.doubles(f["measured_x"]), column: Pins2.doubles(f["measured_y"]))
+                                        row: ComDPCPins.doubles(f["measured_x"]), column: ComDPCPins.doubles(f["measured_y"]))
         for deg in RotationSolver.defaultAnglesDegrees {
             let s = try RotationSolver.solve(field, forceRotationDegrees: deg, forceTranspose: false)
             #expect(s.radians.bitPattern == (deg * (Double.pi / 180)).bitPattern, "\(deg)")

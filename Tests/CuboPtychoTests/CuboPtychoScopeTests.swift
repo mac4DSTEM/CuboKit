@@ -1,6 +1,6 @@
 import Testing
 import CuboPtycho
 
-@Suite struct CuboPtychoPlaceholderTests {
+@Suite struct CuboPtychoScopeTests {
     @Test func testTheModuleStatesItsScope() { #expect(CuboPtycho.scope.contains("single-slice")) }
 }

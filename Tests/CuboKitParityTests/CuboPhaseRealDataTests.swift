@@ -1,6 +1,6 @@
 //
 //  CuboPhaseRealDataTests.swift
-//  Role: Slice 2 centre-of-mass, rotation, DPC and probe checks on the real cubes in $CUBOKIT_REAL_DATA (skipped by name when absent).
+//  Role: Centre-of-mass, rotation, DPC and probe checks on the real cubes in $CUBOKIT_REAL_DATA (skipped by name when absent).
 //
 
 import Foundation
@@ -13,7 +13,7 @@ import CuboKitTestSupport
 /// Serialized: each test maps a real cube; real data absent → skipped by name (tools/test.sh then writes no stamp).
 @Suite(.serialized) struct CuboPhaseRealDataTests {
     static func check(_ name: String) async throws {
-        let dir = Pins2.realData
+        let dir = ComDPCPins.realData
         let info = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent("\(name)-s2-pins.json"))) as! [String: Any]
         func a(_ key: String) throws -> [Double] { try NPYFile.readDoubles(dir.appendingPathComponent("\(name)-s2-\(key).npy")).values }
         let cube = try MappedCube(npy: dir.appendingPathComponent("\(name).npy"))
@@ -21,7 +21,7 @@ import CuboKitTestSupport
         let bfSpec = ((meta["geometries"] as! [[String: Any]]).first { $0["name"] as! String == "bf" }!["geometry"]) as! [String: Any]
         let bf = DetectorGeometry.circle(centerRow: bfSpec["centerRow"] as! Double, centerColumn: bfSpec["centerColumn"] as! Double,
                                          radius: bfSpec["radius"] as! Double)
-        var log = ["real slice 2 \(name)"]
+        var log = ["real com-dpc \(name)"]
         for (mname, mask) in [("none", DetectorGeometry?.none), ("bf", bf)] {
             let com = try await CenterOfMass.measure(of: cube, mask: mask)
             near(com.intensity.values, try a("com_\(mname)_intensity"), 1e-10, "\(name)/\(mname) intensity")
@@ -65,22 +65,22 @@ import CuboKitTestSupport
             let e = (info["probe"] as! [String: Any])[kind] as! [String: Any]
             if e["refused"] as! Bool { #expect(throws: CuboVirtualError.self) { try ProbeSize.estimate(pattern) }; continue }
             let p = try ProbeSize.estimate(pattern)
-            #expect(p.radius.bitPattern == Pins2.double(e["radius"]).bitPattern
-                    && p.centerRow.bitPattern == Pins2.double(e["center_row"]).bitPattern
-                    && p.centerColumn.bitPattern == Pins2.double(e["center_column"]).bitPattern, "\(name) probe \(kind)")
+            #expect(p.radius.bitPattern == ComDPCPins.double(e["radius"]).bitPattern
+                    && p.centerRow.bitPattern == ComDPCPins.double(e["center_row"]).bitPattern
+                    && p.centerColumn.bitPattern == ComDPCPins.double(e["center_column"]).bitPattern, "\(name) probe \(kind)")
             log.append("probe \(kind): r \(p.radius) at (\(p.centerRow), \(p.centerColumn))")
         }
         print(log.joined(separator: "\n  "))
     }
 
-    @Test(.enabled(if: Pins2.realIsPresent("almgsi"), "real data absent: run tools/com-dpc/pins.py real"))
-    func testAlMgSiStudyCubeSlice2() async throws { try await Self.check("almgsi") }
-    @Test(.enabled(if: Pins2.realIsPresent("auref"), "real data absent: run tools/com-dpc/pins.py real"))
-    func testAuReferenceCubeSlice2() async throws { try await Self.check("auref") }
-    @Test(.enabled(if: Pins2.realIsPresent("simau"), "real data absent: run tools/com-dpc/pins.py real"))
-    func testSimulatedPolycrystallineGoldSlice2() async throws { try await Self.check("simau") }
-    @Test(.enabled(if: Pins2.realIsPresent("particle"), "real data absent: run tools/com-dpc/pins.py real"))
-    func testParticleCubeSlice2() async throws { try await Self.check("particle") }
-    @Test(.enabled(if: Pins2.realIsPresent("py4dstem_small"), "real data absent: run tools/com-dpc/pins.py real"))
-    func testPy4DSTEMSmallDatacubeSlice2() async throws { try await Self.check("py4dstem_small") }
+    @Test(.enabled(if: ComDPCPins.realIsPresent("almgsi"), "real data absent: run tools/com-dpc/pins.py real"))
+    func testAlMgSiStudyCube() async throws { try await Self.check("almgsi") }
+    @Test(.enabled(if: ComDPCPins.realIsPresent("auref"), "real data absent: run tools/com-dpc/pins.py real"))
+    func testAuReferenceCube() async throws { try await Self.check("auref") }
+    @Test(.enabled(if: ComDPCPins.realIsPresent("simau"), "real data absent: run tools/com-dpc/pins.py real"))
+    func testSimulatedPolycrystallineGold() async throws { try await Self.check("simau") }
+    @Test(.enabled(if: ComDPCPins.realIsPresent("particle"), "real data absent: run tools/com-dpc/pins.py real"))
+    func testParticleCube() async throws { try await Self.check("particle") }
+    @Test(.enabled(if: ComDPCPins.realIsPresent("py4dstem_small"), "real data absent: run tools/com-dpc/pins.py real"))
+    func testPy4DSTEMSmallDatacube() async throws { try await Self.check("py4dstem_small") }
 }
