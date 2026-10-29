@@ -13,7 +13,7 @@ import CuboKitTestSupport
 /// Serialized: each test maps a real cube; real data absent → skipped by name (tools/test.sh then writes no stamp).
 @Suite(.serialized) struct CuboPhaseRealDataTests {
     static func check(_ name: String) async throws {
-        let dir = ComDPCPins.realData
+        let dir = Fixtures.realData
         let info = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent("\(name)-s2-pins.json"))) as! [String: Any]
         func a(_ key: String) throws -> [Double] { try NPYFile.readDoubles(dir.appendingPathComponent("\(name)-s2-\(key).npy")).values }
         let cube = try MappedCube(npy: dir.appendingPathComponent("\(name).npy"))

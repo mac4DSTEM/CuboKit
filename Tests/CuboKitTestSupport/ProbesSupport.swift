@@ -16,9 +16,7 @@ package enum ProbesPins {
     package static func d(_ a: Any?) -> [Double] { (a as? [String] ?? []).map { Double($0)! } }
     package static func b(_ a: Any?) -> [Bool] { (a as? [Int] ?? []).map { $0 != 0 } }
     package static func n(_ a: Any?) -> Double { (a as? NSNumber)?.doubleValue ?? Double(a as! String)! }
-    package static func realIsPresent(_ name: String) -> Bool {
-        FileManager.default.fileExists(atPath: Fixtures.realData.appendingPathComponent("\(name)-s4-pins.json").path)
-    }
+    package static func realIsPresent(_ name: String) -> Bool { Fixtures.realDataHas("\(name)-s4-pins.json") }
     package static func image(_ v: [Double], _ rows: Int, _ columns: Int) -> DetectorImage {
         DetectorImage(detectorRows: rows, detectorColumns: columns, values: v, path: .cpu)
     }

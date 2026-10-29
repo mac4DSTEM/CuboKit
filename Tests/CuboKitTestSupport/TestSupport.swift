@@ -21,6 +21,10 @@ package enum Fixtures {
         }
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/CuboKit/real-data")
     }
+    /// Whether `file` exists in the real-data directory: the one lookup every real-data suite is enabled by.
+    package static func realDataHas(_ file: String) -> Bool {
+        FileManager.default.fileExists(atPath: realData.appendingPathComponent(file).path)
+    }
 }
 
 /// A float64 written by the generator as a 17-significant-digit string, parsed by Double(String) (correctly rounded).
@@ -164,7 +168,7 @@ package func assertIdentical(_ got: [Double], _ want: [Double], _ message: @auto
 
 /// Whether the real-data directory holds `name`'s export; the real-data tests are enabled by it.
 package func realDataIsPresent(_ name: String) -> Bool {
-    FileManager.default.fileExists(atPath: Fixtures.realData.appendingPathComponent("\(name)-pins.json").path)
+    Fixtures.realDataHas("\(name)-pins.json")
 }
 
 package func doubles(_ pins: [D]) -> [Double] { pins.map(\.value) }

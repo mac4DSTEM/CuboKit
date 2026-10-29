@@ -20,9 +20,7 @@ package enum OriginFitPins {
             ? .circle(centerRow: n("centerRow"), centerColumn: n("centerColumn"), radius: n("radius"))
             : .annulus(centerRow: n("centerRow"), centerColumn: n("centerColumn"), inner: n("inner"), outer: n("outer"))
     }
-    package static func realIsPresent(_ name: String) -> Bool {
-        FileManager.default.fileExists(atPath: Fixtures.realData.appendingPathComponent("\(name)-s3-pins.json").path)
-    }
+    package static func realIsPresent(_ name: String) -> Bool { Fixtures.realDataHas("\(name)-s3-pins.json") }
     package static let fitModels: [String: OriginFitModel] = ["constant": .constant, "plane": .plane, "parabola": .parabola,
                                                       "bezier_two": .bezierTwo]
 

@@ -17,13 +17,7 @@ package enum ComDPCPins {
     }()
     package static func doubles(_ any: Any?) -> [Double] { (any as? [String] ?? []).map { Double($0)! } }
     package static func double(_ any: Any?) -> Double { Double(any as! String)! }
-    package static var realData: URL {
-        if let env = ProcessInfo.processInfo.environment["CUBOKIT_REAL_DATA"], !env.isEmpty { return URL(fileURLWithPath: env) }
-        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/CuboKit/real-data")
-    }
-    package static func realIsPresent(_ name: String) -> Bool {
-        FileManager.default.fileExists(atPath: realData.appendingPathComponent("\(name)-s2-pins.json").path)
-    }
+    package static func realIsPresent(_ name: String) -> Bool { Fixtures.realDataHas("\(name)-s2-pins.json") }
 }
 
 /// Relative with the floor of virtual-pins.json (1e-6 · max|want|).
