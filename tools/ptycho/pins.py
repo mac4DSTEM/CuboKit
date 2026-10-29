@@ -1,5 +1,5 @@
 """Pinned py4DSTEM CPU single-slice oracle, no app transcription.
-Run from the worktree: ../../References/python/py4dstem/bin/python -I -B tools/ptycho/pins.py
+Run from the clone root: python -I -B tools/ptycho/pins.py
 Only preprocessed numerical arrays cross the API; no calibration/state/UI is ported.
 """
 from pathlib import Path
@@ -9,7 +9,9 @@ import py4DSTEM
 from py4DSTEM.process.phase import SingleslicePtychography
 from py4DSTEM.process.phase.utils import ComplexProbe, electron_wavelength_angstrom
 KIT = Path(__file__).resolve().parents[2]
-REF = KIT.parents[0] / 'References/CuboKit/py4DSTEM-f050d207'
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC
+REF = PY4DSTEM_SRC
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'], text=True).strip().startswith('f050d207')
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4'
 assert platform.python_version() == '3.12.14'

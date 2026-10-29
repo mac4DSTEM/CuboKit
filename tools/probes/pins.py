@@ -1,8 +1,8 @@
 """CuboKit median pattern, selections, Friedel origin, beamstop mask and vacuum probe: the pin generator.
 
-    ../References/python/py4dstem/bin/python -I -B tools/probes/pins.py synthetic
-    ../References/python/py4dstem/bin/python -I -B tools/probes/pins.py export-bullseye
-    ../References/python/py4dstem/bin/python -I -B tools/probes/pins.py real [name ...]
+    python -I -B tools/probes/pins.py synthetic
+    python -I -B tools/probes/pins.py export-bullseye
+    python -I -B tools/probes/pins.py real [name ...]
 
 The watchdog thread below caps memory (8 GB by default). One worker at a time; almgsi and auref need --gb 16 (and CUBOKIT_PINS_MEM_GB=16).
 

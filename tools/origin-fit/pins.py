@@ -1,7 +1,7 @@
 """CuboKit origins, origin fits and shifted imaging: the pin generator.
 
-    ../References/python/py4dstem/bin/python -I -B tools/origin-fit/pins.py synthetic
-    ../References/python/py4dstem/bin/python -I -B tools/origin-fit/pins.py real [name ...]
+    python -I -B tools/origin-fit/pins.py synthetic
+    python -I -B tools/origin-fit/pins.py real [name ...]
 
 synthetic -> Tests/CuboVirtualTests/Fixtures/origin-fit-pins.json (+ planted cubes as .npy), before any Swift;
 real -> $CUBOKIT_REAL_DATA/<name>-s3-pins.json and <name>-s3-<quantity>.npy beside the exports of tools/virtual/pins.py.
@@ -19,7 +19,9 @@ from py4DSTEM.process.calibration import get_probe_size, get_origin, fit_origin
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.abspath(os.path.join(HERE, "..", ".."))
 FIX = os.path.join(KIT, "Tests", "CuboVirtualTests", "Fixtures")
-REAL = os.environ.get("CUBOKIT_REAL_DATA", os.path.expanduser("~/Library/Caches/CuboKit/real-data"))
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+import pinenv
+REAL = str(pinenv.REAL)
 CHECKS = []
 
 

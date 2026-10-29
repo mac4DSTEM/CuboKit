@@ -1,7 +1,7 @@
-"""Generate CuboEmbedding pins. Run with the OLD pinned venv (scikit-learn 1.4.2; References/python/py4dstem has 1.9.1,
-whose PCA fixtures differ, so a regeneration there is a fixture move of its own):
+"""Generate CuboEmbedding pins. Run with the environment of tools/embedding/requirements.txt (scikit-learn 1.4.2;
+tools/requirements.txt has 1.9.1, whose PCA fixtures differ, so a regeneration there is a fixture move of its own):
 
-    ../../References/CuboKit/py4dstem-venv/bin/python -I -B tools/embedding/pins.py
+    python -I -B tools/embedding/pins.py
 
 Primary pins come from scikit-learn (PCA svd_solver="full", KMeans init=<array>, n_init=1, algorithm="lloyd").
 App pins come from the ORIGINAL mac4DSTEM DiffractionEmbedding.swift at APP: its numeric helpers are sliced out of the
@@ -16,7 +16,6 @@ from sklearn.cluster import KMeans
 import sklearn.utils.extmath as extmath
 
 ROOT = Path(__file__).resolve().parents[2]
-SUITE = next(p for p in ROOT.parents if (p / 'References/CuboKit').is_dir())
 OUT = ROOT / 'Tests/CuboEmbeddingTests/Fixtures'
 APP = 'c809679c8ee23a355da6af4f63665aaf64f90d0d'
 APPFILE = 'mac4DSTEM/Core/Analysis/DiffractionEmbedding.swift'
@@ -79,7 +78,9 @@ km_tol = kmeans_case('kmTol', blobs, blobs[[3, 4, 5, 6]] + .1, tol=0.5)         
 cases['kmTol']['tolerance'] = 0.5
 
 # ---------------------------------------------------------------- the original app source
-src = subprocess.check_output(['git', '-C', str(SUITE / 'mac4DSTEM'), '--no-optional-locks', 'show', f'{APP}:{APPFILE}'], text=True)
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import MAC4DSTEM_REPO
+src = subprocess.check_output(['git', '-C', str(MAC4DSTEM_REPO), '--no-optional-locks', 'show', f'{APP}:{APPFILE}'], text=True)
 meta['app']['file_sha256'] = hashlib.sha256(src.encode()).hexdigest()
 def between(a, b):
     i = src.index(a); j = src.index(b, i) if b else len(src)

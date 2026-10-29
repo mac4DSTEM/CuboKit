@@ -1,9 +1,9 @@
 """CuboKit virtual images and patterns (detectors, virtual images, mean and max patterns): the pin generator.
 
-Run with the pinned oracle, from any directory:
+Run with the environment of tools/requirements.txt, from any directory:
 
-    ../References/python/py4dstem/bin/python -I -B tools/virtual/pins.py synthetic
-    ../References/python/py4dstem/bin/python -I -B tools/virtual/pins.py real [name ...]
+    python -I -B tools/virtual/pins.py synthetic
+    python -I -B tools/virtual/pins.py real [name ...]
 
 `synthetic` writes Tests/CuboVirtualTests/Fixtures/<cube>.npy and virtual-pins.json (committed) BEFORE any Swift exists.
 `real` exports your own cubes and py4DSTEM's test datacube as .npy into the real-data
@@ -42,7 +42,10 @@ from py4DSTEM.datacube import DataCube
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.abspath(os.path.join(HERE, "..", ".."))
 FIXTURES = os.path.join(KIT, "Tests", "CuboVirtualTests", "Fixtures")
-REAL = os.environ.get("CUBOKIT_REAL_DATA", os.path.expanduser("~/Library/Caches/CuboKit/real-data"))
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+import pinenv
+from pinenv import PY4DSTEM_TEST_DATA
+REAL = str(pinenv.REAL)
 MACEM_DATA = os.environ.get("MACEM_DATA", os.path.abspath(os.path.join(KIT, "..", "data")))
 SEED = 20261014
 CHECKS = []
@@ -342,7 +345,7 @@ REAL_CUBES = {
 def load_real(name):
     rel, dpath = REAL_CUBES[name]
     if rel is None:
-        path = os.path.join(KIT, "References", "py4dstem-test-data", "small_datacube.dm4")
+        path = str(PY4DSTEM_TEST_DATA / "small_datacube.dm4")
         dc = py4DSTEM.import_file(path)
         return np.ascontiguousarray(dc.data), path, "py4DSTEM.import_file"
     path = os.path.join(MACEM_DATA, rel)

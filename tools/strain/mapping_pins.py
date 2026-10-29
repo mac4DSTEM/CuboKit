@@ -3,7 +3,7 @@ StrainMap (choose_basis_vectors, fit_basis_vectors, get_strain) run on planted l
 public simulated Au dataset. Sibling of pins.py (which is untouched); writes only `map_*.f64` and `strain_mapping.json`
 under Tests/CuboStrainTests/Fixtures. Run from the clone root:
 
-  ../References/python/py4dstem/bin/python -I -B tools/strain/mapping_pins.py
+  python -I -B tools/strain/mapping_pins.py
 
 Peaks are stored as py4DSTEM sees them (centred, calibrated vectors from `get_vectors(center=True)`), so the Swift side
 starts from the same doubles. Rows are py4DSTEM x, columns y.
@@ -22,13 +22,13 @@ from py4DSTEM.process.strain.latticevectors import get_reference_g1g2
 
 warnings.filterwarnings('ignore')
 ROOT = Path(__file__).resolve().parents[2]
-SUITE = next(p for p in ROOT.parents if (p/'References/CuboKit').is_dir())
-REF = SUITE/'References/CuboKit'
 PIN = 'f050d207851f8accd3aa550365baaf1f38230428'
-assert subprocess.check_output(['git','-C',str(REF/'py4DSTEM-f050d207'),'rev-parse','HEAD'],text=True).strip() == PIN
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC, PY4DSTEM_TEST_DATA
+assert subprocess.check_output(['git','-C',str(PY4DSTEM_SRC),'rev-parse','HEAD'],text=True).strip() == PIN
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 for rel in ['process/strain/latticevectors.py','process/strain/strain.py','braggvectors/braggvector_methods.py','preprocess/utils.py']:
-    assert (Path(py4DSTEM.__file__).parent/rel).read_bytes() == (REF/'py4DSTEM-f050d207/py4DSTEM'/rel).read_bytes()
+    assert (Path(py4DSTEM.__file__).parent/rel).read_bytes() == (PY4DSTEM_SRC / 'py4DSTEM'/rel).read_bytes()
 
 OUT = ROOT/'Tests/CuboStrainTests/Fixtures'
 OUT.mkdir(parents=True, exist_ok=True)
@@ -160,7 +160,7 @@ sm2 = run_strainmap('r3', 'd2', bv2, scan2, dict(subpixel='pixel', sigma=0, minS
 run_strainmap('r5', 'd2', bv2, scan2, dict(index_g1=1, sigma=1, minSpacing=2, maxNumPeaks=10), 2.5, None, None, 0, 'median')
 
 # ---- D3: peaks measured on the public simulated Au dataset (py4DSTEM test data Au_sim.h5, simulation_4DSTEM) --------------
-au = REF/'py4dstem-test-data/Au_sim.h5'
+au = PY4DSTEM_TEST_DATA / 'Au_sim.h5'
 f = h5py.File(au, 'r')
 cube = f['4DSTEM_experiment/data/datacubes/simulation_4DSTEM/data']
 r0, c0, scan3, det3 = 48, 38, (8, 8), (125, 125)

@@ -1,11 +1,13 @@
 """Pins for CuboCore FrameTransform. py4DSTEM (f050d207) moves no origin on crop/bin, so the primary pin for those is the
 app source CalibrationReReference.swift at mac4DSTEM c809679c, transcribed here in Float32 (never from the Swift port).
 py4DSTEM contributes the crop slice and the Q-pixel-size x bin rule, asserted from its source text.
-Run: ../../References/python/py4dstem/bin/python -I -B tools/rereference/pins.py"""
+Run: python -I -B tools/rereference/pins.py"""
 import json, pathlib, numpy as np
 f = np.float32
-ref = pathlib.Path('../References/CuboKit/py4DSTEM-f050d207/py4DSTEM/preprocess/preprocess.py')
-if not ref.exists(): ref = pathlib.Path('../../References/CuboKit/py4DSTEM-f050d207/py4DSTEM/preprocess/preprocess.py')
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+import pinenv
+from pinenv import PY4DSTEM_SRC
+ref = PY4DSTEM_SRC / 'py4DSTEM/preprocess/preprocess.py'
 src = ref.read_text()
 assert 'get_Q_pixel_size() * bin_factor' in src and 'datacube.data[\n        :, :, crop_Qx_min:crop_Qx_max' in src
 def binned(v, b): return f(v) if b <= 1 else f((f(v) + f(0.5)) / f(b) - f(0.5))
@@ -35,4 +37,4 @@ for k in ("a", "b"):
     first = next((i for i in range(12) if not inside(f(mc[i]), f(mr[i]), w, h)), None)
     out["map_" + k] = {"cols": cols.tolist(), "rows": rows.tolist(), "co": co, "ro": ro, "bin": b, "w": w, "h": h,
                        "mc": mc, "mr": mr, "first": first}
-pathlib.Path('Tests/CuboCoreTests/Fixtures/frametransform.json').write_text(json.dumps(out, indent=1))
+(pinenv.fixtures('CuboCoreTests') / 'frametransform.json').write_text(json.dumps(out, indent=1))

@@ -1,7 +1,7 @@
 """CuboKit centre of mass, probe size and DPC: the pin generator.
 
-    ../References/python/py4dstem/bin/python -I -B tools/com-dpc/pins.py synthetic
-    ../References/python/py4dstem/bin/python -I -B tools/com-dpc/pins.py real [name ...]
+    python -I -B tools/com-dpc/pins.py synthetic
+    python -I -B tools/com-dpc/pins.py real [name ...]
 
 `synthetic` writes Tests/CuboVirtualTests/Fixtures/com-dpc-pins.json (and the planted cubes as .npy) BEFORE any Swift.
 `real` reads the exports of tools/virtual/pins.py in $CUBOKIT_REAL_DATA and writes <name>-s2-pins.json and <name>-s2-<quantity>.npy beside them.
@@ -29,7 +29,9 @@ from py4DSTEM.process.phase import DPC
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.abspath(os.path.join(HERE, "..", ".."))
 FIXTURES = os.path.join(KIT, "Tests", "CuboVirtualTests", "Fixtures")
-REAL = os.environ.get("CUBOKIT_REAL_DATA", os.path.expanduser("~/Library/Caches/CuboKit/real-data"))
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+import pinenv
+REAL = str(pinenv.REAL)
 SEED = 20261015
 CHECKS = []
 

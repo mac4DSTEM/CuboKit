@@ -5,14 +5,15 @@ import numpy as np
 import scipy
 import py4DSTEM
 ROOT = Path(__file__).resolve().parents[2]
-SUITE = next(p for p in ROOT.parents if (p/'References/CuboKit').is_dir())
-REF = SUITE/'References/CuboKit/py4DSTEM-f050d207'
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC, MAC4DSTEM_REPO
+REF = PY4DSTEM_SRC
 PIN = 'f050d207851f8accd3aa550365baaf1f38230428'
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'],text=True).strip() == PIN
 assert (Path(py4DSTEM.__file__).parent/'process/phase/parallax.py').read_bytes() == (REF/'py4DSTEM/process/phase/parallax.py').read_bytes()
 assert (platform.python_version(),np.__version__,scipy.__version__,py4DSTEM.__version__) == ('3.12.14','2.5.4','1.18.1','0.14.19')
 APP_PIN = 'c809679c8ee23a355da6af4f63665aaf64f90d0d'
-APP_SOURCE = subprocess.check_output(['git','--no-optional-locks','-C',str(SUITE/'mac4DSTEM'),'show',APP_PIN+':mac4DSTEM/Core/Analysis/ParallaxPreprocessing.swift'])
+APP_SOURCE = subprocess.check_output(['git','--no-optional-locks','-C',str(MAC4DSTEM_REPO),'show',APP_PIN+':mac4DSTEM/Core/Analysis/ParallaxPreprocessing.swift'])
 VERSIONS = dict(python=platform.python_version(),numpy=np.__version__,scipy=scipy.__version__,py4dstem=py4DSTEM.__version__,commit=PIN)
 def flat(a): return np.asarray(a).ravel().tolist()
 def make(cube,padding):
