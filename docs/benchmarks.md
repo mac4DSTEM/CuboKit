@@ -2,15 +2,26 @@
 
 Kit against py4DSTEM, same inputs, Float32 cubes, one run of `tools/benchmarks` on 2026-10-21. Harness: `Tests/CuboVirtualTests/BenchmarkHarness.swift`
 (Swift, built with `swift test -c release`, skipped unless `CUBOKIT_BENCH_DIR` is set) and `tools/benchmarks/bench.py` (the py4DSTEM side
-and the merge; the commands are in its docstring). Both read the same `.npy` cubes. Best of five after one warm-up; cells are
+and the merge). Both read the same `.npy` cubes. Best of five after one warm-up; cells are
 best / median (spread = slowest - best) in milliseconds; "CPU vs py4DSTEM" is py4DSTEM's best divided by the kit CPU's best
 (above 1 the kit is faster). The cubes are held in memory (`MemoryCube`; `DataCube(data=ndarray)`). The Metal columns copy each
 tile to the GPU on every call; the `_resident` rows hold the cube in a `ResidentCube` (one Metal buffer) first.
 
 Sizes (scan rows x columns x detector rows x columns): small 32x32x32x32 (1.0 M values), mid 64x64x32x32 (4.2 M), typical
 100x100x64x64 (41.9 M, 168 MB). The large size (330x330x64x64, 1.8 GB) and the Bragg, strain, DPC, parallax and ptychography
-functions are not in this table.
+functions are not measured yet.
 The machine was shared during the run (load average 5 to 11 from other builds), so the spreads are wider than on a quiet Mac.
+
+Re-run from a fresh clone of the kit, on a quiet Mac, one benchmark at a time (the typical cube is 168 MB on disk and in memory):
+
+```sh
+python3.12 -m venv .venv-bench && .venv-bench/bin/pip install py4DSTEM==0.14.19
+DIR=$(mktemp -d)
+.venv-bench/bin/python -I -B tools/benchmarks/bench.py make "$DIR"      # writes the small, mid and typical .npy cubes
+.venv-bench/bin/python -I -B tools/benchmarks/bench.py python "$DIR"    # py4DSTEM side: python.json
+CUBOKIT_BENCH_DIR="$DIR" swift test -c release --filter BenchmarkHarness   # kit side: swift.json
+.venv-bench/bin/python -I -B tools/benchmarks/bench.py merge "$DIR"     # prints the table below
+```
 
 Machine: Apple M5 Pro, macOS 27.0.1; Swift 6.4; py4DSTEM 0.14.19, NumPy 2.5.4, Python 3.12.14.
 Float32 cubes, best of five after one warm-up; cells are best / median (spread) in ms.
@@ -75,7 +86,7 @@ splits the output positions across cores; `medianFilterMaskedPixels` filters the
 window instead of a sorted array allocated per masked pixel and pattern.
 
 Method: three alternating rounds of old sources, new sources and Python, each 15 calls after one warm-up, `Tests/CuboVirtualTests/SpeedBench.swift`
-(Swift, both builds) and `tools/benchmarks/bench.py speed` (py4DSTEM/NumPy 2.5.4); cells are the median of the call medians in
+(Swift, both builds, `CUBOKIT_SPEED_DIR="$DIR" swift test -c release --filter SpeedBench`) and `tools/benchmarks/bench.py speed "$DIR"` (py4DSTEM/NumPy 2.5.4); cells are the median of the call medians in
 milliseconds, the three rounds' medians in brackets. The Mac was shared (load average 9 to 13 throughout), so every number is a
 loaded-machine number: the old column is also on the loaded machine, and the ratios are the finding. Float32 cubes of the benchmark
 above (`bench.py make`), kit CPU path, `MemoryCube`.
