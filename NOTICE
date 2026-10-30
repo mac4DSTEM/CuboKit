@@ -38,8 +38,8 @@ DataCubeVirtualImager.make_detector, and the virtual image, mean and maximum
 pattern follow DataCube.get_virtual_image, get_dp_mean and get_dp_max
 (py4DSTEM/datacube/virtualimage.py, virtualdiffraction.py at commit
 f050d207851f8accd3aa550365baaf1f38230428, version 0.14.19). The pins in
-Tests/CuboVirtualTests/Fixtures/slice-1-pins.json are py4DSTEM's outputs on
-the synthetic cubes there, written by tools/slice-1/pins.py.
+Tests/CuboVirtualTests/Fixtures/virtual-pins.json are py4DSTEM's outputs on
+the synthetic cubes there, written by tools/virtual/pins.py.
 
     py4DSTEM - https://github.com/py4dstem/py4DSTEM
     Copyright (C) The py4DSTEM developers
