@@ -471,6 +471,11 @@ check("SyntheticProbe.make is 1/2 on the radius, near 1 inside and near 0 outsid
 let pixelCentred = try SyntheticProbe.make(radius: 5, width: 2, detectorRows: 31, detectorColumns: 31, centre: (row: 15, column: 15))
 check("SyntheticProbe.make with a pixel centre peaks on that pixel",
       pixelCentred[15, 20] == 0.5 && pixelCentred[15, 10] == 0.5 && pixelCentred[10, 15] == 0.5)
+// No type shares its module's name, so module-qualified names resolve to the module.
+check("module-qualified names (CuboStrain., CuboPtycho., CuboEmbedding.)",
+      ObjectIdentifier(CuboStrain.LatticeStrain.self) == ObjectIdentifier(LatticeStrain.self)
+      && ObjectIdentifier(CuboPtycho.PtychographyError.self) == ObjectIdentifier(PtychographyError.self)
+      && ObjectIdentifier(CuboEmbedding.PCA.self) == ObjectIdentifier(PCA.self))
 check("FloatFFT2D.supports", FloatFFT2D.supports(rows: 64, columns: 48) && !FloatFFT2D.supports(rows: 7, columns: 64))
 check("SyntheticProbe.make: a zero width is invalidInput",
       await isInvalidInput { _ = try SyntheticProbe.make(radius: 5, width: 0, detectorRows: 32, detectorColumns: 32) })

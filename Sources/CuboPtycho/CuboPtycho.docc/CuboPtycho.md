@@ -24,4 +24,3 @@ CPU ptychography preprocessing, probe construction and single-slice, mixed-state
 ### Supported scope
 
 - <doc:Scope>
-- ``CuboPtycho``
