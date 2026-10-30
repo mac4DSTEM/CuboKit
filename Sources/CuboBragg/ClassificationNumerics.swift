@@ -1,82 +1,42 @@
 //
 //  ClassificationNumerics.swift
 //  The numerical pieces `BraggVectorClassification` takes from NumPy, SciPy and scikit-learn: `np.linalg.lstsq` (minimum-norm
-//  solution by SVD, here one-sided Jacobi), `scipy.ndimage`'s binary morphology on a cross, `skimage.measure.label` with
+//  solution by CuboEmbedding's LAPACK SVD), `scipy.ndimage`'s binary morphology on a cross, `skimage.measure.label` with
 //  8-connectivity, and `np.corrcoef`. All Double, CPU, package access. The coordinate-descent NMF is CuboEmbedding's
 //  `NMF.coordinateDescent` and `gaussian_filter` is CuboCore's `SciPyKernels.gaussianFilter2D`.
 //
 
 import CuboCore
+internal import CuboEmbedding
 import Foundation
 
 enum ClassificationNumerics {
     // MARK: least squares
 
     /// `np.linalg.lstsq(a, b, rcond=None)[0]` for the `m × n` matrix `a` and `m × p` matrix `b`, row-major: the minimum-norm
-    /// solution `n × p`. Singular values at or below `eps·max(m, n)` times the largest are treated as zero.
-    static func leastSquares(_ a: [Double], _ m: Int, _ n: Int, _ b: [Double], _ p: Int) -> [Double] {
+    /// solution `n × p`, through CuboEmbedding's LAPACK SVD (`dgesdd`). Singular values at or below `eps·max(m, n)` times the
+    /// largest are treated as zero, as NumPy's `rcond=None` does. A non-finite value in `a` throws (NumPy raises "SVD did not converge");
+    /// one in `b` carries through to the solution, as in NumPy.
+    static func leastSquares(_ a: [Double], _ m: Int, _ n: Int, _ b: [Double], _ p: Int) throws -> [Double] {
         var x = [Double](repeating: 0, count: n * p)
         guard m > 0, n > 0, p > 0 else { return x }
-        // thin SVD by one-sided Jacobi: columns of `left` are σ·u, columns of `right` are v, for the narrow side
-        let tall = m >= n
-        let rows = tall ? m : n, cols = tall ? n : m
-        var work = [Double](repeating: 0, count: rows * cols)          // column-major copy: work[c * rows + r]
-        for i in 0..<m { for j in 0..<n {
-            if tall { work[j * rows + i] = a[i * n + j] } else { work[i * rows + j] = a[i * n + j] }
-        } }
-        var v = [Double](repeating: 0, count: cols * cols)
-        for c in 0..<cols { v[c * cols + c] = 1 }
-        let epsilon = Double.ulpOfOne
-        for _ in 0..<60 {
-            var rotated = false
-            for pcol in 0..<(cols - 1) where cols > 1 {
-                for q in (pcol + 1)..<cols {
-                    var alpha = 0.0, beta = 0.0, gamma = 0.0
-                    for r in 0..<rows {
-                        let x1 = work[pcol * rows + r], x2 = work[q * rows + r]
-                        alpha += x1 * x1; beta += x2 * x2; gamma += x1 * x2
-                    }
-                    if gamma == 0 || abs(gamma) <= epsilon * (alpha * beta).squareRoot() { continue }
-                    rotated = true
-                    let zeta = (beta - alpha) / (2 * gamma)
-                    let t = (zeta >= 0 ? 1.0 : -1.0) / (abs(zeta) + (1 + zeta * zeta).squareRoot())
-                    let c = 1 / (1 + t * t).squareRoot(), s = c * t
-                    for r in 0..<rows {
-                        let x1 = work[pcol * rows + r], x2 = work[q * rows + r]
-                        work[pcol * rows + r] = c * x1 - s * x2
-                        work[q * rows + r] = s * x1 + c * x2
-                    }
-                    for r in 0..<cols {
-                        let v1 = v[pcol * cols + r], v2 = v[q * cols + r]
-                        v[pcol * cols + r] = c * v1 - s * v2
-                        v[q * cols + r] = s * v1 + c * v2
-                    }
-                }
-            }
-            if !rotated { break }
+        guard a.allSatisfy(\.isFinite) else {
+            throw CuboBraggError.invalidOption("least squares: the matrix holds a non-finite value")
         }
-        var sigma = [Double](repeating: 0, count: cols)
-        for c in 0..<cols {
-            var s = 0.0
-            for r in 0..<rows { s += work[c * rows + r] * work[c * rows + r] }
-            sigma[c] = s.squareRoot()
+        let r = min(m, n)
+        let u: [Double], sigma: [Double], vt: [Double]
+        do {
+            (u, sigma, vt) = try NMF.truncatedSVD(a, m, n, r)     // u: m × r, vt: r × n, sigma descending
+        } catch {
+            throw CuboBraggError.invalidOption("least squares: the SVD failed (\(error))")
         }
-        let cutoff = epsilon * Double(max(m, n)) * (sigma.max() ?? 0)
-        for c in 0..<cols where sigma[c] > cutoff {
-            // tall: A = (work·Vᵀ) with work = U·Σ, so x += v_c · (work_c · b) / σ²
-            // wide: Aᵀ = work·Vᵀ, so A = V·workᵀ with V's columns the left vectors: x += (work_c/σ) (v_c · b)/σ
+        let cutoff = Double.ulpOfOne * Double(max(m, n)) * (sigma.first ?? 0)
+        for c in 0..<r where sigma[c] > cutoff {
             for col in 0..<p {
-                if tall {
-                    var dot = 0.0
-                    for r in 0..<rows { dot += work[c * rows + r] * b[r * p + col] }
-                    let coefficient = dot / (sigma[c] * sigma[c])
-                    for j in 0..<n { x[j * p + col] += v[c * cols + j] * coefficient }
-                } else {
-                    var dot = 0.0
-                    for r in 0..<m { dot += v[c * cols + r] * b[r * p + col] }
-                    let coefficient = dot / (sigma[c] * sigma[c])
-                    for j in 0..<n { x[j * p + col] += work[c * rows + j] * coefficient }
-                }
+                var dot = 0.0
+                for i in 0..<m { dot += u[i * r + c] * b[i * p + col] }
+                let coefficient = dot / sigma[c]
+                for j in 0..<n { x[j * p + col] += vt[c * n + j] * coefficient }
             }
         }
         return x

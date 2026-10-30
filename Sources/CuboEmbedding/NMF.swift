@@ -250,7 +250,7 @@ public enum NMF {
     }
 
     /// The leading `k` singular triplets of the `n × d` row-major matrix: `u` is `n × k`, `vt` is `k × d`, row-major.
-    static func truncatedSVD(_ x: [Double], _ n: Int, _ d: Int, _ k: Int) throws -> ([Double], [Double], [Double]) {
+    package static func truncatedSVD(_ x: [Double], _ n: Int, _ d: Int, _ k: Int) throws -> ([Double], [Double], [Double]) {
         let r = min(n, d)
         var a = [Double](repeating: 0, count: n * d)           // column-major copy
         for i in 0..<n { for j in 0..<d { a[j * n + i] = x[i * d + j] } }

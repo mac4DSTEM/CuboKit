@@ -1,7 +1,7 @@
 //
 //  RealDataTests.swift
 //  Registration 5.3, 5.4, gate 3: real cubes and py4DSTEM's test datacube, exported as .npy with their pins by
-//  `tools/slice-1/pins.py real` into the real-data directory OUTSIDE the repository. Skipped by name when it is absent,
+//  `tools/virtual/pins.py real` into the real-data directory OUTSIDE the repository. Skipped by name when it is absent,
 //  so tools/test.sh is green on a clone and complete on a machine that has the exports. Every distance measured is printed, so the
 //  run's log is the evidence docs/status.md cites.
 //
@@ -116,14 +116,14 @@ import CuboVirtual
 
     // Enabled only where the real-data directory holds the export; a skipped run says "real data absent" (tools/test.sh
     // reads that and writes no stamp).
-    @Test(.enabled(if: realDataIsPresent("almgsi"), "real data absent: run tools/slice-1/pins.py real"))
+    @Test(.enabled(if: realDataIsPresent("almgsi"), "real data absent: run tools/virtual/pins.py real"))
     func testAlMgSiStudyCube() async throws { try await check("almgsi") }
-    @Test(.enabled(if: realDataIsPresent("auref"), "real data absent: run tools/slice-1/pins.py real"))
+    @Test(.enabled(if: realDataIsPresent("auref"), "real data absent: run tools/virtual/pins.py real"))
     func testAuReferenceCube() async throws { try await check("auref") }
-    @Test(.enabled(if: realDataIsPresent("simau"), "real data absent: run tools/slice-1/pins.py real"))
+    @Test(.enabled(if: realDataIsPresent("simau"), "real data absent: run tools/virtual/pins.py real"))
     func testSimulatedPolycrystallineGold() async throws { try await check("simau") }
-    @Test(.enabled(if: realDataIsPresent("particle"), "real data absent: run tools/slice-1/pins.py real"))
+    @Test(.enabled(if: realDataIsPresent("particle"), "real data absent: run tools/virtual/pins.py real"))
     func testParticleCube() async throws { try await check("particle") }
-    @Test(.enabled(if: realDataIsPresent("py4dstem_small"), "real data absent: run tools/slice-1/pins.py real"))
+    @Test(.enabled(if: realDataIsPresent("py4dstem_small"), "real data absent: run tools/virtual/pins.py real"))
     func testPy4DSTEMSmallDatacube() async throws { try await check("py4dstem_small") }
 }

@@ -1,11 +1,11 @@
-"""CuboKit slice 1: the pin generator.
+"""CuboKit virtual images and patterns (detectors, virtual images, mean and max patterns): the pin generator.
 
-Run with the pinned oracle, from any directory:
+Run with the environment of tools/requirements.txt, from any directory:
 
-    ../References/python/py4dstem/bin/python -I -B tools/slice-1/pins.py synthetic
-    ../References/python/py4dstem/bin/python -I -B tools/slice-1/pins.py real [name ...]
+    python -I -B tools/virtual/pins.py synthetic
+    python -I -B tools/virtual/pins.py real [name ...]
 
-`synthetic` writes Tests/CuboVirtualTests/Fixtures/<cube>.npy and slice-1-pins.json (committed) BEFORE any Swift exists.
+`synthetic` writes Tests/CuboVirtualTests/Fixtures/<cube>.npy and virtual-pins.json (committed) BEFORE any Swift exists.
 `real` exports your own cubes and py4DSTEM's test datacube as .npy into the real-data
 directory, $CUBOKIT_REAL_DATA (default ~/Library/Caches/CuboKit/real-data), outside the repository, and writes beside
 each <name>-pins.json plus its float64 arrays as <name>-<quantity>.npy.
@@ -42,7 +42,10 @@ from py4DSTEM.datacube import DataCube
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.abspath(os.path.join(HERE, "..", ".."))
 FIXTURES = os.path.join(KIT, "Tests", "CuboVirtualTests", "Fixtures")
-REAL = os.environ.get("CUBOKIT_REAL_DATA", os.path.expanduser("~/Library/Caches/CuboKit/real-data"))
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+import pinenv
+from pinenv import PY4DSTEM_TEST_DATA
+REAL = str(pinenv.REAL)
 MACEM_DATA = os.environ.get("MACEM_DATA", os.path.abspath(os.path.join(KIT, "..", "data")))
 SEED = 20261014
 CHECKS = []
@@ -312,7 +315,7 @@ def run_synthetic():
           set(map(tuple, np.argwhere(m))) == {(0, 2), (0, 3), (1, 2), (1, 3)})
     check("boundary cube: the Float32 predicate disagrees", disagreeing >= 1)
 
-    pins = os.path.join(FIXTURES, "slice-1-pins.json")
+    pins = os.path.join(FIXTURES, "virtual-pins.json")
     with open(pins, "w") as f:
         json.dump(out, f, indent=1)
         f.write("\n")
@@ -342,7 +345,7 @@ REAL_CUBES = {
 def load_real(name):
     rel, dpath = REAL_CUBES[name]
     if rel is None:
-        path = os.path.join(KIT, "References", "py4dstem-test-data", "small_datacube.dm4")
+        path = str(PY4DSTEM_TEST_DATA / "small_datacube.dm4")
         dc = py4DSTEM.import_file(path)
         return np.ascontiguousarray(dc.data), path, "py4DSTEM.import_file"
     path = os.path.join(MACEM_DATA, rel)

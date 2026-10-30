@@ -3,7 +3,7 @@ shift estimate (app `ParallaxAlignment.correlationShift` + `MatrixDFTCorrelation
 transfer function (app `ParallaxAberrationCorrection`, Double), and the position-correction loop of
 `ParallaxSubpixelReconstruction` (Float32 arithmetic as in the app; the deposition in Float64 as the kit's).
 App commit c809679c (the pin of aberration_pins.py). Writes Tests/CuboParallaxTests/Fixtures/appvariants.json.
-Run: ../References/python/py4dstem/bin/python -I -B tools/parallax/app_pins.py (needs only NumPy and SciPy)."""
+Run: python -I -B tools/parallax/app_pins.py (needs only NumPy and SciPy)."""
 import json
 from pathlib import Path
 import numpy as np

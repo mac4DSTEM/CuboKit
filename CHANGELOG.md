@@ -182,3 +182,12 @@ Additive: every 0.2.0 product and API is unchanged, and the new modules (`CuboPa
 gains a defaulted parameter: `GaussianFilter.apply` takes `edge:` (default `.nearest`, as before). `CuboParallax`'s
 matrix-DFT refinement is shared with `CuboBragg` through `package` access (no public change). Nothing a consumer
 calls moves. Full parallax reconstruction (grouping, schedules, regularisation) is not yet provided.
+
+## 0.0.1 to 0.2.0
+
+Pre-releases, no entries.
+
+---
+
+From 0.10.0 on, release-please writes each entry from the merged pull-request titles, and the version and compare link
+come with it. Where a consumer must change something, the linked pull request has a Migration paragraph.

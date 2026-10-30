@@ -1,6 +1,6 @@
 //
-//  S4Support.swift
-//  Role: Slice 4 pins and the check of one pinned cube, shared by the fast tests and the real-data parity suites.
+//  ProbesSupport.swift
+//  Role: The probes pins (probes-pins.json) and the check of one pinned cube, shared by the fast tests and the real-data parity suites.
 //
 
 import Foundation
@@ -9,16 +9,14 @@ import CuboCore
 import CuboVirtual
 import CuboPhase
 
-package enum S4 {
+package enum ProbesPins {
     package nonisolated(unsafe) static let pins: [String: Any] = {
-        try! JSONSerialization.jsonObject(with: Data(contentsOf: Fixtures.url("slice-4-pins.json"))) as! [String: Any]
+        try! JSONSerialization.jsonObject(with: Data(contentsOf: Fixtures.url("probes-pins.json"))) as! [String: Any]
     }()
     package static func d(_ a: Any?) -> [Double] { (a as? [String] ?? []).map { Double($0)! } }
     package static func b(_ a: Any?) -> [Bool] { (a as? [Int] ?? []).map { $0 != 0 } }
     package static func n(_ a: Any?) -> Double { (a as? NSNumber)?.doubleValue ?? Double(a as! String)! }
-    package static func realIsPresent(_ name: String) -> Bool {
-        FileManager.default.fileExists(atPath: Fixtures.realData.appendingPathComponent("\(name)-s4-pins.json").path)
-    }
+    package static func realIsPresent(_ name: String) -> Bool { Fixtures.realDataHas("\(name)-s4-pins.json") }
     package static func image(_ v: [Double], _ rows: Int, _ columns: Int) -> DetectorImage {
         DetectorImage(detectorRows: rows, detectorColumns: columns, values: v, path: .cpu)
     }
@@ -45,7 +43,7 @@ package enum S4 {
     package static func check(_ e: [String: Any], cube: MappedCube) async throws {
         let name = e["cube"] as! String, integer = e["integer"] as! Bool
         let shape = cube.shape, qy = shape.detectorRows, qx = shape.detectorColumns
-        var log = ["slice4 \(name)"]
+        var log = ["probes \(name)"]
         // 3.1 selections
         let left = b(e["scan_mask"]), weights = d(e["weights"])
         let sel = e["selections"] as! [String: [String: Any]]
@@ -71,7 +69,7 @@ package enum S4 {
             }
         }
         // shifted with a selection
-        let map = try S4.map(d(e["origin_row"]), d(e["origin_column"]), shape)
+        let map = try ProbesPins.map(d(e["origin_row"]), d(e["origin_column"]), shape)
         let sh = e["shifted"] as! [String: [String: Any]]
         for (mode, shift) in [("rounded", PatternShift.rounded(map)), ("fourier", .fourier(map))] {
             for (key, scan) in [("mask", ScanSelection.mask(left)), ("weights", .weights(weights))] {
@@ -98,7 +96,7 @@ package enum S4 {
         #expect(radius.bitPattern == Double(e["radius"] as! String)!.bitPattern, "\(name): radius")
         let dm = Swift.max(distance(masked.row.values, d(om["row"])), distance(masked.column.values, d(om["column"])))
         #expect(dm <= 1e-9, "\(name): masked origins \(dm) px")
-        let pinnedMap = try S4.map(d(om["row"]), d(om["column"]), shape).replacingNaNWithMean()
+        let pinnedMap = try ProbesPins.map(d(om["row"]), d(om["column"]), shape).replacingNaNWithMean()
         assertIdentical(pinnedMap.row.values, d(om["filled_row"]), "\(name) remove_NaN row")
         assertIdentical(pinnedMap.column.values, d(om["filled_column"]), "\(name) remove_NaN column")
         let fc = e["fast_center"] as! [String: Any]

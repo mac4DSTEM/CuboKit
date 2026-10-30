@@ -1,4 +1,4 @@
-"""Generate reference and original-app pins. Run with the pinned venv (see the README).
+"""Generate reference and original-app pins. Run with the environment of tools/requirements.txt (CONTRIBUTING.md).
 Paths resolve from either the primary checkout or a worktree. No new Swift implementation is used.
 """
 import hashlib, json, platform, subprocess, tempfile
@@ -10,14 +10,14 @@ from py4DSTEM.data import RealSlice
 from py4DSTEM.process.strain.latticevectors import (fit_lattice_vectors, get_strain_from_reference_g1g2,
     get_reference_g1g2, get_rotated_strain_map, index_bragg_directions)
 ROOT = Path(__file__).resolve().parents[2]
-SUITE = next(p for p in ROOT.parents if (p/'References/CuboKit').is_dir())
-REF = SUITE/'References/CuboKit'
 PIN='f050d207851f8accd3aa550365baaf1f38230428'
-assert subprocess.check_output(['git','-C',str(REF/'py4DSTEM-f050d207'),'rev-parse','HEAD'],text=True).strip()==PIN
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC, PY4DSTEM_TEST_DATA, MAC4DSTEM_REPO
+assert subprocess.check_output(['git','-C',str(PY4DSTEM_SRC),'rev-parse','HEAD'],text=True).strip()==PIN
 assert py4DSTEM.__version__=='0.14.19' and np.__version__=='2.5.4'
 assert platform.python_version()=='3.12.14'
 for rel in ['process/strain/latticevectors.py','process/strain/strain.py']:
-    assert (Path(py4DSTEM.__file__).parent/rel).read_bytes()==(REF/'py4DSTEM-f050d207/py4DSTEM'/rel).read_bytes()
+    assert (Path(py4DSTEM.__file__).parent/rel).read_bytes()==(PY4DSTEM_SRC / 'py4DSTEM'/rel).read_bytes()
 def flat(a): return np.asarray(a,dtype=float).ravel().tolist()
 # Each peak is [row,column,intensity,h,k]. Planted reciprocal transforms include shear and rotation.
 indices=np.array([(h,k) for h in [-1,0,1] for k in [-1,0,1]],dtype=float)
@@ -28,7 +28,7 @@ for i, transform in enumerate([np.eye(2),np.array([[.98,.025],[-.015,1.03]]),np.
     if i==2: xy[0]+=[.21,-.13]
     inputs.append(np.column_stack([xy,np.arange(1,10),indices]))
 # A small crop of a public DM4 pattern: find actual peaks, index against explicitly chosen vectors.
-path=REF/'py4dstem-test-data/small_datacube.dm4'
+path=PY4DSTEM_TEST_DATA / 'small_datacube.dm4'
 cube=py4DSTEM.import_file(str(path))
 crop=np.array(cube.data[0,0,200:312,200:312],dtype=float)
 from py4DSTEM.preprocess.utils import get_maxima_2D
@@ -51,7 +51,7 @@ for angle in [0.,31.]:
     strains.append(dict(angle=angle,values=[flat(sm.get_slice(k).data) for k in ['e_xx','e_yy','e_xy','theta']]))
 # Compile ORIGINAL app helpers. The numeric function text is untouched; only access/isolation qualifiers removed.
 APP='c809679c8ee23a355da6af4f63665aaf64f90d0d'
-src=subprocess.check_output(['git','-C',str(SUITE/'mac4DSTEM'),'--no-optional-locks','show',APP+':mac4DSTEM/Core/Analysis/StrainMapping.swift'],text=True)
+src=subprocess.check_output(['git','-C',str(MAC4DSTEM_REPO),'--no-optional-locks','show',APP+':mac4DSTEM/Core/Analysis/StrainMapping.swift'],text=True)
 helper='import Foundation\nstruct BraggPeak { let x:Float; let y:Float; let intensity:Float }\nstruct BraggVectors { let peaks:[[BraggPeak]] }\nstruct AnalysisCancellationToken { let isCancelled=false }\nenum StrainMapping {\n'
 helper+=src[src.index('    private struct BasisEstimate'):src.index('    /// Full strain-map computation')]
 helper+=src[src.index('    // MARK: - Lattice-vector selection'):]

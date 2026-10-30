@@ -2,12 +2,12 @@
 import sys, runpy, json, hashlib
 from pathlib import Path
 common=runpy.run_path(str(Path(__file__).with_name('preprocess_pins.py')))
-globals().update({k:common[k] for k in ['ROOT','SUITE','REF','PIN','VERSIONS','flat','make','np','subprocess']})
+globals().update({k:common[k] for k in ['ROOT','MAC4DSTEM_REPO','PIN','VERSIONS','flat','make','np','subprocess']})
 from py4DSTEM.process.phase.utils import calculate_aberration_gradient_basis
 from scipy.linalg import polar
 APP_PIN='c809679c8ee23a355da6af4f63665aaf64f90d0d'
 def fingerprint(name):
-    source=subprocess.check_output(['git','--no-optional-locks','-C',str(SUITE/'mac4DSTEM'),'show',APP_PIN+':mac4DSTEM/Core/Analysis/'+name+'.swift'])
+    source=subprocess.check_output(['git','--no-optional-locks','-C',str(MAC4DSTEM_REPO),'show',APP_PIN+':mac4DSTEM/Core/Analysis/'+name+'.swift'])
     return hashlib.sha256(source).hexdigest()
 rng=np.random.default_rng(20261017)
 # Non-centrosymmetric selected detector geometry makes the two basis origins distinguishable.

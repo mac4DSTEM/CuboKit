@@ -1,5 +1,5 @@
-"""Generate CuboBragg pins. Run with the pinned venv (see the README), from the package root:
-../../References/python/py4dstem/bin/python -I -B tools/bragg/pins.py
+"""Generate CuboBragg pins. Run with the environment of tools/requirements.txt (CONTRIBUTING.md), from the clone root:
+python -I -B tools/bragg/pins.py
 
 Two independent oracles, neither is Swift written for the kit:
   1. py4DSTEM 0.14.19 (f050d207) `find_Bragg_disks`, called as a public function, is the primary reference.
@@ -18,19 +18,19 @@ from py4DSTEM.braggvectors.diskdetection import find_Bragg_disks
 from py4DSTEM.process.calibration import get_probe_size
 
 ROOT = Path(__file__).resolve().parents[2]
-SUITE = next(p for p in ROOT.parents if (p / 'References/CuboKit').is_dir())
-REF = SUITE / 'References/CuboKit'
 PIN = 'f050d207851f8accd3aa550365baaf1f38230428'
-assert subprocess.check_output(['git', '-C', str(REF / 'py4DSTEM-f050d207'), 'rev-parse', 'HEAD'], text=True).strip() == PIN
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC, MAC4DSTEM_REPO, IMAGOKIT_REPO
+assert subprocess.check_output(['git', '-C', str(PY4DSTEM_SRC), 'rev-parse', 'HEAD'], text=True).strip() == PIN
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4'
 assert platform.python_version() == '3.12.14' and scipy.__version__ == '1.18.1'
 for rel in ['braggvectors/diskdetection.py', 'preprocess/utils.py', 'process/utils/cross_correlate.py',
             'process/utils/multicorr.py', 'braggvectors/probe.py', 'process/calibration/probe.py']:
-    assert (Path(py4DSTEM.__file__).parent / rel).read_bytes() == (REF / 'py4DSTEM-f050d207/py4DSTEM' / rel).read_bytes(), rel
+    assert (Path(py4DSTEM.__file__).parent / rel).read_bytes() == (PY4DSTEM_SRC / 'py4DSTEM' / rel).read_bytes(), rel
 
 APP = 'c809679c8ee23a355da6af4f63665aaf64f90d0d'
 IMAGO = '0.1.1'
-APPREPO = SUITE / 'mac4DSTEM'
+APPREPO = MAC4DSTEM_REPO
 def app_file(path):
     return subprocess.check_output(['git', '-C', str(APPREPO), '--no-optional-locks', 'show', f'{APP}:{path}'], text=True)
 
@@ -174,7 +174,7 @@ package protocol FFT2DTransform {}
     (tmp / 'app_dd.swift').write_text(text)
     mdc = app_file('mac4DSTEM/Core/Compute/MatrixDFTCorrelation.swift').replace('import ImagoCore', '')
     (tmp / 'mdc.swift').write_text(mdc)
-    fft = subprocess.check_output(['git', '-C', str(SUITE / 'ImagoKit'), 'show', f'{IMAGO}:Sources/ImagoCore/FFT2D.swift'], text=True)
+    fft = subprocess.check_output(['git', '-C', str(IMAGOKIT_REPO), 'show', f'{IMAGO}:Sources/ImagoCore/FFT2D.swift'], text=True)
     (tmp / 'fft2d.swift').write_text(fft)
     ring = app_file('mac4DSTEM/Core/Analysis/ProbeRingHint.swift')
     ring_shim = '''

@@ -1,6 +1,6 @@
 """Pinned oracle for the single-slice options the mac4DSTEM app uses (CuboPtycho 0.6.0 candidates).
-Run from the worktree root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../References/python/py4dstem/bin/python -I -B tools/ptycho/options_pins.py
+Run from the clone root:
+  MPLCONFIGDIR="$PWD/.build/matplotlib" python -I -B tools/ptycho/options_pins.py
 Needs Tests/CuboPtychoTests/Fixtures/ptycho.json (pins.py) as its input data; writes Fixtures/options.json.
 
 1. constrainObjectAmplitude = false (the app's toggle). py4DSTEM has no switch: its _object_threshold_constraint is unconditional.
@@ -18,7 +18,9 @@ import py4DSTEM
 from py4DSTEM.process.phase import SingleslicePtychography
 from py4DSTEM.process.phase.utils import ComplexProbe, electron_wavelength_angstrom
 KIT = Path(__file__).resolve().parents[2]
-REF = KIT.parents[0] / 'References/CuboKit/py4DSTEM-f050d207'
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC
+REF = PY4DSTEM_SRC
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'], text=True).strip().startswith('f050d207')
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 for name in ('singleslice_ptychography.py','ptychographic_methods.py','utils.py','phase_base_class.py','ptychographic_constraints.py'):

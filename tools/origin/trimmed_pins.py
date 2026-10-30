@@ -1,6 +1,6 @@
 """Pins for OriginFit.fitTrimmed: the MAD-trimmed origin fit of mac4DSTEM's calibration (OriginCalibration.fitOriginTrimmed).
-Run from the kit root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../References/python/py4dstem/bin/python -I -B tools/origin/trimmed_pins.py
+Run from the clone root:
+  MPLCONFIGDIR="$PWD/.build/matplotlib" python -I -B tools/origin/trimmed_pins.py
 Two references, both recorded in the fixture:
  * `app`: a line-by-line NumPy transcription of the app's Swift source (mac4DSTEM origin/main, Core/Analysis/OriginCalibration.swift,
    `fitOriginTrimmed` and `fit2D`), in Float32 where the app is Float (residuals, median, MAD, cutoff, RMS), the least-squares surface in
@@ -16,11 +16,13 @@ import numpy as np
 import py4DSTEM
 from py4DSTEM.process.calibration import fit_origin
 KIT = Path(__file__).resolve().parents[2]
-REF = KIT.parents[0] / 'References/CuboKit/py4DSTEM-f050d207'
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC, MAC4DSTEM_REPO
+REF = PY4DSTEM_SRC
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'], text=True).strip().startswith('f050d207')
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 f32 = np.float32
-APP = subprocess.check_output(['git','-C',str(KIT.parent/'mac4DSTEM'),'--no-optional-locks','rev-parse','--short','origin/main'], text=True).strip()
+APP = subprocess.check_output(['git','-C',str(MAC4DSTEM_REPO),'--no-optional-locks','rev-parse','--short','origin/main'], text=True).strip()
 TERMS = {'plane': 3, 'parabola': 6, 'bezierTwo': 9}
 
 def design(rows, cols, model):

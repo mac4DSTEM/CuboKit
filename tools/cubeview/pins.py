@@ -1,6 +1,6 @@
 """Pinned py4DSTEM crop and bin: preprocess.crop_data_real, crop_data_diffraction, bin_data_diffraction on a Float32 DataCube.
-Run from the kit root:
-  ../References/python/py4dstem/bin/python -I -B tools/cubeview/pins.py
+Run from the clone root:
+  python -I -B tools/cubeview/pins.py
 Output: Tests/CuboCoreTests/Fixtures/cubeview.json
 """
 from pathlib import Path
@@ -10,7 +10,9 @@ import py4DSTEM
 from py4DSTEM import DataCube
 from py4DSTEM.preprocess.preprocess import crop_data_real, crop_data_diffraction, bin_data_diffraction
 KIT = Path(__file__).resolve().parents[2]
-REF = KIT.parents[0]/'References/CuboKit/py4DSTEM-f050d207'
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC
+REF = PY4DSTEM_SRC
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'],text=True).strip().startswith('f050d207')
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 assert (Path(py4DSTEM.__file__).parent/'preprocess/preprocess.py').read_bytes() == subprocess.check_output(['git','-C',str(REF),'show','HEAD:py4DSTEM/preprocess/preprocess.py'])
