@@ -209,7 +209,7 @@ public struct BraggVectorClassification: Sendable, Equatable {
         let k = sets.count
         var w = [Double](repeating: 0, count: featureCount * k)
         for (c, set) in sets.enumerated() { for j in set { w[j * k + c] = 1 } }
-        var h = ClassificationNumerics.leastSquares(w, featureCount, k, data, positionCount)
+        var h = try ClassificationNumerics.leastSquares(w, featureCount, k, data, positionCount)
         for i in h.indices where h[i] < 0 { h[i] = 0 }
         self.classCount = k
         self.w = w
@@ -230,7 +230,7 @@ public struct BraggVectorClassification: Sendable, Equatable {
         for c in 0..<k { for p in 0..<positionCount { ht[p * k + c] = h[c * positionCount + p] } }
         var xt = [Double](repeating: 0, count: positionCount * featureCount)
         for f in 0..<featureCount { for p in 0..<positionCount { xt[p * featureCount + f] = data[f * positionCount + p] } }
-        let solution = ClassificationNumerics.leastSquares(ht, positionCount, k, xt, featureCount)     // k × features
+        let solution = try ClassificationNumerics.leastSquares(ht, positionCount, k, xt, featureCount)     // k × features
         var w = [Double](repeating: 0, count: featureCount * k)
         for f in 0..<featureCount { for c in 0..<k { w[f * k + c] = max(0, solution[c * featureCount + f]) } }
         self.classCount = k
