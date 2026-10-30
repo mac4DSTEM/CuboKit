@@ -1,6 +1,6 @@
 """Pinned py4DSTEM oracle for ODD, non-square detector / probe / object sizes (CuboPtycho preprocessing and the three engines).
-Run from the kit root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../References/python/py4dstem/bin/python -I -B tools/ptycho/odd_pins.py
+Run from the clone root:
+  MPLCONFIGDIR="$PWD/.build/matplotlib" python -I -B tools/ptycho/odd_pins.py
 Same method as preprocess_pins.py and engines_pins.py (real py4DSTEM methods on numerically injected state; the engine data go
 through py4DSTEM's _normalize_diffraction_intensities), with a 15 x 13 probe on a 31 x 29 object (single, mixed, multislice) and a
 9 x 7 detector in the preprocessing pin. Odd lengths change fftfreq (no Nyquist bin), the corner-centred patch offsets, the
@@ -15,7 +15,9 @@ from py4DSTEM.process.phase.utils import ComplexProbe, electron_wavelength_angst
 from py4DSTEM.preprocess.utils import get_shifted_ar
 from scipy.ndimage import shift as ndshift
 KIT = Path(__file__).resolve().parents[2]
-REF = KIT.parents[0] / 'References/CuboKit/py4DSTEM-f050d207'
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC
+REF = PY4DSTEM_SRC
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'], text=True).strip().startswith('f050d207')
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 for name in ('singleslice_ptychography.py','mixedstate_ptychography.py','multislice_ptychography.py','ptychographic_methods.py','ptychographic_constraints.py','utils.py','phase_base_class.py'):

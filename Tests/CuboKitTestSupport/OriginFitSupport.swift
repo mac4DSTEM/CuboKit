@@ -1,6 +1,6 @@
 //
-//  S3Support.swift
-//  Role: Slice 3 pins and the check of one pinned cube, shared by the fast tests and the real-data parity suites.
+//  OriginFitSupport.swift
+//  Role: The origin-fit pins (origin-fit-pins.json) and the check of one pinned cube, shared by the fast tests and the real-data parity suites.
 //
 
 import Foundation
@@ -9,9 +9,9 @@ import CuboCore
 import CuboVirtual
 import CuboPhase
 
-package enum S3 {
+package enum OriginFitPins {
     package nonisolated(unsafe) static let pins: [String: Any] = {
-        try! JSONSerialization.jsonObject(with: Data(contentsOf: Fixtures.url("slice-3-pins.json"))) as! [String: Any]
+        try! JSONSerialization.jsonObject(with: Data(contentsOf: Fixtures.url("origin-fit-pins.json"))) as! [String: Any]
     }()
     package static func d(_ a: Any?) -> [Double] { (a as? [String] ?? []).map { Double($0)! } }
     package static func geometry(_ g: [String: Any]) -> DetectorGeometry {
@@ -20,9 +20,7 @@ package enum S3 {
             ? .circle(centerRow: n("centerRow"), centerColumn: n("centerColumn"), radius: n("radius"))
             : .annulus(centerRow: n("centerRow"), centerColumn: n("centerColumn"), inner: n("inner"), outer: n("outer"))
     }
-    package static func realIsPresent(_ name: String) -> Bool {
-        FileManager.default.fileExists(atPath: Fixtures.realData.appendingPathComponent("\(name)-s3-pins.json").path)
-    }
+    package static func realIsPresent(_ name: String) -> Bool { Fixtures.realDataHas("\(name)-s3-pins.json") }
     package static let fitModels: [String: OriginFitModel] = ["constant": .constant, "plane": .plane, "parabola": .parabola,
                                                       "bezier_two": .bezierTwo]
 
@@ -31,7 +29,7 @@ package enum S3 {
         let name = e["cube"] as! String
         let shape = cube.shape
         let r = Double(e["radius"] as! String)!
-        var log = ["slice3 \(name)"]
+        var log = ["origin-fit \(name)"]
         // origins: the default radius is the probe size of the max pattern, asserted exact today; origins 1e-9 px
         let (measured, radius) = try await OriginMeasurement.measure(of: cube)
         #expect(radius.bitPattern == r.bitPattern, "\(name): radius \(radius) vs \(r)")

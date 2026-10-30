@@ -1,6 +1,6 @@
-"""Pinned py4DSTEM DataCube.get_braggmask and get_local_ave_dp (braggmask and plain). Run from the folder that holds this package and References/python/py4dstem (the pinned venv; see the README):
-  References/python/py4dstem/bin/python -I -B CuboKit/tools/braggmask/pins.py
-Output: CuboKit/Tests/CuboBraggTests/Fixtures/braggmask.json
+"""Pinned py4DSTEM DataCube.get_braggmask and get_local_ave_dp (braggmask and plain). Run from the clone root with the environment of tools/requirements.txt (tools/pinenv.py finds the inputs):
+  python -I -B tools/braggmask/pins.py
+Output: Tests/CuboBraggTests/Fixtures/braggmask.json
 """
 from pathlib import Path
 import json

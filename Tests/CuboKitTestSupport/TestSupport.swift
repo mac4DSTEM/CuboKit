@@ -1,6 +1,6 @@
 //
 //  TestSupport.swift
-//  The fixtures directory (read by #filePath, not as resources), the pins written by tools/slice-1/pins.py before any
+//  The fixtures directory (read by #filePath, not as resources), the pins written by tools/virtual/pins.py before any
 //  Swift existed, the real-data directory (outside the repository), and the relative
 //  comparison: relative `t` with the floor 1e-6 · max|want| over the image.
 //
@@ -20,6 +20,10 @@ package enum Fixtures {
             return URL(fileURLWithPath: env)
         }
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/CuboKit/real-data")
+    }
+    /// Whether `file` exists in the real-data directory: the one lookup every real-data suite is enabled by.
+    package static func realDataHas(_ file: String) -> Bool {
+        FileManager.default.fileExists(atPath: realData.appendingPathComponent(file).path)
     }
 }
 
@@ -51,9 +55,9 @@ package struct Pins: Decodable, Sendable {
 
     package static let shared: Pins = {
         do {
-            let data = try Data(contentsOf: Fixtures.url("slice-1-pins.json"))
+            let data = try Data(contentsOf: Fixtures.url("virtual-pins.json"))
             return try JSONDecoder().decode(Pins.self, from: data)
-        } catch { fatalError("slice-1-pins.json: \(error)") }
+        } catch { fatalError("virtual-pins.json: \(error)") }
     }()
 
     package func cube(_ name: String) throws -> CubePin {
@@ -164,7 +168,7 @@ package func assertIdentical(_ got: [Double], _ want: [Double], _ message: @auto
 
 /// Whether the real-data directory holds `name`'s export; the real-data tests are enabled by it.
 package func realDataIsPresent(_ name: String) -> Bool {
-    FileManager.default.fileExists(atPath: Fixtures.realData.appendingPathComponent("\(name)-pins.json").path)
+    Fixtures.realDataHas("\(name)-pins.json")
 }
 
 package func doubles(_ pins: [D]) -> [Double] { pins.map(\.value) }

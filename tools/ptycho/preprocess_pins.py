@@ -1,6 +1,6 @@
 """Pinned py4DSTEM preprocessing oracle for CuboPtycho (amplitudes, scan positions, object shape, probe normalisation).
-Run from the kit root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../References/python/py4dstem/bin/python -I -B tools/ptycho/preprocess_pins.py
+Run from the clone root:
+  MPLCONFIGDIR="$PWD/.build/matplotlib" python -I -B tools/ptycho/preprocess_pins.py
 Actual py4DSTEM methods (_normalize_diffraction_intensities, _calculate_scan_positions_in_pixels, _initialize_object,
 _initialize_probe) are called on a SingleslicePtychography whose preprocessing attributes are set directly; centre of mass,
 rotation search and calibration extraction are outside this pin (the origins and the rotation are inputs).
@@ -14,7 +14,9 @@ import py4DSTEM
 from py4DSTEM.process.phase import SingleslicePtychography
 from py4DSTEM.process.phase.utils import electron_wavelength_angstrom
 KIT = Path(__file__).resolve().parents[2]
-REF = KIT.parents[0] / 'References/CuboKit/py4DSTEM-f050d207'
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC
+REF = PY4DSTEM_SRC
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'], text=True).strip().startswith('f050d207')
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 for name in ('singleslice_ptychography.py','ptychographic_methods.py','utils.py','phase_base_class.py'):

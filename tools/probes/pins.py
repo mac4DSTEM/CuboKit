@@ -1,14 +1,14 @@
-"""CuboKit slice 4: the pin generator.
+"""CuboKit median pattern, selections, Friedel origin, beamstop mask and vacuum probe: the pin generator.
 
-    ../References/python/py4dstem/bin/python -I -B tools/slice-4/pins.py synthetic
-    ../References/python/py4dstem/bin/python -I -B tools/slice-4/pins.py export-bullseye
-    ../References/python/py4dstem/bin/python -I -B tools/slice-4/pins.py real [name ...]
+    python -I -B tools/probes/pins.py synthetic
+    python -I -B tools/probes/pins.py export-bullseye
+    python -I -B tools/probes/pins.py real [name ...]
 
 The watchdog thread below caps memory (8 GB by default). One worker at a time; almgsi and auref need --gb 16 (and CUBOKIT_PINS_MEM_GB=16).
 
-synthetic -> Tests/CuboVirtualTests/Fixtures/slice-4-pins.json (+ planted cubes as .npy), before any Swift;
+synthetic -> Tests/CuboVirtualTests/Fixtures/probes-pins.json (+ planted cubes as .npy), before any Swift;
 export-bullseye -> $CUBOKIT_REAL_DATA/bullseye.npy (20 vacuum-probe images of your own as a 1 x 20 x 250 x 250 cube);
-real -> $CUBOKIT_REAL_DATA/<name>-s4-pins.json beside slice 1's exports.
+real -> $CUBOKIT_REAL_DATA/<name>-s4-pins.json beside the exports of tools/virtual/pins.py.
 py4DSTEM's own results beside the float64 evaluation of each definition, which the kit is held to.
 """
 import datetime, importlib.util, json, os, resource, sys, warnings
@@ -41,10 +41,10 @@ from py4DSTEM.process.calibration.origin import get_origin_friedel
 from py4DSTEM.process.utils.multicorr import upsampled_correlation
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-spec = importlib.util.spec_from_file_location("s3", os.path.join(HERE, "..", "slice-3", "pins.py"))
-s3 = importlib.util.module_from_spec(spec); spec.loader.exec_module(s3)
-KIT, FIX, REAL = s3.KIT, s3.FIX, s3.REAL
-arr, versions = s3.arr, s3.versions
+spec = importlib.util.spec_from_file_location("origin_fit", os.path.join(HERE, "..", "origin-fit", "pins.py"))
+origin_fit = importlib.util.module_from_spec(spec); spec.loader.exec_module(origin_fit)
+KIT, FIX, REAL = origin_fit.KIT, origin_fit.FIX, origin_fit.REAL
+arr, versions = origin_fit.arr, origin_fit.versions
 CHECKS = []
 DATA = os.environ.get("MACEM_DATA", os.path.join(KIT, "..", "data"))
 BULLSEYE = os.path.join(DATA, "4dstem", "training_dataset", "calibrationData_bullseyeProbe.h5")
@@ -61,7 +61,7 @@ def normwise(a, b):
 
 
 def relative(a, b):
-    """Slice 1's relative distance with the floor 1e-6 · max|want|."""
+    """The relative distance of tools/virtual/pins.py with the floor 1e-6 · max|want|."""
     a, b = np.asarray(a, np.float64), np.asarray(b, np.float64)
     floor = 1e-6 * np.max(np.abs(b))
     return float(np.max(np.abs(a - b) / np.maximum(np.abs(b), max(floor, 1e-300))))
@@ -118,14 +118,14 @@ def shifted_selection_f64(c32, orow, ocol, mode, stat, sel):
                 continue
             dp = c32[a, b].astype(np.float64)
             dp = np.roll(dp, (int(np.round(sr[a, b])), int(np.round(sc[a, b]))), (0, 1)) if mode == "rounded" \
-                else s3.fourier_shift(dp, sr[a, b], sc[a, b])
+                else origin_fit.fourier_shift(dp, sr[a, b], sc[a, b])
             w = sel[1][a, b] if sel is not None and sel[0] == "weights" else 1.0
             total += dp * w; mx = np.maximum(mx, dp * w); count += w
     return (total / count) if stat == "mean" else mx
 
 
 def shifted_selection_own(c32, orow, ocol, mode, stat, sel):
-    dc = s3.py4dstem_calibrated(c32, orow, ocol)
+    dc = origin_fit.py4dstem_calibrated(c32, orow, ocol)
     mask = None if sel is None else (sel[1].astype(bool) if sel[0] == "mask" else sel[1].astype(np.float64))
     return np.asarray(dc.get_virtual_diffraction(stat, mask=mask, shift_center=True, subpixel=(mode == "fourier"),
                                                  verbose=False).data, np.float64)
@@ -314,7 +314,7 @@ def wrapped(n):
 def shift_f64(ar, xs, ys, bilinear):
     ar = np.asarray(ar, np.float64)
     if not bilinear:
-        return s3.fourier_shift(ar, xs, ys)
+        return origin_fit.fourier_shift(ar, xs, ys)
     xF, yF = int(np.floor(xs)), int(np.floor(ys)); wx, wy = xs - xF, ys - yF
     return (np.roll(ar, (xF, yF), (0, 1)) * ((1 - wx) * (1 - wy)) + np.roll(ar, (xF + 1, yF), (0, 1)) * (wx * (1 - wy))
             + np.roll(ar, (xF, yF + 1), (0, 1)) * ((1 - wx) * wy) + np.roll(ar, (xF + 1, yF + 1), (0, 1)) * (wx * wy))
@@ -410,10 +410,10 @@ def pin_cube(name, cube, friedel_masked=True, friedel_upsample=True, vacuum_roi=
                 ent["distance_py4dstem"] = relative(own, want)
             sel[f"{key}_{stat}"] = ent
     e["selections"] = sel
-    # shifted with a selection, on the float64 origins of slice 3
+    # shifted with a selection, on the float64 origins of tools/origin-fit
     r = get_probe_size(np.max(c32, axis=(0, 1)))[0]
     e["radius"] = "%.17g" % r
-    orow, ocol, arg = s3.origins_f64(c32, r)
+    orow, ocol, arg = origin_fit.origins_f64(c32, r)
     e["origin_row"] = arr(orow); e["origin_column"] = arr(ocol)
     shifted = {}
     for mode in ("rounded", "fourier"):
@@ -629,8 +629,8 @@ def run_synthetic():
     for nm in ("planted_f32", "planted_u16", "gaussian", "counts16"):
         cube = np.load(os.path.join(FIX, nm + ".npy"))
         out["cubes"].append(pin_cube(nm, cube))
-    json.dump(out, open(os.path.join(FIX, "slice-4-pins.json"), "w"))
-    print(f"pins.py slice 4 synthetic: {len(out['cubes'])} cubes, {len(CHECKS)} self-checks passed")
+    json.dump(out, open(os.path.join(FIX, "probes-pins.json"), "w"))
+    print(f"pins.py probes synthetic: {len(out['cubes'])} cubes, {len(CHECKS)} self-checks passed")
     for e in out["cubes"]:
         summary(e)
 
@@ -679,7 +679,7 @@ def run_real(names):
         cube = np.load(os.path.join(REAL, f"{name}.npy"))
         e = pin_cube(name, cube, **REAL_OPTIONS[name])
         json.dump(e, open(os.path.join(REAL, f"{name}-s4-pins.json"), "w"))
-        print(f"pins.py slice 4 real {name}:", end="")
+        print(f"pins.py probes real {name}:", end="")
         summary(e)
 
 

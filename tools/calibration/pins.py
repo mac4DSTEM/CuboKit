@@ -1,9 +1,9 @@
 """Pinned py4DSTEM calibration model and cube reshaping: DataCube.calibrate (dim vectors, meshgrids, qxxs),
 Calibration setters, and preprocess.set_scan_shape, swap_RQ, swap_Rxy, swap_Qxy, bin_data_real, thin_data_real,
 pad_data_diffraction, resample_data_diffraction (bilinear), median_filter_masked_pixels on a Float32 DataCube.
-Run from the folder that holds this package and References/python/py4dstem (the pinned venv; see the README):
-  References/python/py4dstem/bin/python -I -B CuboKit/tools/calibration/pins.py
-Output: CuboKit/Tests/CuboCoreTests/Fixtures/calibration.json
+Run from the clone root with the environment of tools/requirements.txt (tools/pinenv.py finds the inputs):
+  python -I -B tools/calibration/pins.py
+Output: Tests/CuboCoreTests/Fixtures/calibration.json
 """
 from pathlib import Path
 import json

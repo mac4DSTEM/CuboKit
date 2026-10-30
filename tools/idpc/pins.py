@@ -1,7 +1,7 @@
 """NumPy float64 transcription of the app's Fourier-integration iDPC.
 This is NOT py4DSTEM iterative DPC. Periodic/centered zero-padded boundary,
 mean subtraction before padding and after cropping, regularized inverse gradient.
-Run with the pinned venv (see the README), from the package root.
+Run with the environment of tools/requirements.txt (CONTRIBUTING.md), from the package root.
 """
 from pathlib import Path
 import json, platform, hashlib, subprocess
@@ -9,7 +9,9 @@ import numpy as np
 assert np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 KIT = Path(__file__).resolve().parents[2]
 app_commit = 'c809679c8ee23a355da6af4f63665aaf64f90d0d'
-source = subprocess.check_output(['git','-C',str(KIT.parents[0]/'mac4DSTEM'),'show',
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import MAC4DSTEM_REPO
+source = subprocess.check_output(['git','-C',str(MAC4DSTEM_REPO),'show',
                                   app_commit+':mac4DSTEM/Core/Analysis/DPC.swift'])
 source_sha256 = hashlib.sha256(source).hexdigest()
 cases = []

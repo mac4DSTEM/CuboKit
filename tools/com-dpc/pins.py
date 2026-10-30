@@ -1,10 +1,10 @@
-"""CuboKit slice 2: the pin generator.
+"""CuboKit centre of mass, probe size and DPC: the pin generator.
 
-    ../References/python/py4dstem/bin/python -I -B tools/slice-2/pins.py synthetic
-    ../References/python/py4dstem/bin/python -I -B tools/slice-2/pins.py real [name ...]
+    python -I -B tools/com-dpc/pins.py synthetic
+    python -I -B tools/com-dpc/pins.py real [name ...]
 
-`synthetic` writes Tests/CuboVirtualTests/Fixtures/slice-2-pins.json (and the planted cubes as .npy) BEFORE any Swift.
-`real` reads slice 1's exports in $CUBOKIT_REAL_DATA and writes <name>-s2-pins.json and <name>-s2-<quantity>.npy beside them.
+`synthetic` writes Tests/CuboVirtualTests/Fixtures/com-dpc-pins.json (and the planted cubes as .npy) BEFORE any Swift.
+`real` reads the exports of tools/virtual/pins.py in $CUBOKIT_REAL_DATA and writes <name>-s2-pins.json and <name>-s2-<quantity>.npy beside them.
 
 For every quantity: py4DSTEM's own result (f050d207, float32 where py4DSTEM computes in float32) and the float64
 evaluation of the same definition written here from py4DSTEM's documented behaviour, which the kit is held to.
@@ -29,7 +29,9 @@ from py4DSTEM.process.phase import DPC
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.abspath(os.path.join(HERE, "..", ".."))
 FIXTURES = os.path.join(KIT, "Tests", "CuboVirtualTests", "Fixtures")
-REAL = os.environ.get("CUBOKIT_REAL_DATA", os.path.expanduser("~/Library/Caches/CuboKit/real-data"))
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+import pinenv
+REAL = str(pinenv.REAL)
 SEED = 20261015
 CHECKS = []
 
@@ -295,8 +297,8 @@ def planted_field(R=24, C=20):
 def run_synthetic():
     out = {"versions": versions(), "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
            "seed": SEED, "com": [], "probe": [], "fields": []}
-    slice1 = json.load(open(os.path.join(FIXTURES, "slice-1-pins.json")))
-    cubes = {c["name"]: np.load(os.path.join(FIXTURES, c["file"])) for c in slice1["cubes"]}
+    virtual_pins = json.load(open(os.path.join(FIXTURES, "virtual-pins.json")))
+    cubes = {c["name"]: np.load(os.path.join(FIXTURES, c["file"])) for c in virtual_pins["cubes"]}
     shift, tr, tc = planted_shift_cube()
     np.save(os.path.join(FIXTURES, "shift.npy"), shift)
     cubes["shift"] = shift
@@ -391,9 +393,9 @@ def run_synthetic():
     fx, fy, nx, ny = normalize_f64(px, py, "plane")
     check("pure plane: normalized ~ 0", np.max(np.abs(nx)) < 1e-12 and np.max(np.abs(ny)) < 1e-12)
     out["plane"] = {"shape": [7, 9], "x": arr(px), "y": arr(py)}
-    with open(os.path.join(FIXTURES, "slice-2-pins.json"), "w") as f:
+    with open(os.path.join(FIXTURES, "com-dpc-pins.json"), "w") as f:
         json.dump(out, f, indent=0)
-    print(f"pins.py slice 2 synthetic: {len(out['com'])} CoM entries, {len(out['probe'])} probe entries, "
+    print(f"pins.py com-dpc synthetic: {len(out['com'])} CoM entries, {len(out['probe'])} probe entries, "
           f"{len(out['fields'])} fields, {len(CHECKS)} self-checks passed")
     for e in out["com"]:
         if "chain" in e:
@@ -455,7 +457,7 @@ def run_real(names):
             np.save(os.path.join(REAL, f"{name}-s2-{k}.npy"), np.ascontiguousarray(v, dtype=np.float64))
         json.dump(info, open(os.path.join(REAL, f"{name}-s2-pins.json"), "w"), indent=1)
         ch = info["chain"]
-        print(f"pins.py slice 2 real {name}: CoM own-vs-f64 {info['com']['none']['py4dstem_own_vs_f64_px']:.2e} px "
+        print(f"pins.py com-dpc real {name}: CoM own-vs-f64 {info['com']['none']['py4dstem_own_vs_f64_px']:.2e} px "
               f"(ill-conditioned {info['com']['none']['ill_conditioned_positions']}), bf {info['com']['bf']['py4dstem_own_vs_f64_px']:.2e} px; "
               f"rotation f64 {ch['degrees']} {ch['transposed']} py4DSTEM {ch['degrees_py4dstem']} {ch['transposed_py4dstem']}; "
               f"phase {ch['phase_distance_py4dstem_own_vs_f64']:.2e} of max; "

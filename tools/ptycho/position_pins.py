@@ -1,7 +1,7 @@
 """Pinned py4DSTEM oracle for position correction in the single-slice engine (fix_positions=False, positions_step_size,
 max_position_update_distance, max_position_total_distance, fix_positions_com).
-Run from the kit root:
-  MPLCONFIGDIR="$PWD/.build/matplotlib" ../References/python/py4dstem/bin/python -I -B tools/ptycho/position_pins.py
+Run from the clone root:
+  MPLCONFIGDIR="$PWD/.build/matplotlib" python -I -B tools/ptycho/position_pins.py
 The real SingleslicePtychography.reconstruct runs on numerically injected preprocessing state (as pins.py). The data are generated at
 positions that differ from the starting positions by up to 0.3 px (uniform), so the correction has work to do; they go through
 py4DSTEM's _normalize_diffraction_intensities from a raw cube with a mild offset and noise. Output: Fixtures/positions.json
@@ -13,7 +13,9 @@ import py4DSTEM
 from py4DSTEM.process.phase import SingleslicePtychography
 from py4DSTEM.process.phase.utils import ComplexProbe, electron_wavelength_angstrom, fft_shift
 KIT = Path(__file__).resolve().parents[2]
-REF = KIT.parents[0] / 'References/CuboKit/py4DSTEM-f050d207'
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC
+REF = PY4DSTEM_SRC
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'], text=True).strip().startswith('f050d207')
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 for name in ('singleslice_ptychography.py','ptychographic_methods.py','ptychographic_constraints.py','utils.py','phase_base_class.py'):

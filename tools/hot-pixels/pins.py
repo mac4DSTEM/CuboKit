@@ -1,5 +1,5 @@
 """Actual pinned py4DSTEM DataCube.filter_hot_pixels; Float32 cube semantics.
-Run with the pinned isolated Python venv (see the README).
+Run with the environment of tools/requirements.txt (CONTRIBUTING.md).
 """
 from pathlib import Path
 import json, subprocess, platform
@@ -7,7 +7,9 @@ import numpy as np
 import py4DSTEM
 from py4DSTEM import DataCube
 KIT = Path(__file__).resolve().parents[2]
-REF = KIT.parents[0]/'References/CuboKit/py4DSTEM-f050d207'
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC
+REF = PY4DSTEM_SRC
 assert subprocess.check_output(['git','-C',str(REF),'rev-parse','HEAD'],text=True).strip().startswith('f050d207')
 assert py4DSTEM.__version__ == '0.14.19' and np.__version__ == '2.5.4' and platform.python_version() == '3.12.14'
 for file in ('preprocess/preprocess.py','datacube/datacube.py'):

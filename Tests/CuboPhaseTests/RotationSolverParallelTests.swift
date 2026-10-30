@@ -25,10 +25,10 @@ private func randomField(_ rows: Int, _ columns: Int, seed: UInt64) throws -> Sc
 }
 
 private func pinnedFields() throws -> [(String, ScanVectorField)] {
-    try (Pins2.pins["fields"] as! [[String: Any]]).map { (f: [String: Any]) -> (String, ScanVectorField) in
+    try (ComDPCPins.pins["fields"] as! [[String: Any]]).map { (f: [String: Any]) -> (String, ScanVectorField) in
         let shape = f["shape"] as! [Int]
         let field = try ScanVectorField(scanRows: shape[0], scanColumns: shape[1],
-                                        row: Pins2.doubles(f["measured_x"]), column: Pins2.doubles(f["measured_y"]))
+                                        row: ComDPCPins.doubles(f["measured_x"]), column: ComDPCPins.doubles(f["measured_y"]))
         return ("field \(f["theta"]!)", field)
     }
 }

@@ -1,5 +1,5 @@
-"""Regenerate with the pinned venv, from the package root:
-../References/python/py4dstem/bin/python -I -B tools/parallax/pins.py
+"""Regenerate with the environment of tools/requirements.txt, from the clone root:
+python -I -B tools/parallax/pins.py
 
 Only public py4DSTEM test data is cropped; no private dataset is copied.
 """
@@ -16,12 +16,13 @@ from py4DSTEM.process.utils.cross_correlate import align_images_fourier
 from py4DSTEM.process.utils.multicorr import dftUpsample
 
 ROOT = Path(__file__).resolve().parents[2]
-REF = ROOT.parent / 'References/CuboKit'
 PIN = 'f050d207851f8accd3aa550365baaf1f38230428'
-assert subprocess.check_output(['git', '-C', str(REF / 'py4DSTEM-f050d207'), 'rev-parse', 'HEAD'], text=True).strip() == PIN
+import sys as _sys, pathlib as _pathlib; _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parents[1]))  # tools/pinenv.py
+from pinenv import PY4DSTEM_SRC, PY4DSTEM_TEST_DATA
+assert subprocess.check_output(['git', '-C', str(PY4DSTEM_SRC), 'rev-parse', 'HEAD'], text=True).strip() == PIN
 for source in ['process/utils/cross_correlate.py', 'process/utils/multicorr.py', 'preprocess/utils.py']:
     installed = Path(py4DSTEM.__file__).parent / source
-    pinned = REF / 'py4DSTEM-f050d207/py4DSTEM' / source
+    pinned = PY4DSTEM_SRC / 'py4DSTEM' / source
     assert installed.read_bytes() == pinned.read_bytes(), source
 assert py4DSTEM.__version__ == '0.14.19'
 assert np.__version__ == '2.5.4'
@@ -66,7 +67,7 @@ r, c = np.meshgrid(np.arange(9), np.arange(11), indexing='ij')
 smooth = np.cos(2*np.pi*(r/9+c/11)) + .7*np.sin(2*np.pi*(2*r/9-c/11)) + .3*np.cos(2*np.pi*c/11)
 cases.append(case('fractional-odd', smooth, [(.375, -1.625), (-2.25, 3.125), (4.25, -5.25)]))
 cases.append(case('noisy-running', rng.normal(size=(10, 12)), [(.7, -1.3), (-2.2, .4), (1.1, 3.6)], noise=.04, running=True))
-path = REF / 'py4dstem-test-data/small_datacube.dm4'
+path = PY4DSTEM_TEST_DATA / 'small_datacube.dm4'
 # py4DSTEM's public test datacube; first diffraction pattern, a 12x14 crop around the transmitted beam.
 cube = py4DSTEM.import_file(str(path))
 crop = np.array(cube.data[0, 0, 250:262, 249:263], dtype=np.float64)
