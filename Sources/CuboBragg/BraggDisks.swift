@@ -42,7 +42,7 @@ public struct BraggDetector: Sendable {
     /// (f·2ⁿ with f in 1, 3, 5, 15, ...: 64, 128, 192, 240, 256, 320, 384, 480, 512, ...). Other sizes are refused by the
     /// `.single` entry points with `CuboBraggError.invalidOption`; `.double` runs on any size.
     public static func supportsSinglePrecision(detectorRows: Int, detectorColumns: Int) -> Bool {
-        SingleFFT2D.supports(rows: detectorRows, columns: detectorColumns)
+        FloatFFT2D.supports(rows: detectorRows, columns: detectorColumns)
     }
 
     /// The correlation of one pattern: the real map `CC` and the Fourier-domain product `cc` (see the file header).

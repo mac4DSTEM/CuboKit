@@ -15,7 +15,7 @@ import CuboParallax
         let rotation: Double; let low,coefs,appCoefs,corrected,appCorrected: [Double]
     }
     func pin() throws -> Pin {
-        try JSONDecoder().decode(Pin.self,from:Data(contentsOf:Bundle.module.url(forResource:"aberrations",withExtension:"json",subdirectory:"Fixtures")!))
+        try JSONDecoder().decode(Pin.self,from:Data(contentsOf:parallaxFixture("aberrations")!))
     }
     func pairs(_ a:[Double]) -> [ParallaxShift] { stride(from:0,to:a.count,by:2).map{.init(row:a[$0],column:a[$0+1])} }
     func check(_ a:[Double],_ b:[Double],tol:Double=2e-4) {

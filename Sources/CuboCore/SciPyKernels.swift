@@ -2,8 +2,8 @@
 //  SciPyKernels.swift
 //  The few NumPy and SciPy primitives the polar and ellipse ports reproduce operation by operation, so that a port's rounding
 //  follows the reference's: `np.arange` with a float step, Python's float modulo, `scipy.ndimage.gaussian_filter1d` (the
-//  kernel, the symmetric correlation order, the `wrap` and `reflect` boundaries), `gaussian_filter` on a plane, the median that
-//  `np.ma.median` takes over the unmasked values, and `scipy.interpolate.interp1d` (linear, extrapolating).
+//  kernel, the symmetric correlation order, the `wrap`, `reflect` and `nearest` boundaries), `gaussian_filter` on a plane, and
+//  `scipy.interpolate.interp1d` (linear, extrapolating).
 //
 //  Reference: NumPy 2.5.4 `arange`, `mod`; SciPy 1.18.1 `ndimage.gaussian_filter1d`/`correlate1d` (`NI_Correlate1D`, symmetric
 //  weights: the centre term first, then the pairs from the outermost inwards), `interpolate.interp1d._call_linear`.
@@ -57,12 +57,19 @@ package enum SciPyKernels {
     }
 
     /// How a one-dimensional filter reads beyond the ends: `wrap` is periodic, `reflect` is `d c b a | a b c d | d c b a`.
-    package enum Boundary: Sendable { case wrap, reflect }
+    /// SciPy's `mode`: `wrap` (a b c d | a b c d), `reflect` (d c b a | a b c d | d c b a, folded again for a radius beyond the
+    /// extent) and `nearest` (a b c d | d d d).
+    package enum Boundary: Sendable { case wrap, reflect, nearest }
 
     /// The weights of `gaussian_filter1d(..., order=0, truncate=4)`: radius `int(4 sigma + 0.5)`, `exp(-0.5/sigma^2 x^2)`
     /// normalised by NumPy's pairwise sum.
     package static func gaussianWeights(sigma: Double, truncate: Double = 4.0) -> [Double] {
-        let radius = gaussianRadius(sigma: sigma, truncate: truncate) ?? 0   // callers validate; a bad sigma is the identity, not a trap
+        // callers validate; a bad sigma is the identity, not a trap
+        gaussianWeights(sigma: sigma, radius: gaussianRadius(sigma: sigma, truncate: truncate) ?? 0)
+    }
+
+    /// The `2 radius + 1` weights `exp(-0.5/sigma^2 x^2)`, `x = -radius ... radius`, normalised by NumPy's pairwise sum.
+    package static func gaussianWeights(sigma: Double, radius: Int) -> [Double] {
         let sigma2 = sigma * sigma
         var w = (-radius...radius).map { exp(-0.5 / sigma2 * Double($0 * $0)) }
         let s = NumPySum.pairwise(w)
@@ -81,6 +88,8 @@ package enum SciPyKernels {
             var m = i % period
             if m < 0 { m += period }
             return m < n ? m : period - 1 - m
+        case .nearest:
+            return i < 0 ? 0 : n - 1
         }
     }
 
@@ -110,29 +119,34 @@ package enum SciPyKernels {
     /// `scipy.ndimage.gaussian_filter(plane, sigma)` with mode `reflect`: axis 0, then axis 1.
     package static func gaussianFilter2D(_ values: [Double], rows: Int, columns: Int, sigma: Double) -> [Double] {
         guard sigma > 1e-15 else { return values }
-        let w = gaussianWeights(sigma: sigma)
-        var tmp = [Double](repeating: 0, count: values.count)
-        for c in 0..<columns {
-            let column = (0..<rows).map { values[$0 * columns + c] }
-            let f = correlateSymmetric(column, weights: w, boundary: .reflect)
-            for r in 0..<rows { tmp[r * columns + c] = f[r] }
-        }
-        var out = [Double](repeating: 0, count: values.count)
-        for r in 0..<rows {
-            let f = correlateSymmetric(Array(tmp[(r * columns)..<((r + 1) * columns)]), weights: w, boundary: .reflect)
-            for c in 0..<columns { out[r * columns + c] = f[c] }
-        }
-        return out
+        return correlateSymmetric2D(values, rows: rows, columns: columns, weights: gaussianWeights(sigma: sigma), boundary: .reflect)
     }
 
-    /// `np.ma.median(a, axis=0)` of one column: the median of the values that are not masked (the mean of the two middle ones
-    /// for an even count), `nil` when all are masked.
-    package static func median(of values: [Double]) -> Double? {
-        guard !values.isEmpty else { return nil }
-        if values.contains(where: \.isNaN) { return .nan }
-        let s = values.sorted()
-        let n = s.count
-        return n % 2 == 1 ? s[n / 2] : (s[n / 2 - 1] + s[n / 2]) / 2
+    /// The separable `correlate1d` of a `rows × columns` row-major plane with the symmetric `weights` along axis 0, then
+    /// axis 1, each output in `NI_Correlate1D`'s order (``correlateSymmetric(_:weights:boundary:)``). The one 2-D Gaussian
+    /// filter of the kit: ``gaussianFilter2D(_:rows:columns:sigma:)`` and CuboVirtual's `GaussianFilter.apply` run it.
+    package static func correlateSymmetric2D(_ values: [Double], rows: Int, columns: Int, weights w: [Double],
+                                             boundary: Boundary) -> [Double] {
+        let r = w.count / 2, centre = w[r]
+        var a = [Double](repeating: 0, count: values.count)
+        for i in 0..<rows { for j in 0..<columns {
+            var acc = values[i * columns + j] * centre
+            for t in stride(from: r, through: 1, by: -1) {
+                acc += (values[source(i - t, rows, boundary) * columns + j] + values[source(i + t, rows, boundary) * columns + j])
+                    * w[r - t]
+            }
+            a[i * columns + j] = acc
+        } }
+        var b = [Double](repeating: 0, count: values.count)
+        for i in 0..<rows { for j in 0..<columns {
+            var acc = a[i * columns + j] * centre
+            for t in stride(from: r, through: 1, by: -1) {
+                acc += (a[i * columns + source(j - t, columns, boundary)] + a[i * columns + source(j + t, columns, boundary)])
+                    * w[r - t]
+            }
+            b[i * columns + j] = acc
+        } }
+        return b
     }
 
     /// `interp1d(x, y, fill_value="extrapolate")(xNew)` for increasing `x` with at least two points: the segment is found as

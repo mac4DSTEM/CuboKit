@@ -112,10 +112,7 @@ public struct GaussianFilter: Sendable {
             throw CuboVirtualError.invalidRadius(sigma)
         }
         self.sigma = sigma
-        let R = Int(4.0 * sigma + 0.5)
-        let w = (-R...R).map { exp(-0.5 / (sigma * sigma) * Double($0 * $0)) }
-        let sum = NumPySum.pairwise(w)                   // phi_x / phi_x.sum()
-        kernel = w.map { $0 / sum }
+        kernel = SciPyKernels.gaussianWeights(sigma: sigma, radius: Int(4.0 * sigma + 0.5))   // phi_x / phi_x.sum()
     }
 
     /// How the filter reads past an edge.
@@ -132,31 +129,7 @@ public struct GaussianFilter: Sendable {
     /// pairing makes a mirror-symmetric pattern filter to exactly symmetric values, so exact ties stay ties. `edge` is
     /// scipy's `mode`; `.nearest` (the default) is the one the origin measurement uses.
     public func apply(_ p: [Double], rows: Int, columns: Int, edge: Edge = .nearest) -> [Double] {
-        let R = radius, k0 = kernel[R]
-        func index(_ i: Int, _ n: Int) -> Int {
-            switch edge {
-            case .nearest: return Swift.min(Swift.max(i, 0), n - 1)
-            case .reflect:
-                let m = ((i % (2 * n)) + 2 * n) % (2 * n)
-                return m < n ? m : 2 * n - 1 - m
-            }
-        }
-        var a = [Double](repeating: 0, count: p.count)
-        for i in 0..<rows { for j in 0..<columns {
-            var s = p[i * columns + j] * k0
-            for t in stride(from: R, through: 1, by: -1) {
-                s += (p[index(i - t, rows) * columns + j] + p[index(i + t, rows) * columns + j]) * kernel[R - t]
-            }
-            a[i * columns + j] = s
-        } }
-        var b = [Double](repeating: 0, count: p.count)
-        for i in 0..<rows { for j in 0..<columns {
-            var s = a[i * columns + j] * k0
-            for t in stride(from: R, through: 1, by: -1) {
-                s += (a[i * columns + index(j - t, columns)] + a[i * columns + index(j + t, columns)]) * kernel[R - t]
-            }
-            b[i * columns + j] = s
-        } }
-        return b
+        SciPyKernels.correlateSymmetric2D(p, rows: rows, columns: columns, weights: kernel,
+                                          boundary: edge == .nearest ? .nearest : .reflect)
     }
 }

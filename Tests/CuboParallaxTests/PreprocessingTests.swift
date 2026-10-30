@@ -13,7 +13,7 @@ import CuboParallax
         let error: Double; let appSourceUnshifted: [Double]?
     }
     @Test func pinnedPreprocessing() throws {
-        let url = Bundle.module.url(forResource: "preprocess", withExtension: "json", subdirectory: "Fixtures")!
+        let url = parallaxFixture("preprocess")!
         let pin = try JSONDecoder().decode(Pin.self, from: Data(contentsOf: url))
         for c in pin.cases {
             let shape = try CubeShape([c.rows,c.columns,c.detectorRows,c.detectorColumns])

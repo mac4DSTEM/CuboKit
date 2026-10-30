@@ -203,10 +203,7 @@ extension OriginFit {
         func residuals(_ a: [Double], _ b: [Double]) -> [Double] {
             (0..<count).map { usable[$0] ? hypot(originRow[$0] - a[$0], originColumn[$0] - b[$0]) : .nan }
         }
-        func median(_ v: [Double]) -> Double {
-            let s = v.sorted(), middle = s.count / 2
-            return s.count.isMultiple(of: 2) ? (s[middle - 1] + s[middle]) / 2 : s[middle]
-        }
+        func median(_ v: [Double]) -> Double { NumPyMedian.median(of: v) ?? .nan }
         for _ in 0..<max(rounds, 1) {
             fittedRow = try masked(originRow, kept); fittedColumn = try masked(originColumn, kept)
             let residual = residuals(fittedRow, fittedColumn)

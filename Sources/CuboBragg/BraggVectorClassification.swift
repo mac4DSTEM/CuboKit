@@ -13,6 +13,7 @@
 //
 
 import CuboCore
+internal import CuboEmbedding
 import Foundation
 
 /// The classification of scan positions by their Bragg peaks.
@@ -271,8 +272,8 @@ public struct BraggVectorClassification: Sendable, Equatable {
               h.allSatisfy({ $0.isFinite && $0 >= 0 }) else {
             throw CuboBraggError.invalidOption("NMF needs finite, non-negative X, W and H")
         }
-        let result = try ClassificationNumerics.coordinateDescentNMF(data, featureCount, positionCount, classCount, w, h,
-                                                                     maxIterations: maximumIterations, isCancelled: isCancelled)
+        let result = try NMF.coordinateDescent(data, featureCount, positionCount, classCount, w: w, h: h, tolerance: 1e-4,
+                                               maxIterations: maximumIterations, isCancelled: isCancelled)
         candidate = Candidate(classCount: classCount, w: result.w, h: result.h)
     }
 
@@ -282,7 +283,7 @@ public struct BraggVectorClassification: Sendable, Equatable {
     /// than `minimumPixels` pixels are left out. Returns one mask (`scanRows · scanColumns`) per region.
     private func regions(ofClass i: Int, sigma: Double, thresholdSplit: Double, expandMask: Int, minimumPixels: Int) -> [[Bool]] {
         let image = Array(h[(i * positionCount)..<((i + 1) * positionCount)])
-        let smooth = ClassificationNumerics.gaussianFilter(image, scanRows, scanColumns, sigma: sigma)
+        let smooth = SciPyKernels.gaussianFilter2D(image, rows: scanRows, columns: scanColumns, sigma: sigma)
         let limit = (smooth.max() ?? 0) * thresholdSplit
         var mask = smooth.map { $0 > limit }
         mask = ClassificationNumerics.morph(mask, scanRows, scanColumns, erode: true, iterations: 1)      // opening

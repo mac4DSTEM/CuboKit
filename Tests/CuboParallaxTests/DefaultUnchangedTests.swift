@@ -10,7 +10,7 @@ import CuboCore
 // allowance covers a different vDSP build only.
 @Suite struct DefaultUnchangedTests {
     static func golden() throws -> [String: [Double]] {
-        let url = try #require(Bundle.module.url(forResource: "legacy050", withExtension: "json", subdirectory: "Fixtures"))
+        let url = try #require(parallaxFixture("legacy050"))
         return try JSONDecoder().decode([String: [Double]].self, from: Data(contentsOf: url))
     }
     static func same(_ actual: [Double], _ expected: [Double], _ name: String, sourceLocation: SourceLocation = #_sourceLocation) {

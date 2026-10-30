@@ -10,7 +10,7 @@ import CuboParallax
     }
     struct Case: Decodable { let limit: Double?; let power: Double; let reference, app: [Double] }
     func pin() throws -> Pin {
-        try JSONDecoder().decode(Pin.self, from: Data(contentsOf: Bundle.module.url(forResource: "depth", withExtension: "json", subdirectory: "Fixtures")!))
+        try JSONDecoder().decode(Pin.self, from: Data(contentsOf: parallaxFixture("depth")!))
     }
     func gap(_ a: [Double], _ b: [Double]) -> Double {
         let scale = b.map { abs($0) }.max() ?? 1
