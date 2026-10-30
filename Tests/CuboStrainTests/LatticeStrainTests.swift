@@ -161,6 +161,27 @@ import Testing
         // Invalid input still throws the input error first.
         #expect(throws: LatticeStrainError.self) { try LatticeStrain.chooseBasisConsensusResult([[.init(row: .nan, column: 0, intensity: 1)]], isCancelled: { true }) }
     }
+    @Test func consensusDiagnosticsOfASuppliedBasis() throws {
+        let positions = plantedPositions(), origin = LatticeVector(row: 0, column: 0)
+        let full = try #require(try LatticeStrain.chooseBasisConsensusResult(positions))
+        // The chosen basis, supplied: the same scoring, so the same entry exactly.
+        #expect(try LatticeStrain.consensusDiagnostics(positions, basis: full.basis) == full)
+        // Another basis of the planted lattice (g1 + g2, g2): filled from the same observations, checked by rescoring.
+        let other = LatticeBasis(g1: .init(row: full.basis.g1.row + full.basis.g2.row, column: full.basis.g1.column + full.basis.g2.column),
+                                 g2: full.basis.g2)
+        let d = try #require(try LatticeStrain.consensusDiagnostics(positions, basis: other, origin: origin, minimumRadius: 2))
+        #expect(d.basis == other)
+        let r = rescore(other, positions, origin: origin, minimumRadius: 2)
+        #expect(d.observationCount == r.obs && d.supportCount == r.support)
+        #expect(d.supportCount > 0)
+        #expect(abs(d.residual - r.residual) <= 1e-5 && abs(d.indexingTolerance - r.tolerance) <= 1e-5)
+        #expect(abs(d.conditionNumber - r.condition) <= 1e-5 * max(1, r.condition))
+        // A singular basis has no entry; invalid input throws.
+        #expect(try LatticeStrain.consensusDiagnostics(positions, basis: LatticeBasis(g1: full.basis.g1, g2: full.basis.g1)) == nil)
+        #expect(throws: LatticeStrainError.self) {
+            try LatticeStrain.consensusDiagnostics(positions, basis: LatticeBasis(g1: .init(row: .nan, column: 0), g2: full.basis.g2))
+        }
+    }
     @Test func referenceMADInliers() throws {
         let b = try array("appBases"), bases = stride(from: 0, to: b.count, by: 4).map { basis(Array(b[$0..<$0+4])) }
         let plain = try LatticeStrain.referenceMAD(bases), full = try LatticeStrain.referenceMADResult(bases)

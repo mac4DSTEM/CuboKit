@@ -11,8 +11,8 @@ Slower than py4DSTEM at the typical size (100 x 100 x 64 x 64, Float32); the num
 
 Missing, in the order the study needs them (`docs/parity.md`, "study" rows):
 
-- The app asks that remain: a vDSP-backed shifter for padded parallax sizes, `SyntheticProbe.make` with a centre, the
-  hot-pixel mean in Double, `svd_flip` signs in embedding, `FloatFFT2D.supports` public, names that clash with module names.
+- The app asks that remain: a vDSP-backed shifter for padded parallax sizes, names that clash with module names. The
+  hot-pixel mean stays Float32 on purpose (`HotPixelFilter` documents why).
 - A single `reconstruct` for parallax; ptychography probe constraints, mixed-state and multislice engines.
 
 Decisions to keep an eye on:

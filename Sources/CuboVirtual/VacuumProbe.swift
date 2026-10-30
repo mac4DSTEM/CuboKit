@@ -210,13 +210,17 @@ public enum ProbeKernel {
 /// py4DSTEM's Probe.generate_synthetic_probe: a disk of `radius` with a logistic edge of full width `width`, centred on
 /// (rows/2, columns/2): 1 / (1 + exp(4 (r − radius) / width)).
 public enum SyntheticProbe {
-    public static func make(radius: Double, width: Double, detectorRows qy: Int, detectorColumns qx: Int) throws
-        -> DetectorImage {
+    /// - Parameter centre: the disk's centre in detector pixels. nil is py4DSTEM's (rows / 2, columns / 2) in Double, a half
+    ///   pixel off the grid for an odd side; `(row: Double(rows / 2), column: Double(columns / 2))` centres it on a pixel.
+    public static func make(radius: Double, width: Double, detectorRows qy: Int, detectorColumns qx: Int,
+                            centre: (row: Double, column: Double)? = nil) throws -> DetectorImage {
         guard radius.isFinite, width > 0, width.isFinite, qy > 0, qx > 0 else {
             throw CuboVirtualError.invalidInput("radius finite, width positive, a non-empty detector")
         }
+        let (centreRow, centreColumn) = centre ?? (Double(qy) / 2.0, Double(qx) / 2.0)
+        guard centreRow.isFinite, centreColumn.isFinite else { throw CuboVirtualError.invalidInput("a finite centre") }
         let v = (0..<(qy * qx)).map { k -> Double in
-            let r = Double(k / qx) - Double(qy) / 2.0, c = Double(k % qx) - Double(qx) / 2.0
+            let r = Double(k / qx) - centreRow, c = Double(k % qx) - centreColumn
             let qr = (r * r + c * c).squareRoot() - radius
             return 1 / (1 + exp(4 * qr / width))
         }

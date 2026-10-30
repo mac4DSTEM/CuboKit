@@ -170,7 +170,7 @@ CuboKit has no stateful `Calibration` object yet; its measurements return plain 
 |---|---|---|---|---|
 | `Probe(data)` with `probe`, `kernel`, `alpha`, `origin` | functions on a detector image | partial: no stateful `Probe` object | study | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
 | `Probe.from_vacuum_data` (`mask`, `threshold`, `expansion`, `opening`) | — | missing (planned: the Bragg-disk module) | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
-| `Probe.generate_synthetic_probe(radius, width, Qshape)` | `SyntheticProbe.make(radius:width:detectorRows:detectorColumns:)` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
+| `Probe.generate_synthetic_probe(radius, width, Qshape)` | `SyntheticProbe.make(radius:width:detectorRows:detectorColumns:centre:)` | present; `centre: nil` is py4DSTEM's (Q/2 in floats), a given centre (for example a pixel) is an option, tested exact against the closed form | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
 | `Probe.measure_disk` (`thresh_lower`, `thresh_upper`, `N`, `zero_vacuum`, `alpha_max`) | `ProbeSize.estimate` (the same algorithm), then `VacuumProbe.zeroVacuum` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
 | `Probe.measure_disk(plot=True)` | — | not planned (plotting) | not planned: plotting | — |
 | `Probe.zero_vacuum` | `VacuumProbe.zeroVacuum(_:center:alpha:alphaMax:)` | present | useful | no upstream test (`test_probe.py` checks types and shapes); np.allclose defaults |
@@ -429,7 +429,7 @@ Tolerance `2e-6` normwise maximum error with unit floor; see DocC Scope for nume
 | `get_strain_from_reference_g1g2`, `get_rotated_strain_map` | `LatticeStrain.strain` | done: py4DSTEM reference, rotation and theta signs; caller maps per scan position |
 | App c809679c intensity-once fit | `fitIntensityOnce` | named option: Float32 vectors, Double normal equations, weight floor 1e-6, RMS residual; original helper pin |
 | App c809679c MAD reference | `referenceMAD` | named option: Float32 MAD rejection with 2% scale floor and half-population fallback; original helper pin |
-| App c809679c cluster-consensus selection | `chooseBasisConsensus` | named option: repeated vector clusters, bounded condition/support scoring; original helper pin |
+| App c809679c cluster-consensus selection | `chooseBasisConsensus`, `consensusDiagnostics` (the same scoring for a supplied basis) | named option: repeated vector clusters, bounded condition/support scoring; original helper pin |
 
 These rows refine the strain headline; plotting and the `StrainMap` state object are not APIs.
 `tools/strain/pins.py` calls the actual pinned Python functions and independently
