@@ -173,11 +173,13 @@ so `tools/test.sh` runs everywhere; with the data present it runs more.
 
 ## Versioning
 
+<!-- x-release-please-start-version -->
 Semantic versions in the 0.x series, tagged; the current release is **0.9.0**. Add it to a package with
 
 ```
 .package(url: "https://github.com/mac4DSTEM/CuboKit.git", exact: "0.9.0")
 ```
+<!-- x-release-please-end -->
 
 and list the products you use (`CuboCore`, `CuboVirtual`, `CuboPhase`, `CuboParallax`, `CuboStrain`, `CuboBragg`,
 `CuboPtycho`, `CuboEmbedding`). `CHANGELOG.md` has an entry per release, with a Migration paragraph where a consumer must
