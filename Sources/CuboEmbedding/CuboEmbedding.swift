@@ -1,14 +1,7 @@
 import Foundation
 
-/// PCA, k-means and the diffraction-pattern featurisation behind them.
-///
-/// The primary entry points follow scikit-learn 1.4.2 (``PCA/Variant/scikitLearn``, ``KMeans/fit(_:rows:columns:initialCentroids:maxIterations:tolerance:isCancelled:)``).
-/// The numerics of mac4DSTEM's diffraction-embedding pipeline are separate, explicitly named options.
-public enum CuboEmbedding {
-    /// What this module computes.
-    @available(*, deprecated, message: "scope carries no information and will be removed")
-    public static let scope = "PCA (scikit-learn and mac4DSTEM covariance variants), Lloyd k-means (scikit-learn and mac4DSTEM k-means++ variants), binned diffraction feature vectors, and py4DSTEM's Featurization (scikit-learn NMF and Gaussian mixtures, NumPy RandomState)."
-}
+// PCA, k-means and the diffraction-pattern featurisation behind them. The primary entry points follow scikit-learn 1.4.2;
+// the numerics of mac4DSTEM's diffraction-embedding pipeline are separate, explicitly named options.
 
 /// Why an embedding computation was refused.
 public enum EmbeddingError: Error, Sendable, Equatable, CustomStringConvertible {
