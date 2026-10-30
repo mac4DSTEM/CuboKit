@@ -33,7 +33,7 @@ struct AppPins: Decodable {
     }
     let correlation: [Correlation]; let transfer: [Transfer]; let position: Position
     static func load() throws -> AppPins {
-        let url = try #require(Bundle.module.url(forResource: "appvariants", withExtension: "json", subdirectory: "Fixtures"))
+        let url = try #require(parallaxFixture("appvariants"))
         return try JSONDecoder().decode(AppPins.self, from: Data(contentsOf: url))
     }
 }
@@ -147,7 +147,7 @@ func maxGap(_ a: [Double], _ b: [Double], floor: Double = 1) -> Double {
     // And py4DSTEM's pinned alignment (align_images_fourier, factor 8) through the spectra.
     @Test func matchesPy4DSTEMPins() throws {
         struct Pins: Decodable { struct Case: Decodable { let rows, columns: Int; let reference: [Double]; let frames, shifts: [[Double]]; let running: Bool } ; let cases: [Case] }
-        let url = try #require(Bundle.module.url(forResource: "alignment", withExtension: "json", subdirectory: "Fixtures"))
+        let url = try #require(parallaxFixture("alignment"))
         let pins = try JSONDecoder().decode(Pins.self, from: Data(contentsOf: url))
         var checked = 0
         for item in pins.cases where !item.running {
@@ -181,7 +181,7 @@ func maxGap(_ a: [Double], _ b: [Double], floor: Double = 1) -> Double {
     // discontinuity; the pin's smallest |sin| is recorded in the fixture (0.004), far above the 1e-13 phase differences.
     static let tolerance = 1e-12   // measured worst gap 2.6e-15
     @Test func transferMatchesTranscription() throws {
-        let ab = try JSONDecoder().decode(AberrationPin.self, from: Data(contentsOf: #require(Bundle.module.url(forResource: "aberrations", withExtension: "json", subdirectory: "Fixtures"))))
+        let ab = try JSONDecoder().decode(AberrationPin.self, from: Data(contentsOf: #require(parallaxFixture("aberrations"))))
         let terms = ab.terms.map { ParallaxAberrationTerm(radialOrder: $0[0], angularOrder: $0[1], component: $0[2]) }
         var worst = 0.0
         for t in try AppPins.load().transfer {

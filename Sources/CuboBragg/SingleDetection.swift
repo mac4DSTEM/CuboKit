@@ -2,7 +2,7 @@
 //  SingleDetection.swift
 //  The `.single` path of BraggDetector: the correlation of docs/bragg.md in Float32 on Accelerate, with one reusable scratch per
 //  concurrent worker. Pattern copy, non-finite fill, the Gaussian filters (vDSP_conv along reflect-padded rows, row-wise
-//  multiply-adds across rows), the 2-D transform (SingleFFT.swift), the correlation product (vDSP_zvmul, or the hybrid
+//  multiply-adds across rows), the 2-D transform (CuboCore's FloatFFT2D), the correlation product (vDSP_zvmul, or the hybrid
 //  power), max(Re, 0) and the maxima search run in Float; the few accepted peaks are refined in Double (parabola from the
 //  Float neighbourhood, matrix-DFT upsampling on the Float complex correlation widened to Double).
 //
@@ -28,7 +28,7 @@ final class SingleScratch: @unchecked Sendable {
     let count: Int
     let a0: UnsafeMutablePointer<Float>, a1: UnsafeMutablePointer<Float>
     let b0: UnsafeMutablePointer<Float>, b1: UnsafeMutablePointer<Float>
-    /// The complex correlation, kept for `.multicorr` (transposed layout, see SingleFFT.swift).
+    /// The complex correlation, kept for `.multicorr` (transposed layout, see CuboCore's FloatFFT2D).
     let d0: UnsafeMutablePointer<Float>, d1: UnsafeMutablePointer<Float>
     private var pad: UnsafeMutablePointer<Float>
     private var padCapacity: Int
@@ -73,14 +73,14 @@ final class SingleScratch: @unchecked Sendable {
 /// What a detector builds once for `.single`: the plan, the kernel's conjugate-ready spectrum, and the scratch pool.
 final class SingleState: @unchecked Sendable {
     let rows: Int, columns: Int
-    let fft: SingleFFT2D
+    let fft: FloatFFT2D
     /// FFT2(kernel), transposed layout; the correlation multiplies by its conjugate.
     private let kernelRe: UnsafeMutablePointer<Float>, kernelIm: UnsafeMutablePointer<Float>
     private let lock = NSLock()
     private var free: [SingleScratch] = []
 
     init(rows: Int, columns: Int, kernel: [Double]) throws {
-        guard let fft = SingleFFT2D(rows: rows, columns: columns) else {
+        guard let fft = FloatFFT2D(rows: rows, columns: columns) else {
             throw CuboBraggError.invalidOption("precision .single needs a detector size vDSP's DFT supports on both axes (f·2ⁿ, f in 1, 3, 5, 15, ...); \(rows) × \(columns) is not one (use .double)")
         }
         self.rows = rows; self.columns = columns; self.fft = fft
