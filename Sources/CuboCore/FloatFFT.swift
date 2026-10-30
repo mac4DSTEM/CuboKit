@@ -1,5 +1,5 @@
 //
-//  FloatFFT.swift (CuboCore, package)
+//  FloatFFT.swift (CuboCore; the plan and `supports` public, the transforms package)
 //  The Float32 2-D transform of the Float32 paths (Bragg `.single`, single-slice ptychography `.single`): vDSP's complex DFT (vDSP_DFT_zop) along the rows, a transpose,
 //  and the DFT along what were the columns. Forward is NumPy's fft2 (e^{-2πi…}, unnormalised); inverse is the unnormalised
 //  conjugate transform (the caller applies 1/(rows · columns)). The exact N-point DFT at the pattern's own size: nothing is
@@ -16,13 +16,15 @@ import Foundation
 
 /// A plan for one `rows × columns` grid, immutable after creation and shared by concurrent workers (vDSP's DFT setups are
 /// shareable across threads); the buffers are the caller's.
-package final class FloatFFT2D: @unchecked Sendable {
-    package let rows: Int, columns: Int
+/// Public: the plan and ``supports(rows:columns:)``, so a caller can ask before choosing a Float32 path; the transforms
+/// themselves stay package access.
+public final class FloatFFT2D: @unchecked Sendable {
+    public let rows: Int, columns: Int
     private let rowForward: vDSP_DFT_Setup, rowInverse: vDSP_DFT_Setup     // length `columns`, along each row
     private let columnForward: vDSP_DFT_Setup, columnInverse: vDSP_DFT_Setup   // length `rows`, along each row of the transpose
 
     /// nil when vDSP has no DFT of one of the two lengths.
-    package init?(rows: Int, columns: Int) {
+    public init?(rows: Int, columns: Int) {
         guard rows > 0, columns > 0,
               let rf = vDSP_DFT_zop_CreateSetup(nil, vDSP_Length(columns), .FORWARD),
               let ri = vDSP_DFT_zop_CreateSetup(nil, vDSP_Length(columns), .INVERSE),
@@ -38,7 +40,7 @@ package final class FloatFFT2D: @unchecked Sendable {
     }
 
     /// Whether vDSP can transform a grid of this size.
-    package static func supports(rows: Int, columns: Int) -> Bool {
+    public static func supports(rows: Int, columns: Int) -> Bool {
         FloatFFT2D(rows: rows, columns: columns) != nil
     }
 

@@ -191,6 +191,9 @@ do {
     do { _ = try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { true }) } catch is CancellationError { cancelled = true }
     check("LatticeStrain.chooseBasisConsensusResult", result?.basis == plain && result?.observationCount == 100 && result?.supportCount == 100
           && (result?.residual ?? 1) < 1e-5 && (result?.conditionNumber ?? 0) >= 1 && (result?.indexingTolerance ?? 0) >= 0.5 && cancelled)
+    // A supplied basis (an initial basis) gets the same diagnostics entry.
+    let supplied = try LatticeStrain.consensusDiagnostics(positions, basis: LatticeBasis(g1: .init(row: 8, column: 0), g2: .init(row: 0, column: 10)))
+    check("LatticeStrain.consensusDiagnostics", supplied?.observationCount == 100 && supplied?.supportCount == 100 && (supplied?.residual ?? 1) < 1e-5)
     let mad = try LatticeStrain.referenceMADResult([LatticeBasis(g1: .init(row: 8, column: 0), g2: .init(row: 0, column: 10)),
                                                     LatticeBasis(g1: .init(row: 8, column: 0), g2: .init(row: 0, column: 10)),
                                                     LatticeBasis(g1: .init(row: 8, column: 0), g2: .init(row: 0, column: 10))])
@@ -465,6 +468,10 @@ let synthetic = try SyntheticProbe.make(radius: 5, width: 2, detectorRows: 32, d
 check("SyntheticProbe.make is 1/2 on the radius, near 1 inside and near 0 outside",
       synthetic.detectorRows == 32 && synthetic[16, 21] == 0.5 && synthetic[16, 11] == 0.5 && synthetic[16, 16] > 0.9
       && synthetic[0, 0] < 0.001)
+let pixelCentred = try SyntheticProbe.make(radius: 5, width: 2, detectorRows: 31, detectorColumns: 31, centre: (row: 15, column: 15))
+check("SyntheticProbe.make with a pixel centre peaks on that pixel",
+      pixelCentred[15, 20] == 0.5 && pixelCentred[15, 10] == 0.5 && pixelCentred[10, 15] == 0.5)
+check("FloatFFT2D.supports", FloatFFT2D.supports(rows: 64, columns: 48) && !FloatFFT2D.supports(rows: 7, columns: 64))
 check("SyntheticProbe.make: a zero width is invalidInput",
       await isInvalidInput { _ = try SyntheticProbe.make(radius: 5, width: 0, detectorRows: 32, detectorColumns: 32) })
 check("CuboVirtualError.invalidInput", CuboVirtualError.invalidInput("x") == .invalidInput("x")

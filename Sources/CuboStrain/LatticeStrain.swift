@@ -229,6 +229,26 @@ public enum LatticeStrain {
                      observationCount: e.observationCount, supportCount: e.supportCount, residual: Double(e.residualPixels),
                      conditionNumber: Double(e.conditionNumber), indexingTolerance: Double(e.indexingTolerancePixels))
     }
+    /// The diagnostics of ``chooseBasisConsensusResult(_:origin:minimumRadius:isCancelled:)`` for a basis the caller supplies
+    /// (an initial basis, for example): the same observations (peaks beyond `minimumRadius` from `origin`) and the same
+    /// Float32 scoring, without the clustering or the acceptance limits (condition at most 8, half the observations). For the
+    /// basis the consensus chooses it returns the consensus entry exactly. `basis` is returned as given (the scoring reads it
+    /// in Float32). With no supporting observation, `supportCount` is 0 and `residual` is infinity. nil for a basis that is
+    /// singular or degenerate in Float32 (a vector shorter than about 1e-5 or components so large the Gram trace overflows).
+    public static func consensusDiagnostics(_ positions: [[LatticePeak]], basis: LatticeBasis, origin: LatticeVector = .init(row:0,column:0),
+                                            minimumRadius: Double = 2) throws -> ConsensusBasis? {
+        guard positions.allSatisfy(valid), finite(origin), finite(basis.g1), finite(basis.g2), minimumRadius.isFinite, minimumRadius >= 0,
+              representable([origin.row,origin.column,minimumRadius,basis.g1.row,basis.g1.column,basis.g2.row,basis.g2.column]
+                            + positions.flatMap { $0.flatMap { [$0.vector.row,$0.vector.column] } }) else { throw LatticeStrainError.invalidInput }
+        let grid = ConsensusPeakGrid(peaks:positions.map { $0.map { ConsensusPeak(x:Float($0.vector.row),y:Float($0.vector.column),intensity:Float($0.intensity)) } })
+        let observations = ConsensusNumerics.vectorObservations(bragg:grid,x0:Float(origin.row),y0:Float(origin.column),minRadius:Float(minimumRadius),cancellation:nil)
+        let g1 = (x: Float(basis.g1.row), y: Float(basis.g1.column)), g2 = (x: Float(basis.g2.row), y: Float(basis.g2.column))
+        guard let condition = ConsensusNumerics.conditionNumber(g1: g1, g2: g2) else { return nil }
+        let tolerance = ConsensusNumerics.indexingTolerance(g1: g1, g2: g2)
+        let score = ConsensusNumerics.scoreBasis(g1: g1, g2: g2, observations: observations, tolerance: tolerance)
+        return .init(basis: basis, observationCount: observations.count, supportCount: score.support, residual: Double(score.residual),
+                     conditionNumber: Double(condition), indexingTolerance: Double(tolerance))
+    }
     /// Compatibility option: cluster repeated vectors, score bounded candidate pairs by consensus.
     /// Uses Float32 source arithmetic, min radius 2 by default, condition limit 8,
     /// cluster support 8% of occupied positions, and at least 50% observation support.
