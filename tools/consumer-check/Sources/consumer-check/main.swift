@@ -183,7 +183,7 @@ do {
     check("StrainMapping scan-level", false)
 }
 do {
-    // Round 6: consensus diagnostics with cancellation, MAD inliers.
+    // Strain consensus: diagnostics with cancellation, MAD inliers.
     let positions = (0..<20).map { _ in [(1.0, 0.0), (0.0, 1.0), (1.0, 1.0), (-1.0, 0.0), (0.0, -1.0)].map { LatticePeak(row: 8 * $0.0, column: 10 * $0.1, intensity: 1) } }
     let result = try LatticeStrain.chooseBasisConsensusResult(positions, isCancelled: { false })
     let plain = try LatticeStrain.chooseBasisConsensus(positions)
@@ -206,7 +206,7 @@ do {
                                       origin: LatticeVector(row: 16, column: 16), directions: lat, options: one)
     check("StrainMapResult.referenceInlierCount", m.referenceInlierCount == 4 && m.referencePositionCount == 4)
 } catch {
-    check("round 6 strain", false)
+    check("strain consensus", false)
 }
 do {
     // Crop-and-bin view, ptychography preprocessing and the three engines, through the public API.
@@ -269,7 +269,7 @@ do {
           && mixed.object.real.allSatisfy(\.isFinite) && multi.probe.real.allSatisfy(\.isFinite))
 }
 check("ElementType list", ElementType.allCases.count == 10 && ElementType.uint16.npyDescriptor == "<u2")
-// Slice 2: centre of mass, probe size, the reference, the rotation, DPC.
+// Centre of mass, probe size, the reference, the rotation, DPC.
 for path in paths {
     let com = try await CenterOfMass.measure(of: lazy, mask: .circle(centerRow: 3.5, centerColumn: 4, radius: 3), path: path)
     check("CenterOfMass.measure \(path)", com.row.scanRows == 3 && com.row.values.count == 12 && com.row.path == path
@@ -306,7 +306,7 @@ do {
 } catch let error as CuboPhaseError {
     check("CuboPhaseError.zeroField", error == .zeroField && error.errorDescription?.contains("app") == false)
 }
-// Slice 3: origins, fits, centred and shifted imaging, shifted patterns.
+// Origins, fits, centred and shifted imaging, shifted patterns.
 let (origins, originRadius) = try await OriginMeasurement.measure(of: eager, radius: 2.5, radiusScale: 1.2)
 check("OriginMeasurement.measure", originRadius == 2.5 && origins.row.values.count == 12 && origins.meanRow.isFinite)
 let fittedPlane = try OriginFit.fit(origins.row.values, rows: 3, columns: 4, model: .plane, robust: true)
@@ -323,7 +323,7 @@ check("VirtualImaging.image centred and shifted", centredImage.values.count == 1
 let shiftedPatterns = try await VirtualDiffraction.meanAndMax(of: lazy, shift: .fourier(origins))
 let unitFilter = try GaussianFilter(sigma: 1)
 check("VirtualDiffraction.meanAndMax shifted", shiftedPatterns.mean.values.count == 72 && unitFilter.kernel.count == 9)
-// Slice 4: the median pattern, selections, origins with a scan mask, the Friedel origin, the beamstop mask, the vacuum
+// The median pattern, selections, origins with a scan mask, the Friedel origin, the beamstop mask, the vacuum
 // probe and its kernels. Every expectation is closed-form: a consumer can verify it by hand.
 func isInvalidInput(_ body: () async throws -> Void) async -> Bool {
     do { try await body(); return false } catch let error as CuboVirtualError {
@@ -360,8 +360,8 @@ check("VirtualDiffraction.pattern: weights all one give the mean",
 let firstWeighted = try await VirtualDiffraction.pattern(of: tiny, statistic: .mean, scan: .weights([1, 0, 0]))
 check("VirtualDiffraction.pattern: weights [1, 0, 0] give the first pattern", firstWeighted.values == tinyP0.map(Double.init))
 let allScan = try await VirtualDiffraction.pattern(of: eager, statistic: .max, scan: .all)
-let slice1Max = try await VirtualDiffraction.max(of: eager, path: .cpu)
-check("VirtualDiffraction.pattern .all .max equals slice 1's max", allScan.values == slice1Max.values && plainMean.values.count == 72)
+let plainMax = try await VirtualDiffraction.max(of: eager, path: .cpu)
+check("VirtualDiffraction.pattern .all .max equals VirtualDiffraction.max", allScan.values == plainMax.values && plainMean.values.count == 72)
 check("ScanSelection is Hashable", ScanSelection.all == ScanSelection.all && ScanSelection.mask([true]) != ScanSelection.mask([false])
       && Set([ScanSelection.all, .weights([1]), .weights([1])]).count == 2)
 let shiftedSelection = try await VirtualDiffraction.pattern(of: lazy, statistic: .mean, scan: .all, shift: .rounded(origins))
