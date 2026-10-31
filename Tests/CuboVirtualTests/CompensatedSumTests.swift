@@ -120,7 +120,8 @@ import CuboCore
             // scattered, out of order, one repeat: the order given is the order added
             var rows = (0..<picked).map { ($0 * 5 + 2) % rowsInCube }
             if picked > 1 { rows[picked - 1] = rows[0] }
-            let weights = (0..<picked).map { j -> Double in [0.37, 0, -1.25, 1e-300, 3.0, 1e300, 0.5][j % 7] }
+            let weightCycle: [Double] = [0.37, 0, -1.25, 1e-300, 3.0, 1e300, 0.5]
+            let weights = (0..<picked).map { weightCycle[$0 % 7] }
             for weighted in [false, true] {
                 var s1 = [Double](repeating: 0, count: count), c1 = s1, s2 = s1, c2 = s1
                 v.withUnsafeBufferPointer { p in
@@ -157,7 +158,12 @@ import CuboCore
         // scan row 2 (positions 14..<21) holds no picked position: with `.rows(1)` one tile adds nothing
         let mask = (0..<positions).map { ($0 * 7) % 5 != 2 && $0 / shape.scanColumns != 2 }
         // weights with exact zeros (0 * Inf = NaN), negatives and fractions
-        let weights = (0..<positions).map { $0 % 6 == 1 ? 0 : [0.37, 0, -1.25, 2.5, 3.0, 0.125][$0 % 6] + Double($0) * 1e-3 }
+        let pattern: [Double] = [0.37, 0, -1.25, 2.5, 3.0, 0.125]
+        let weights = (0..<positions).map { k -> Double in
+            if k % 6 == 1 { return 0 }
+            let ramp = Double(k) * 1e-3
+            return pattern[k % 6] + ramp
+        }
         func perPosition(_ weighted: Bool) -> [Double] {
             var s = [Double](repeating: 0, count: n), e = s
             v.withUnsafeBufferPointer { p in
