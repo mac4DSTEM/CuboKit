@@ -8,18 +8,35 @@ CPU ptychography preprocessing, probe construction and single-slice, mixed-state
 
 - <doc:Preparing-a-reconstruction>
 
-### Processing
+### Preparation
 
 - ``PtychographyPreparation``
+- ``PtychographyPreparationOptions``
+- ``PreparedPtychography``
+- ``PtychographyScanGeometry``
+- ``PtychographyOrigins``
+- ``PtychographyPadding``
+- ``PtychographyShift``
+- ``PtychographyAmplitudes``
+
+### Processing
+
 - ``PtychographyProbe``
 - ``PtychographyAberrationTerm``
 - ``SingleslicePtychography``
 - ``MixedstatePtychography``
 - ``MultislicePtychography``
+- ``PtychographyPrecision``
+- ``PtychographyErrorNormalization``
+- ``PtychographyPositionCorrection``
 - ``PtychographyStack``
 - ``PtychographyArray``
 - ``PtychographyPosition``
+
+### Errors
+
 - ``PtychographyError``
+- ``MixedstateZeroPixelError``
 
 ### Supported scope
 

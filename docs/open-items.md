@@ -11,7 +11,9 @@ Slower than py4DSTEM at the typical size (100 x 100 x 64 x 64, Float32); the num
 
 Missing, in the order the study needs them (`docs/parity.md`, "study" rows):
 
-- The app asks that remain: a vDSP-backed shifter for padded parallax sizes. The
+- The Double FFT on lengths vDSP does not take (Bluestein, the padded parallax sizes and ptychography detectors such as
+  165) is bound by vDSP's Double FFT: a vectorised, allocation-free Bluestein on vDSP's DFT measured 1.1x and was not
+  kept. Float32 callers use `ParallaxFourierShifter.shiftedSingle`, which takes every size (2.6x at 165 x 165). The
   hot-pixel mean stays Float32 on purpose (`HotPixelFilter` documents why).
 - A single `reconstruct` for parallax; ptychography probe constraints, mixed-state and multislice engines.
 
@@ -20,8 +22,8 @@ Decisions to keep an eye on:
 - `Calibration` follows py4DSTEM: binning, thinning, padding and resampling change the pixel sizes but not the origin (in
   detector pixels), so an origin measured before `bin_Q(2)` is wrong afterwards. A caller that stores the origin rescales it.
 - `ResidentCube` is capped at half of the physical memory and needs the cube in one Metal buffer (`ResidentCube.availability(of:)` says which limit and how far over); a larger cube needs a chunked variant (decided 2026-10-22: no chunked variant; the app falls back to the tiled path).
-- `cubo_weighted_pattern` (and `cubo_sum_and_max`) use a plain TwoSum: a +Inf in a selected pattern gives NaN on Metal where the
-  CPU gives +Inf. Only hot-pixel data with infinities is affected; `df_add` keeps a non-finite sum and could replace it.
+- The Metal sums are Float32 within a tile: a per-tile sum or a product past about 3.4e38, or a selection weight below the
+  Float32 range (it rounds to 0), gives ±∞ or NaN where the CPU Double path stays finite. Not reachable with detector counts.
 
 0.9.0 notes (polar cube, ellipse, classification):
 
