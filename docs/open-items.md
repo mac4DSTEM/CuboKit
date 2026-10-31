@@ -2,12 +2,13 @@
 
 Slower than py4DSTEM at the typical size (100 x 100 x 64 x 64, Float32); the numbers are in `docs/benchmarks.md`.
 
-1. **Metal mean, max and selected-area patterns pay a host copy per tile** (28 ms against 3.4 ms resident). Use
-   `ResidentCube` when a cube is reduced more than once; an automatic policy (hold the cube when the first call reads it
-   twice) is the app's. The CPU path is faster than the host-copy Metal path for the mean (2.2 against 27 ms), the mask
-   and the weights (3.9 and 5.1 against 29 and 28 ms before the 1.85x of CuboKit#55): the CPU is the default.
-2. Centre of mass on Metal is slower than the CPU at both sizes measured (27 ms against 11 ms): the kernel reads each
-   pattern with one thread; only a resident cube would change that. CPU stays the default.
+1. **Metal mean, max and selected-area patterns lose to the CPU on a cube that is not resident.** Since CuboKit#8 a
+   `MemoryCube` reaches the GPU without a copy and other sources go through one reused staging buffer (before, a new
+   buffer per tile cost about 20 of the 26 ms). At the typical size the Metal mean and max is now 6.4 ms (staged 13.4,
+   resident 3.8) against 2.4 ms on the CPU, and the mask mean 9.7 against 1.6: these passes are bandwidth-bound and the
+   CPU reads the cube in place, so the CPU stays the default. The virtual image (5.0 against 9.6 ms) and the centre of
+   mass (8.6 against 11.6) are now faster on Metal for a `MemoryCube`; the centre of mass at 128 x 128 detectors is not
+   (29.8 against 17.5: the kernel reads each pattern with one thread). An automatic choice of path is the app's.
 
 Closed: the CPU mean pattern is no longer behind NumPy (CuboKit#7). Since CuboKit#53 each pixel keeps its TwoSum sum and
 correction in registers over four scan positions per pass, in 128-pixel blocks: `VirtualDiffraction.mean` 4.47 -> 2.17 ms
