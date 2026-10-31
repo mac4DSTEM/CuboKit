@@ -137,6 +137,17 @@ final class MetalContext: @unchecked Sendable {
         lo = e - (hi - s);
     }
 
+    // Adds w * x for a Float32 pair w = (hi, lo): the product with hi split exactly by fma, then lo * x rounded. A
+    // non-finite product (an infinite pixel, or 0 * inf = NaN) is added alone: its fma error is inf - inf and lo * x may be
+    // 0 * inf, both NaN, where the CPU Double product is the one value.
+    inline void df_add_product(thread float &hi, thread float &lo, float2 w, float x) {
+        const float h = w.x * x;
+        df_add(hi, lo, h);
+        if (!isfinite(h)) { return; }
+        df_add(hi, lo, fma(w.x, x, -h));
+        df_add(hi, lo, w.y * x);
+    }
+
     // One thread per scan position: Σ wP, Σ (w i) P, Σ (w j) P. Each
     // coefficient arrives as a Float32 pair (hi, lo) with hi + lo its Double value; the product with hi is split exactly by
     // fma, the lo part is added rounded, and every term goes into a renormalised double-float accumulator returned as
@@ -155,9 +166,9 @@ final class MetalContext: @unchecked Sendable {
         float s0 = 0.0f, c0 = 0.0f, s1 = 0.0f, c1 = 0.0f, s2 = 0.0f, c2 = 0.0f;
         for (ulong k = 0; k < n; ++k) {
             const float x = p[k];
-            float h = w[k].x * x;   df_add(s0, c0, h); df_add(s0, c0, fma(w[k].x, x, -h));  df_add(s0, c0, w[k].y * x);
-            h = wi[k].x * x;        df_add(s1, c1, h); df_add(s1, c1, fma(wi[k].x, x, -h)); df_add(s1, c1, wi[k].y * x);
-            h = wj[k].x * x;        df_add(s2, c2, h); df_add(s2, c2, fma(wj[k].x, x, -h)); df_add(s2, c2, wj[k].y * x);
+            df_add_product(s0, c0, w[k], x);
+            df_add_product(s1, c1, wi[k], x);
+            df_add_product(s2, c2, wj[k], x);
         }
         out[3 * gid] = float2(s0, c0);
         out[3 * gid + 1] = float2(s1, c1);
@@ -362,6 +373,15 @@ final class MetalContext: @unchecked Sendable {
 enum MetalReducers {
     static func context() throws -> MetalContext { try MetalContext.shared.get() }
 
+    /// A kernel's compensated (sum, correction) pair in Double. A sum that is ±∞ or NaN is returned as it is: TwoSum on an
+    /// infinite term leaves the sum at ±∞ but its correction at NaN (∞ − ∞), and so does the fma error of an infinite
+    /// product; the CPU reference (`CompensatedSum.value`) drops the correction the same way.
+    @inline(__always)
+    static func combined(_ sum: Float, _ correction: Float) -> Double {
+        let s = Double(sum)
+        return s.isFinite ? s + Double(correction) : s
+    }
+
     /// The Double coefficients as Float32 (hi, lo) pairs, interleaved: hi = Float(v), lo = Float(v − hi).
     static func split(_ v: [Double]) -> [Float] {
         var out = [Float](); out.reserveCapacity(2 * v.count)
@@ -430,7 +450,7 @@ enum MetalReducers {
                                             detectorColumns: UInt32(shape.detectorColumns)))
             let first = range.lowerBound * shape.scanColumns
             let pairs = MetalContext.floats(image, count: 2 * positions)
-            for k in 0..<positions { out[first + k] = Double(pairs[2 * k]) + Double(pairs[2 * k + 1]) }
+            for k in 0..<positions { out[first + k] = combined(pairs[2 * k], pairs[2 * k + 1]) }
             progress?(Double(range.upperBound) / Double(shape.scanRows))
         }
         return ScanImage(scanRows: shape.scanRows, scanColumns: shape.scanColumns, values: out, path: .metal)
@@ -454,7 +474,7 @@ enum MetalReducers {
                                             detectorColumns: UInt32(shape.detectorColumns)))
             let s = MetalContext.floats(sums, count: 2 * n), m = MetalContext.floats(maxima, count: n)
             for i in 0..<n {
-                sum[i] += Double(s[2 * i]) + Double(s[2 * i + 1])
+                sum[i] += combined(s[2 * i], s[2 * i + 1])
                 maximum[i] = (maximum[i].isNaN || m[i].isNaN) ? .nan : Swift.max(maximum[i], m[i])
             }
             progress?(Double(range.upperBound) / Double(shape.scanRows))
@@ -512,7 +532,7 @@ enum MetalReducers {
                                                         weighted: weights == nil ? 0 : 1))
             let s = MetalContext.floats(sums, count: 2 * n), m = MetalContext.floats(maxima, count: n)
             for i in 0..<n {
-                sum[i] += Double(s[2 * i]) + Double(s[2 * i + 1])
+                sum[i] += combined(s[2 * i], s[2 * i + 1])
                 maximum[i] = (maximum[i].isNaN || m[i].isNaN) ? .nan : Swift.max(maximum[i], m[i])
             }
             progress?(Double(range.upperBound) / Double(shape.scanRows))
