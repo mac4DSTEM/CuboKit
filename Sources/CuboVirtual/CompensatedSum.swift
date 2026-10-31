@@ -76,6 +76,61 @@ enum CompensatedSum {
         }
     }
 
+    /// `rowCount` calls of `add(values + rows[j] * stride, weight: weights?[j], …)` for j in order, bit for bit: the picked
+    /// rows of a mask or the weighted rows go in passes of four with a pixel's sum and correction held in registers, as in
+    /// ``addRows`` (CuboKit#54). With `weights` each value is multiplied in Double first, the product `add` forms.
+    @inline(__always)
+    static func addPicked(_ values: UnsafePointer<Float>, stride: Int, rows: UnsafePointer<Int>, rowCount: Int,
+                          weights: UnsafePointer<Double>?, sum: UnsafeMutablePointer<Double>,
+                          correction: UnsafeMutablePointer<Double>, count: Int) {
+        var j = 0
+        while j + 4 <= rowCount {
+            let offsets = SIMD4<Int>(rows[j], rows[j + 1], rows[j + 2], rows[j + 3]) &* stride
+            if let weights {
+                let w = SIMD4<Double>(weights[j], weights[j + 1], weights[j + 2], weights[j + 3])
+                fourPicked(values, offsets, w, weighted: true, sum, correction, count)
+            } else {
+                fourPicked(values, offsets, .one, weighted: false, sum, correction, count)
+            }
+            j += 4
+        }
+        while j < rowCount {
+            add(values + rows[j] * stride, weight: weights.map { $0[j] }, sum: sum, correction: correction, count: count)
+            j += 1
+        }
+    }
+
+    /// Four rows at `values + offsets[r]`, each pixel taking them in order r = 0…3 with the TwoSum of ``step``; `weighted`
+    /// multiplies row r by `w[r]` (a constant at each call site, so the unweighted loop has no multiply).
+    @inline(__always)
+    private static func fourPicked(_ values: UnsafePointer<Float>, _ offsets: SIMD4<Int>, _ w: SIMD4<Double>, weighted: Bool,
+                                   _ s: UnsafeMutablePointer<Double>, _ c: UnsafeMutablePointer<Double>, _ count: Int) {
+        let raw = UnsafeRawPointer(values), rawS = UnsafeMutableRawPointer(s), rawC = UnsafeMutableRawPointer(c)
+        var i = 0
+        while i + 4 <= count {
+            var a = rawS.loadUnaligned(fromByteOffset: i * 8, as: SIMD4<Double>.self)
+            var e = rawC.loadUnaligned(fromByteOffset: i * 8, as: SIMD4<Double>.self)
+            for r in 0..<4 {
+                var x = SIMD4<Double>(raw.loadUnaligned(fromByteOffset: (offsets[r] + i) * 4, as: SIMD4<Float>.self))
+                if weighted { x = x * w[r] }
+                let t = a + x
+                let bb = t - a
+                e = e + ((a - (t - bb)) + (x - bb))
+                a = t
+            }
+            rawS.storeBytes(of: a, toByteOffset: i * 8, as: SIMD4<Double>.self)
+            rawC.storeBytes(of: e, toByteOffset: i * 8, as: SIMD4<Double>.self)
+            i += 4
+        }
+        while i < count {
+            for r in 0..<4 {
+                let x = Double(values[offsets[r] + i])
+                scalar(weighted ? x * w[r] : x, s + i, c + i)
+            }
+            i += 1
+        }
+    }
+
     @inline(__always)
     private static func step(_ x: SIMD4<Double>, _ s: UnsafeMutablePointer<Double>, _ c: UnsafeMutablePointer<Double>) {
         let raw = UnsafeMutableRawPointer(s), rawC = UnsafeMutableRawPointer(c)
