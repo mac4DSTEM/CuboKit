@@ -26,8 +26,10 @@ func matrixDFTPatchEqualsScalarLoops(rows: Int, columns: Int, upsample: Int) {
 
 /// The per-peak cost of the multicorr refinement: on a 128 x 128 correlation at upsampling 16, the matrix-product patch is
 /// several times faster than the scalar loop it replaced (measured 7x: 37 against 260 microseconds a patch); held at 2x,
-/// best of seven interleaved runs, so a busy machine does not flip it.
-@Test func matrixDFTPatchIsFasterThanScalarLoop() {
+/// best of seven interleaved runs, so a busy machine does not flip it. A benchmark, so it does not run per push: skipped
+/// unless `CUBOKIT_MULTICORR_BENCH` is set, `CUBOKIT_MULTICORR_BENCH=1 swift test -c release --filter matrixDFTPatchIsFaster`.
+@Test(.enabled(if: ProcessInfo.processInfo.environment["CUBOKIT_MULTICORR_BENCH"] != nil, "set CUBOKIT_MULTICORR_BENCH"))
+func matrixDFTPatchIsFasterThanScalarLoop() {
     let rows = 128, columns = 128, upsample = 16
     let (re, im) = randomCorrelation(rows: rows, columns: columns)
     let patchSize = Int(ceil(1.5 * Double(upsample)))
