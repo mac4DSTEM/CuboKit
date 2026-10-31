@@ -12,7 +12,8 @@ import Testing
 
     func single(_ o: BraggDiskOptions) -> BraggDiskOptions { var s = o; s.precision = .single; return s }
 
-    /// Scenes vDSP's DFT supports (64 × 64); S2 (40 × 56) is refused.
+    /// Every scene runs in `.single`: the 64 × 64 ones on vDSP's DFT directly, S2 (40 × 56: vDSP has no DFT of length 56)
+    /// through Bluestein (CuboKit#60).
     func supported(_ c: [String: Any]) -> Bool {
         let s = fixture.scene(c["scene"] as! String)
         return BraggDetector.supportsSinglePrecision(detectorRows: s.rows, detectorColumns: s.columns)
@@ -34,7 +35,8 @@ import Testing
             strongPosition = max(strongPosition, g.strongPosition); strongIntensity = max(strongIntensity, g.strongIntensity); checked += 1
         }
         print("CuboBragg .single vs py4DSTEM: \(checked) cases, maximum position gap \(worstPosition) px (peaks above 1e-3 of the brightest: \(strongPosition)), maximum relative intensity gap \(worstIntensity) (those: \(strongIntensity))")
-        #expect(checked >= 24)
+        #expect(checked >= 29)   // S2 (40 × 56, Bluestein) included since CuboKit#60
+
     }
 
     /// The same inputs through `.double` and `.single`: peaks agree (py4DSTEM's cases and the app's variants).
@@ -54,7 +56,7 @@ import Testing
             strongPosition = max(strongPosition, g.strongPosition); strongIntensity = max(strongIntensity, g.strongIntensity); checked += 1
         }
         print("CuboBragg .single vs .double: \(checked) cases, maximum position gap \(worstPosition) px (peaks above 1e-3 of the brightest: \(strongPosition)), maximum relative intensity gap \(worstIntensity) (those: \(strongIntensity))")
-        #expect(checked >= 30)
+        #expect(checked >= 39)   // S2 (40 × 56, Bluestein) included since CuboKit#60
     }
 
     /// The correlation itself: the real map and the Fourier product, as a fraction of their largest magnitude.
@@ -80,35 +82,86 @@ import Testing
         #expect(worstFourier <= SingleTolerance.fourier, "Fourier gap \(worstFourier)")
     }
 
-    @Test func refusesUnsupportedSizesAndKeepsDouble() async throws {
-        let s2 = fixture.scene("S2")   // 40 × 56: vDSP has no DFT of length 56
-        #expect(!BraggDetector.supportsSinglePrecision(detectorRows: 40, detectorColumns: 56))
-        #expect(BraggDetector.supportsSinglePrecision(detectorRows: 64, detectorColumns: 64))
-        #expect(BraggDetector.supportsSinglePrecision(detectorRows: 256, detectorColumns: 256))
-        #expect(!BraggDetector.supportsSinglePrecision(detectorRows: 56, detectorColumns: 56))
-        #expect(!BraggDetector.supportsSinglePrecision(detectorRows: 127, detectorColumns: 128))
-        #expect(!BraggDetector.supportsSinglePrecision(detectorRows: 0, detectorColumns: 64))
-        var o = BraggDiskOptions(); o.precision = .single
-        #expect(throws: CuboBraggError.self) { try BraggDisks.detect(s2.patterns[0], kernel: s2.kernel, options: o) }
-        #expect(throws: CuboBraggError.self) { try BraggDetector(kernel: s2.kernel).detectWithFunnel(s2.patterns[0], options: o) }
-        #expect(throws: CuboBraggError.self) { try BraggDetector(kernel: s2.kernel).correlate(s2.patterns[0], options: o) }
-        do { _ = try BraggDisks.detect(s2.patterns[0], kernel: s2.kernel, options: o) } catch let e as CuboBraggError {
-            guard case .invalidOption(let message) = e else { Issue.record("wrong error \(e)"); return }
-            #expect(message.contains("40 × 56"))
+    /// CuboKit#60: `.single` runs on every positive detector size (vDSP's DFT where it takes the length, Bluestein otherwise);
+    /// `.double` stays the default and options are validated first, as in `.double`.
+    @Test func everySizeIsSupportedAndDoubleStaysDefault() throws {
+        for (rows, columns) in [(64, 64), (256, 256), (40, 56), (56, 56), (127, 128), (22, 21), (165, 40), (1, 1)] {
+            #expect(BraggDetector.supportsSinglePrecision(detectorRows: rows, detectorColumns: columns), "\(rows) × \(columns)")
         }
-        // The whole-cube pass refuses before reading a tile.
-        let shape = try CubeShape(scanRows: 1, scanColumns: 1, detectorRows: 40, detectorColumns: 56)
-        let cube = try MemoryCube(shape: shape, values: [Float](repeating: 0, count: 40 * 56))
-        await #expect(throws: CuboBraggError.self) { _ = try await BraggDisks.detectAll(in: cube, kernel: s2.kernel, options: o) }
-        // .double is untouched on that size, and is the default.
+        #expect(!BraggDetector.supportsSinglePrecision(detectorRows: 0, detectorColumns: 64))
+        #expect(!BraggDetector.supportsSinglePrecision(detectorRows: 64, detectorColumns: -1))
         #expect(BraggDiskOptions().precision == .double)
-        _ = try BraggDisks.detect(s2.patterns[0], kernel: s2.kernel)
-        // Options are validated first, as in .double.
-        o.upsampleFactor = 2
+        var o = BraggDiskOptions(); o.precision = .single; o.upsampleFactor = 2
         #expect(throws: CuboBraggError.self) { try BraggDisks.detect(fixture.scene("S1").patterns[0], kernel: fixture.scene("S1").kernel, options: o) }
     }
 
-    /// Non-square supported grids (the transposed spectrum must be undone correctly) and a Gaussian wider than the image
+    /// CuboKit#60: detectors vDSP's DFT cannot take on one or both axes (22 × 21, 165 × 40, S2's 40 × 56): the `.single`
+    /// correlation map and Fourier product agree with `.double` at the written float32 tolerances, the peaks of the S1 data
+    /// tiled onto the grid agree within a stated bound (below), and the whole-cube pass equals the per-pattern pass.
+    @Test func nonVDSPSizesAgreeWithDouble() async throws {
+        let s = fixture.scene("S1")
+        var worstMap = 0.0, worstFourier = 0.0, worstPosition = 0.0, worstIntensity = 0.0, peaksChecked = 0
+        for (rows, columns, sigma) in [(22, 21, 0.0), (22, 21, 1.5), (165, 40, 0.0), (165, 40, 2.0), (40, 56, 0.0)] {
+            #expect(!FloatFFT2D.supports(rows: rows, columns: columns), "\(rows) × \(columns) should need Bluestein")
+            let kernel = DetectorImage(detectorRows: rows, detectorColumns: columns,
+                                       values: (0..<(rows * columns)).map { s.kernel.values[$0 % 4096] }, path: .cpu)
+            let detector = try BraggDetector(kernel: kernel)
+            var o = BraggDiskOptions(); o.patternSigma = sigma
+            var os = o; os.precision = .single
+            var floats: [Float] = []
+            for pattern in s.patterns {
+                let values = (0..<(rows * columns)).map { Double(Float(pattern.values[$0 % 4096])) }
+                floats += values.map { Float($0) }
+                let image = DetectorImage(detectorRows: rows, detectorColumns: columns, values: values, path: .cpu)
+                let d = try detector.correlate(image, options: o)
+                let f = try detector.correlate(image, options: os)
+                let mapScale = d.real.max()!
+                let fourierScale = zip(d.fourierRe, d.fourierIm).map { hypot($0, $1) }.max()!
+                for i in d.real.indices {
+                    worstMap = max(worstMap, abs(f.real[i] - d.real[i]) / mapScale)
+                    worstFourier = max(worstFourier, hypot(f.fourierRe[i] - d.fourierRe[i], f.fourierIm[i] - d.fourierIm[i]) / fourierScale)
+                }
+                for subpixel in [BraggSubpixel.parabolic, .multicorr] {
+                    var p = BraggDiskOptions.mac4DSTEM; p.patternSigma = sigma; p.subpixel = subpixel
+                    p.edgeBoundary = 2; p.minimumPeakSpacing = 4
+                    var ps = p; ps.precision = .single
+                    let dp = try detector.detect(image, options: p)
+                    let fp = try detector.detect(image, options: ps)
+                    let id = "\(rows) × \(columns) σ \(sigma) \(subpixel)"
+                    #expect(dp.count == fp.count, "\(id): double \(dp.count) peaks, single \(fp.count)")
+                    guard dp.count == fp.count else { continue }
+                    // The tiled scene has broad, low-contrast maxima; there even vDSP's own sizes (160 × 40) exceed the strict
+                    // per-peak tier (measured 8.4e-6 relative intensity), so these peaks get a stated bound of 2e-4 px (the
+                    // app's own tolerance against py4DSTEM) and 2e-5 (measured here 9.9e-5 px, 8.0e-6). The real non-vDSP
+                    // scene S2 (40 × 56) is held to the strict tier in `singleAgreesWithDouble`.
+                    for (a, e) in zip(fp, dp) {
+                        let position = max(abs(a.row - e.row), abs(a.column - e.column))
+                        let intensity = abs(a.intensity - e.intensity) / max(abs(e.intensity), 1e-300)
+                        #expect(position <= 2e-4 && intensity <= 2e-5,
+                                "\(id): peak at \(e.row), \(e.column): position gap \(position), intensity gap \(intensity)")
+                        worstPosition = max(worstPosition, position); worstIntensity = max(worstIntensity, intensity)
+                    }
+                    peaksChecked += dp.count
+                }
+            }
+            // The whole-cube pass in `.single` on this size is the per-pattern pass.
+            let count = s.patterns.count
+            let shape = try CubeShape(scanRows: count, scanColumns: 1, detectorRows: rows, detectorColumns: columns)
+            let cube = try MemoryCube(shape: shape, values: floats)
+            var p = BraggDiskOptions.mac4DSTEM; p.patternSigma = sigma; p.precision = .single
+            let all = try await BraggDisks.detectAll(in: cube, kernel: kernel, options: p, tiling: .rows(2))
+            let n = rows * columns
+            for k in 0..<count {
+                let one = try floats[(k * n)..<((k + 1) * n)].withUnsafeBufferPointer { try detector.detect($0, options: p) }
+                #expect(all[k, 0] == one, "\(rows) × \(columns) position \(k)")
+            }
+        }
+        print("CuboBragg .single on non-vDSP sizes: map gap \(worstMap), Fourier gap \(worstFourier), \(peaksChecked) peaks, position gap \(worstPosition) px, relative intensity gap \(worstIntensity)")
+        #expect(worstMap <= SingleTolerance.correlation && worstFourier <= SingleTolerance.fourier, "map \(worstMap), Fourier \(worstFourier)")
+        #expect(peaksChecked > 0)
+    }
+
+    /// Non-square vDSP grids (the transposed spectrum must be undone correctly) and a Gaussian wider than the image
     /// (the reflection folds repeatedly): the correlation map and its Fourier product agree with `.double`.
     @Test func nonSquareAndWideFilter() throws {
         let s = fixture.scene("S1")

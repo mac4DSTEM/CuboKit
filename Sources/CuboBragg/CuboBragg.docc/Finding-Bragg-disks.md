@@ -28,8 +28,8 @@ let peaks = vectors[0, 0]                                                // the 
 ```
 
 ``BraggDiskOptions`` defaults are py4DSTEM's. Choose the subpixel method with ``BraggSubpixel`` and the Float32 path with
-`options.precision = .single` (``BraggPrecision``). Float32 needs a detector size vDSP supports; ask first with
-``BraggDetector/supportsSinglePrecision(detectorRows:detectorColumns:)``.
+`options.precision = .single` (``BraggPrecision``). Float32 runs on every detector size; sizes vDSP's DFT takes
+(64, 128, 192, 240, 256, ...) are the fastest.
 
 ## When a result is short or empty
 

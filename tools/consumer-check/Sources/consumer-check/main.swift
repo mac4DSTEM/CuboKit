@@ -121,7 +121,8 @@ do {
           && BraggPrecision.allCases == [.double, .single] && singlePeaks.count == 2
           && abs(singlePeaks[0].row - doublePeaks[0].row) < 1e-3 && abs(singlePeaks[1].column - doublePeaks[1].column) < 1e-3)
     check("BraggDetector.supportsSinglePrecision", BraggDetector.supportsSinglePrecision(detectorRows: 48, detectorColumns: 48)
-          && !BraggDetector.supportsSinglePrecision(detectorRows: 56, detectorColumns: 40))
+          && BraggDetector.supportsSinglePrecision(detectorRows: 56, detectorColumns: 40)
+          && !BraggDetector.supportsSinglePrecision(detectorRows: 0, detectorColumns: 40))
     let plainPeaks = try detector.detect(image, options: braggOptions)
     check("BraggDetector.detectWithFunnel(DetectorImage)", doublePeaks == plainPeaks
           && doubleFunnel.acceptedCount == 2 && doubleFunnel.localMaximumCount >= 2 && singleFunnel.acceptedCount == 2)

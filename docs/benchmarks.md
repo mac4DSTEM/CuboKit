@@ -120,6 +120,27 @@ cube, mask and weights (`bench.py compare`; the largest difference relative to t
 So the kit's means differ from NumPy by NumPy's own Float32 accumulation error, as before, and are closer to the exact value than
 NumPy is.
 
+## Speed round, 2026-10-31: the CPU mean and max in registers
+
+The mean turned out compute-bound, not bandwidth-bound: every scan position stored each pixel's TwoSum sum and correction and
+loaded them again for the next position. Since CuboKit#53, `CompensatedSum.addRows` takes four positions per pass with the sum and
+correction in SIMD registers (each pixel still takes the positions in scan order with the same TwoSum), and the pixel blocks shrank
+from 512 to 128 so every core takes part. CuboKit#55 did the same for the masked and weighted mean (`CompensatedSum.addPicked`).
+Results are bit for bit unchanged, NaN and ±∞ included.
+
+Method: `Tests/CuboVirtualTests/MeanMaxBench.swift` and `SelectedMeanBench.swift` (skipped unless their environment variable is set),
+release build, resident 100 x 100 x 64 x 64 Float32 cube, median of 15, milliseconds.
+
+| function | before | after | speed-up |
+|---|---|---|---|
+| dp_mean | 4.47 | 2.17 | 2.1x (NumPy 2.7: the kit is now ahead) |
+| dp_max | 2.24 | 1.67 | 1.3x |
+| meanAndMax | 5.73 | 2.45 | 2.3x |
+| selected_area_mean_mask, selected_area_mean_weights | | | about 1.85x (a scattered half mask stays near 1.8 ms, bound by memory access) |
+
+The 2026-10-22 note above that a register-resident accumulator was slower tried 16 pixels per position with strided reads; the
+kept variant holds the pixels in registers over four positions and still reads each row contiguously.
+
 ## Backend decision per function
 
 The break-even is read off the three sizes above; between two measured sizes it is interpolated, and says so. The Mac was
@@ -127,8 +148,8 @@ loaded (load average 10 to 11) during the final run, so a crossing near a tie mo
 
 | function | decision | why |
 |---|---|---|
-| `VirtualDiffraction.max` | CPU always | block-parallel since 0.8.0: 5.9 ms at the typical size against NumPy's 2.8 and 29 ms with the host copy; a `vmax` pass is memory-bound, so a copy to the GPU never pays |
-| `VirtualDiffraction.mean`, `meanAndMax` | CPU; **resident Metal always** | since 0.9.0 the compensated Double sum is a SIMD TwoSum across cores and is bandwidth-bound: 4.9 ms at the typical size (was 22.0), 1.8x NumPy's 2.7; host-copy Metal (27.5) does not pay; the resident cube (3.4 ms at 41.9 M values, measured before 0.9.0) is still a little ahead and comes within 1.2x of NumPy |
+| `VirtualDiffraction.max` | CPU always | block-parallel since 0.8.0: 5.9 ms at the typical size on the loaded 2026-10-21 run against NumPy's 2.8 and 29 ms with the host copy; 1.67 ms (was 2.24) on the resident `MeanMaxBench` since CuboKit#53; a `vmax` pass is memory-bound, so a copy to the GPU never pays |
+| `VirtualDiffraction.mean`, `meanAndMax` | CPU; **resident Metal always** | since 0.9.0 the compensated Double sum is a SIMD TwoSum across cores; since CuboKit#53 it is held in registers over four positions: 2.17 ms at the typical size (was 4.47, 22.0 before 0.9.0), ahead of NumPy's 2.7; host-copy Metal (27.5) does not pay; the resident cube (3.4 ms at 41.9 M values, measured before 0.9.0) has not been measured against the new CPU pass |
 | `VirtualDiffraction.pattern` with a mask | CPU (0.9.0); resident Metal for repeated reductions | CPU 3.9 ms at the typical size since 0.9.0 (was 47.6), 2.6x faster than py4DSTEM; host-copy Metal (29.0 before) now loses to it; resident Metal 4.6 ms is level |
 | `VirtualDiffraction.pattern` with weights | CPU (0.9.0); resident Metal for repeated reductions | CPU 5.1 ms at the typical size since 0.9.0 (was 61.7), 31x faster than py4DSTEM (157 ms); host-copy Metal (27.7) loses to it; resident Metal 3.6 ms |
 | `VirtualDiffraction.median` | CPU only | no Metal path; 3.4x faster than py4DSTEM at the typical size. A GPU sort per pixel needs the whole scan axis resident; revisit with the resident cube |

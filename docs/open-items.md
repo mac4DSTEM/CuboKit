@@ -2,8 +2,7 @@
 
 Slower than py4DSTEM at the typical size (100 x 100 x 64 x 64, Float32); the numbers are in `docs/benchmarks.md`.
 
-1. **Mean pattern on the CPU, 1.8x NumPy** (`VirtualDiffraction.mean`: 4.9 ms against 2.7 ms on a loaded Mac, best 4.3 against 2.6; the max pattern is 5.9 ms against 2.8). Since 0.9.0 the sum is a SIMD TwoSum across cores and the pass is bandwidth-bound (about 40 GB/s); NumPy's float32 reduction reads the cube once without widening. A resident cube on Metal is ahead (3.4 ms). Reading Float32 pairs without widening to Double is not an option (D16), so only a resident cube or the same sum on Float32 pairs (`df_add`) goes lower.
-2. **Metal mean, max and selected-area patterns lose to the CPU on a cube that is not resident.** Since CuboKit#8 a
+1. **Metal mean, max and selected-area patterns lose to the CPU on a cube that is not resident.** Since CuboKit#8 a
    `MemoryCube` reaches the GPU without a copy and other sources go through one reused staging buffer (before, a new
    buffer per tile cost about 20 of the 26 ms). At the typical size the Metal mean and max is now 6.4 ms (staged 13.4,
    resident 3.8) against 2.4 ms on the CPU, and the mask mean 9.7 against 1.6: these passes are bandwidth-bound and the
@@ -11,12 +10,18 @@ Slower than py4DSTEM at the typical size (100 x 100 x 64 x 64, Float32); the num
    mass (8.6 against 11.6) are now faster on Metal for a `MemoryCube`; the centre of mass at 128 x 128 detectors is not
    (29.8 against 17.5: the kernel reads each pattern with one thread). An automatic choice of path is the app's.
 
+Closed: the CPU mean pattern is no longer behind NumPy (CuboKit#7). Since CuboKit#53 each pixel keeps its TwoSum sum and
+correction in registers over four scan positions per pass, in 128-pixel blocks: `VirtualDiffraction.mean` 4.47 -> 2.17 ms
+(2.1x) against NumPy's 2.7, the max pattern 2.24 -> 1.67 ms, `meanAndMax` 5.73 -> 2.45 ms (resident 100 x 100 x 64 x 64
+Float32, `MeanMaxBench`, median of 15). CuboKit#55 put the masked and weighted mean on the same pass (about 1.85x faster;
+a scattered half mask stays near 1.8 ms, bound by memory access). Results are bit for bit unchanged.
+
 Missing, in the order the study needs them (`docs/parity.md`, "study" rows):
 
 - The Double FFT on lengths vDSP does not take (Bluestein, the padded parallax sizes and ptychography detectors such as
   165) is bound by vDSP's Double FFT: a vectorised, allocation-free Bluestein on vDSP's DFT measured 1.1x and was not
-  kept. Float32 callers use `ParallaxFourierShifter.shiftedSingle`, which takes every size (2.6x at 165 x 165). The
-  hot-pixel mean stays Float32 on purpose (`HotPixelFilter` documents why).
+  kept. Float32 callers use `ParallaxFourierShifter.shiftedSingle` and single-slice ptychography `.single`, which take
+  every size (2.6x and 2.5x at 165 x 165). The hot-pixel mean stays Float32 on purpose (`HotPixelFilter` documents why).
 - A single `reconstruct` for parallax; ptychography probe constraints, mixed-state and multislice engines.
 
 Decisions to keep an eye on:
