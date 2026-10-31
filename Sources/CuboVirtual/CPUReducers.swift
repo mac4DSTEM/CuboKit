@@ -39,7 +39,8 @@ enum CPUReducers {
     }
 
     /// Mean and maximum pattern: per position in scan order, each pixel widened to Double and added with a compensated
-    /// (TwoSum) sum, four pixels per SIMD step (``CompensatedSum``, bit for bit the earlier scalar Neumaier loop); the maximum in Float32 (exact), seeded at −∞. The detector pixels are split into blocks that run on
+    /// (TwoSum) sum, four pixels per SIMD step and four positions per pass with the running sum in registers (``CompensatedSum/addRows``, bit
+    /// for bit the earlier scalar Neumaier loop); the maximum in Float32 (exact), seeded at −∞. The detector pixels are split into blocks that run on
     /// every core; each pixel is still added in scan order, so the result is bit for bit the single-thread one. `wantMean`
     /// and `wantMax` skip the statistic that is not asked for (its result is then empty values of the right length).
     static func meanAndMax(of source: some CubeSource, tiling: ScanTiling, wantMean: Bool = true, wantMax: Bool = true,
@@ -50,7 +51,9 @@ enum CPUReducers {
         var sum = [Double](repeating: -0.0, count: n)
         var correction = [Double](repeating: -0.0, count: n)
         var maximum = [Float](repeating: -.infinity, count: n)
-        let blockSize = 512  // 4 KiB of Float32 per position and 8 KiB of state: in L1, and 8 blocks per 4096 pixels keep every core busy
+        // 128 pixels: 512 B of Float32 per position and 2 KiB of state, and 32 blocks per 4096 pixels, so every core (P and E)
+        // takes part; 512-pixel blocks gave 8, which left most of an 18-core machine idle (CuboKit#7, `MeanMaxBench`).
+        let blockSize = 128
         let blocks = (n + blockSize - 1) / blockSize
         for range in try tiling.ranges(for: shape) {
             try checkInterrupted()
@@ -64,14 +67,19 @@ enum CPUReducers {
                             let mp = SharedBuffer(base: mx.baseAddress!)
                             DispatchQueue.concurrentPerform(iterations: blocks) { b in
                                 let lo = b * blockSize, hi = Swift.min(n, lo + blockSize)
-                                for k in 0..<positions {
-                                    let p = vp.base + k * n
+                                var k = 0
+                                while k < positions {
+                                    let rows = Swift.min(4, positions - k), p = vp.base + k * n
                                     if wantMean {
-                                        CompensatedSum.add(p + lo, weight: nil, sum: sp.base + lo, correction: cp.base + lo, count: hi - lo)
+                                        CompensatedSum.addRows(p + lo, stride: n, rows: rows, sum: sp.base + lo,
+                                                               correction: cp.base + lo, count: hi - lo)
                                     }
                                     if wantMax {
-                                        vDSP_vmax(mp.base + lo, 1, p + lo, 1, mp.base + lo, 1, vDSP_Length(hi - lo))
+                                        for r in 0..<rows {
+                                            vDSP_vmax(mp.base + lo, 1, p + r * n + lo, 1, mp.base + lo, 1, vDSP_Length(hi - lo))
+                                        }
                                     }
+                                    k += rows
                                 }
                             }
                         }
