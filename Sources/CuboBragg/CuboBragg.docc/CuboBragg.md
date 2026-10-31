@@ -10,9 +10,8 @@ correlation, the filter cascade, and parabolic or matrix-DFT (multicorr) subpixe
 
 Opt in to the faster Float32 path with `options.precision = .single` (``BraggPrecision``): vDSP convolution and complex DFT, a
 reusable scratch per concurrent worker, about ten times faster than Double at 256 × 256 and equal to it to about 1e-5 of the
-correlation maximum. It needs a detector size vDSP supports (64, 128, 192, 240, 256, ...; ask with
-``BraggDetector/supportsSinglePrecision(detectorRows:detectorColumns:)``) and is refused with ``CuboBraggError/invalidOption(_:)``
-otherwise. ``BraggDetector/detectWithFunnel(_:options:)`` returns the peaks of `detect` with a ``BraggFunnel``, the count of
+correlation maximum. It runs on every detector size: sizes vDSP's DFT takes (64, 128, 192, 240, 256, ...) directly, any other
+through Bluestein's chirp-z, slower and at the same tolerances. ``BraggDetector/detectWithFunnel(_:options:)`` returns the peaks of `detect` with a ``BraggFunnel``, the count of
 maxima after each stage of the selection, so a short or empty result can be explained; ``BraggDetector/fillNonFinite(_:rows:columns:)``
 is the median fill of non-finite pixels, public.
 
