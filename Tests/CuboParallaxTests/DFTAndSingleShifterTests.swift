@@ -57,10 +57,24 @@ import CuboParallax
         }
     }
 
-    @Test func singleShifterRefusesUnsupportedSizesAndBadInput() throws {
-        let odd = try ParallaxFourierShifter(rows: 30, columns: 50)
-        #expect(!odd.supportsSingle)
-        #expect(throws: ParallaxAlignmentError.invalidDimensions) { try odd.shiftedSingle([Float](repeating: 0, count: 1500), by: ParallaxShift(row: 1, column: 1)) }
+    /// CuboKit#9: every size runs in Float32 (Bluestein where vDSP's DFT does not take a length) and agrees with the Double
+    /// shifter at the written float32 tolerance, 1e-5 of the image range (measured 4.5e-7): the padded parallax sizes and edge sizes.
+    @Test(arguments: [(165, 165), (132, 132), (197, 197), (165, 197), (161, 96), (30, 50), (3, 3), (3, 16), (5, 7), (17, 257)])
+    func singleShifterAgreesWithDoubleOnEverySize(rows: Int, columns: Int) throws {
+        let data = image(rows, columns)
+        let shifter = try ParallaxFourierShifter(rows: rows, columns: columns)
+        #expect(shifter.supportsSingle)
+        let range = data.max()! - data.min()!
+        for shift in [ParallaxShift(row: 1.37, column: -2.21), ParallaxShift(row: 0, column: 0), ParallaxShift(row: -31.5, column: 47.9),
+                      ParallaxShift(row: 0.5, column: 0.5)] {
+            let expected = try shifter.shifted(data, by: shift)
+            let actual = try shifter.shiftedSingle(data.map { Float($0) }, by: shift)
+            let worst = zip(expected, actual).map { abs($0 - Double($1)) }.max()!
+            #expect(worst <= 1e-5 * range, "\(rows)x\(columns) shift \(shift): \(worst) of range \(range)")
+        }
+    }
+
+    @Test func singleShifterRefusesBadInput() throws {
         let fine = try ParallaxFourierShifter(rows: 16, columns: 16)
         #expect(throws: ParallaxAlignmentError.inconsistentShape) { try fine.shiftedSingle([Float](repeating: 0, count: 10), by: ParallaxShift(row: 1, column: 1)) }
         #expect(throws: ParallaxAlignmentError.nonfiniteValues) { try fine.shiftedSingle([Float](repeating: 0, count: 256), by: ParallaxShift(row: .nan, column: 1)) }
@@ -82,7 +96,7 @@ import CuboParallax
 /// result exactly, Double and Float32.
 @Suite struct SharedPlanConcurrencyTests {
     @Test func eightThreadsOnePlan() async throws {
-        let rows = 48, columns = 64
+        for (rows, columns) in [(48, 64), (165, 165)] {
         let shifter = try ParallaxFourierShifter(rows: rows, columns: columns)
         let images = (0..<8).map { t in (0..<rows * columns).map { k in sin(Double(k * (t + 3)) / 17) } }
         let serial = try images.map { try shifter.shifted($0, by: ParallaxShift(row: 1.3, column: -0.7)) }
@@ -95,6 +109,7 @@ import CuboParallax
             let b = try! shifter.shiftedSingle(images[t].map { Float($0) }, by: ParallaxShift(row: 1.3, column: -0.7))
             lock.lock(); parallel[t] = a; parallelSingle[t] = b; lock.unlock()
         }
-        #expect(parallel == serial && parallelSingle == serialSingle)
+        #expect(parallel == serial && parallelSingle == serialSingle, "\(rows)x\(columns)")
+        }
     }
 }

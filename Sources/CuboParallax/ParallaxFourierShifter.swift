@@ -35,7 +35,7 @@ public struct ParallaxFourierShifter: Sendable {
     /// Image columns.
     public let columns: Int
     private let fft: FFT2D
-    private let singleFFT: FloatFFT2D?
+    private let singleFFT: FloatFFT2D
 
     /// Builds the plan. Dimensions must be at least three on each axis and their product must fit in `Int`.
     public init(rows: Int, columns: Int) throws {
@@ -44,7 +44,7 @@ public struct ParallaxFourierShifter: Sendable {
         self.rows = rows
         self.columns = columns
         fft = FFT2D(rows: rows, columns: columns)
-        singleFFT = FloatFFT2D(rows: rows, columns: columns)
+        singleFFT = FloatFFT2D(anyRows: rows, columns: columns)
     }
 
     /// Applies a periodic Fourier translation; identical to ``ParallaxAlignment/shifted(_:rows:columns:by:)``.
@@ -74,14 +74,15 @@ public struct ParallaxFourierShifter: Sendable {
         return out
     }
 
-    /// Whether the Float32 shifter is available for this size: vDSP's DFT must take both lengths (`2^n × {1, 3, 5, 15}`).
-    public var supportsSingle: Bool { singleFFT != nil }
+    /// Whether the Float32 shifter is available for this size: true for every size the shifter takes. Lengths vDSP's DFT takes
+    /// (`2^n × {1, 3, 5, 15}`) run on it directly; any other (the padded parallax sizes, 133 + 32 = 165) runs Bluestein's chirp-z
+    /// through a Float vDSP DFT (before CuboKit#9 it was false for those sizes).
+    public var supportsSingle: Bool { true }
 
     /// ``shifted(_:by:)`` in Float32 (named apart so integer-literal arrays keep resolving to the Double form) on vDSP's Float DFT, for pipelines that hold their images in Float: agrees with the Double
-    /// shifter to 1e-4 px-equivalent (about 1e-5 relative to the image's range; the upstream float32 tolerance) at about half the cost. Throws
-    /// ``ParallaxAlignmentError/invalidDimensions`` when ``supportsSingle`` is false.
+    /// shifter to about 5e-7 of the image range (tested at 1e-5 of the range, the written float32 tolerance) at 0.4 to 0.65 of the Double cost on the padded sizes, any size.
     public func shiftedSingle(_ image: [Float], by shift: ParallaxShift) throws -> [Float] {
-        guard let single = singleFFT else { throw ParallaxAlignmentError.invalidDimensions }
+        let single = singleFFT
         guard image.count == rows * columns else { throw ParallaxAlignmentError.inconsistentShape }
         guard image.allSatisfy(\.isFinite) else { throw ParallaxAlignmentError.nonfiniteValues }
         guard shift.row.isFinite, shift.column.isFinite else { throw ParallaxAlignmentError.nonfiniteValues }

@@ -147,6 +147,11 @@ compares the new code within 1e-12 of `max(1, max|expected|)`; the measured gap 
   `shifted(_:by:isCancelled:progress:)`, `spectrum(of:)`, `inverse(_:)`, `shifting(_:by:)` (the phase ramp on a
   spectrum) and `correlationShift`. It runs the same code as `ParallaxAlignment.shifted`: results are bit-identical
   (tested with exact equality on four shapes, odd and non-power-of-two, and from 16 concurrent threads).
+  `shiftedSingle` (Float32) takes every size: lengths vDSP's DFT takes run on it as before (same bits), any other runs
+  Bluestein's chirp-z through the Float vDSP DFT of the shortest length M >= 2N - 1 that vDSP takes (384 for 165), chirp
+  and kernel computed in Double and rounded once. Against the Double shifter: measured 4.5e-7 of the image range on
+  the padded sizes, tested at 1e-5. 49 shifts at 165 x 165 on an M5 Pro, one job, release: 27 ms against 72 ms Double
+  (`ShifterBench`, `CUBOKIT_SHIFT_BENCH=1`).
 - **`ParallaxAlignment.correlationShift(reference:moving:upsampleFactor:)`** takes two `ParallaxSpectrum` values: the
   estimate of the application's `ParallaxAlignment.correlationShift`, for instance against a running-average
   reference spectrum of shifted spectra. Cross-power `reference * conj(moving)`, no phase normalisation; factors 3...64
