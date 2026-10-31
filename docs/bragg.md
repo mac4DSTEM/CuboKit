@@ -53,10 +53,12 @@ hybrid power in `powf`), `max(Re, 0)` and the maxima search run in Float. The fe
 from the Float neighbourhood, the matrix-DFT upsampling on the Float complex correlation widened to Double. The reported intensity
 is the Float correlation, widened.
 
-- **Sizes.** The transform is the exact N-point DFT at the pattern's own size, so only detector sizes vDSP supports on both axes are
-  available: f·2ⁿ with f in 1, 3, 5, 15, ... (64, 128, 192, 240, 256, 320, 384, 480, 512, ...; not 56, 100, 127, 130).
-  `BraggDetector.supportsSinglePrecision(detectorRows:detectorColumns:)` asks vDSP itself. Any other size is refused with
-  `CuboBraggError.invalidOption` (naming the size), never computed another way; `.double` runs on every size.
+- **Sizes.** The transform is the exact N-point DFT at the pattern's own size, on every detector size (CuboCore's
+  `FloatFFT2D(anyRows:columns:)`). A length vDSP's DFT takes (f·2ⁿ with f in 1, 3, 5, 15, ...: 64, 128, 192, 240, 256, 320,
+  384, 480, 512, ...) runs on it directly, with the same calls and bits as before; any other (56, 100, 127, 130, 165, ...)
+  runs as Bluestein's chirp-z through a vDSP DFT of the shortest length M ≥ 2N − 1 vDSP takes, slower but held to the same
+  tolerances (`SinglePrecisionTests.nonVDSPSizesAgreeWithDouble`: 22 × 21, 165 × 40, 40 × 56).
+  `BraggDetector.supportsSinglePrecision(detectorRows:detectorColumns:)` is true for every positive size.
 - **Scratch.** A detector keeps a pool of scratch buffers (six `rows × columns` Float planes); a call checks one out and returns
   it. `BraggDisks.detectAll` therefore allocates one per concurrent worker, not one per pattern, and with `.single` hands each
   Float pattern straight from the tile to the detector (no widening). The Float plan and kernel spectrum are built on the first

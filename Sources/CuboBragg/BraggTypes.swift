@@ -66,10 +66,10 @@ public enum BraggPrecision: Sendable, Hashable, CaseIterable {
     case double
     /// Float32 (Accelerate: vDSP convolution and complex DFT) for the pattern copy, the non-finite fill, both Gaussian
     /// filters, the 2-D transform, the correlation product and the maxima search; the few accepted peaks are refined in
-    /// Double. Available only for detector sizes vDSP's DFT supports on both axes (f·2ⁿ with f in 1, 3, 5, 15, ...: 64, 128,
-    /// 192, 240, 256, 320, 384, 480, 512, ...; `BraggDetector.supportsSinglePrecision(detectorRows:detectorColumns:)` asks);
-    /// any other size is refused with `CuboBraggError.invalidOption`, never computed another way. Agrees with `.double`
-    /// to about 1e-5 of the correlation maximum, hence peak positions to about 1e-4 px (docs/bragg.md has the measured gaps).
+    /// Double. Runs on every detector size: lengths vDSP's DFT takes (f·2ⁿ with f in 1, 3, 5, 15, ...: 64, 128, 192, 240,
+    /// 256, 320, 384, 480, 512, ...) directly, any other through Bluestein's chirp-z on a longer vDSP DFT (slower, same
+    /// tolerances). Agrees with `.double` to about 1e-5 of the correlation maximum, hence peak positions to about 1e-4 px
+    /// (docs/bragg.md has the measured gaps).
     case single
 }
 
