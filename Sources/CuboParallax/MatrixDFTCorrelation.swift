@@ -141,12 +141,14 @@ package enum MatrixDFTCorrelation {
         upsampleFactor: Int,
         patchSize: Int
     ) -> [Double] {
-        var intermediateRe = [Double](repeating: 0,
-                                     count: height * patchSize)
-        var intermediateIm = [Double](repeating: 0,
-                                     count: height * patchSize)
+        // The loops below read through unchecked buffer pointers.
+        precondition(correlationRe.count == width * height && correlationIm.count == width * height)
+        // The column kernel, one cosine and sine per (frequency column, patch column), computed once: the same angles as
+        // the sums below used to compute inside their loops.
         let columnScale = -2 * Double.pi
             / (Double(width) * Double(upsampleFactor))
+        var columnCos = [Double](repeating: 0, count: width * patchSize)
+        var columnSin = [Double](repeating: 0, count: width * patchSize)
         for frequencyColumn in 0..<width {
             // Matches numpy's ifftshift(arange(N)) - floor(N/2), as py4DSTEM's
             // multicorr.py:186,195. On an odd axis the middle bin is +(N-1)/2, not
@@ -158,15 +160,40 @@ package enum MatrixDFTCorrelation {
             for patchColumn in 0..<patchSize {
                 let angle = columnScale * wrappedFrequency
                     * (Double(patchColumn) - centerColumn)
-                let cosine = cos(angle), sine = sin(angle)
-                for sourceRow in 0..<height {
-                    let source = sourceRow * width + frequencyColumn
-                    let destination = sourceRow * patchSize + patchColumn
-                    // conj(correlation) × column kernel
-                    intermediateRe[destination] += correlationRe[source] * cosine
-                        + correlationIm[source] * sine
-                    intermediateIm[destination] += -correlationIm[source] * cosine
-                        + correlationRe[source] * sine
+                columnCos[frequencyColumn * patchSize + patchColumn] = cos(angle)
+                columnSin[frequencyColumn * patchSize + patchColumn] = sin(angle)
+            }
+        }
+
+        // conj(correlation) × column kernel. Each destination still sums its terms in frequency-column order, so the
+        // result equals the former column-outer loop to a few ulps (vectorisation differs); the loops are ordered for
+        // contiguous reads.
+        var intermediateRe = [Double](repeating: 0,
+                                     count: height * patchSize)
+        var intermediateIm = [Double](repeating: 0,
+                                     count: height * patchSize)
+        intermediateRe.withUnsafeMutableBufferPointer { outRe in
+            intermediateIm.withUnsafeMutableBufferPointer { outIm in
+                correlationRe.withUnsafeBufferPointer { inRe in
+                    correlationIm.withUnsafeBufferPointer { inIm in
+                        columnCos.withUnsafeBufferPointer { kc in
+                            columnSin.withUnsafeBufferPointer { ks in
+                                for sourceRow in 0..<height {
+                                    let row = sourceRow * patchSize
+                                    for frequencyColumn in 0..<width {
+                                        let re = inRe[sourceRow * width + frequencyColumn]
+                                        let im = inIm[sourceRow * width + frequencyColumn]
+                                        let kernel = frequencyColumn * patchSize
+                                        for patchColumn in 0..<patchSize {
+                                            let cosine = kc[kernel + patchColumn], sine = ks[kernel + patchColumn]
+                                            outRe[row + patchColumn] += re * cosine + im * sine
+                                            outIm[row + patchColumn] += -im * cosine + re * sine
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -174,20 +201,26 @@ package enum MatrixDFTCorrelation {
         var patch = [Double](repeating: 0, count: patchSize * patchSize)
         let rowScale = -2 * Double.pi
             / (Double(height) * Double(upsampleFactor))
-        for patchRow in 0..<patchSize {
-            for frequencyRow in 0..<height {
-                let wrappedFrequency = Double(
-                    frequencyRow < (height + 1) / 2
-                        ? frequencyRow : frequencyRow - height
-                )
-                let angle = rowScale * (Double(patchRow) - centerRow)
-                    * wrappedFrequency
-                let cosine = cos(angle), sine = sin(angle)
-                for patchColumn in 0..<patchSize {
-                    let source = frequencyRow * patchSize + patchColumn
-                    patch[patchRow * patchSize + patchColumn]
-                        += cosine * intermediateRe[source]
-                            - sine * intermediateIm[source]
+        patch.withUnsafeMutableBufferPointer { out in
+            intermediateRe.withUnsafeBufferPointer { inRe in
+                intermediateIm.withUnsafeBufferPointer { inIm in
+                    for patchRow in 0..<patchSize {
+                        for frequencyRow in 0..<height {
+                            let wrappedFrequency = Double(
+                                frequencyRow < (height + 1) / 2
+                                    ? frequencyRow : frequencyRow - height
+                            )
+                            let angle = rowScale * (Double(patchRow) - centerRow)
+                                * wrappedFrequency
+                            let cosine = cos(angle), sine = sin(angle)
+                            for patchColumn in 0..<patchSize {
+                                let source = frequencyRow * patchSize + patchColumn
+                                out[patchRow * patchSize + patchColumn]
+                                    += cosine * inRe[source]
+                                        - sine * inIm[source]
+                            }
+                        }
+                    }
                 }
             }
         }
