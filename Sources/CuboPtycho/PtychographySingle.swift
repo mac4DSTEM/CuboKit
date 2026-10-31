@@ -32,8 +32,9 @@ extension SingleslicePtychography {
     ///
     /// The same update, constraints and error as the Double path; the forward and adjoint transforms, the shifted probe, the
     /// projection and the accumulations run in Float32 on vDSP's DFT, and the probe constraints (centre of mass, aperture,
-    /// amplitude) run in Double once per iteration. The detector size must be one vDSP's DFT takes (`2^n × {1, 3, 5, 15}`,
-    /// ≥ 16 on a side), otherwise this throws ``PtychographyError/invalidInput``; position correction is not available here.
+    /// amplitude) run in Double once per iteration. Every detector size runs: a length vDSP's DFT takes (`2^n × {1, 3, 5, 15}`)
+    /// directly, any other (165 and the like) as Bluestein's chirp-z through a Float vDSP DFT. Position correction is not
+    /// available here.
     /// `isCancelled` is polled before every fourth pattern and throws `CancellationError`; `progress` receives
     /// `(completedIterations, iterations)` after each iteration. The result is converted to Double.
     public static func reconstructSingle(
@@ -56,8 +57,8 @@ extension SingleslicePtychography {
               positionsAreUsable(positions), probeConstraintParametersAreValid(radius: probeAmplitudeRelativeRadius,
                                                                                width: probeAmplitudeRelativeWidth),
               objectRows >= rows, objectColumns >= columns,
-              probeSupportMask == nil || probeSupportMask!.count == n,
-              let fft = FloatFFT2D(rows: rows, columns: columns) else { throw PtychographyError.invalidInput }
+              probeSupportMask == nil || probeSupportMask!.count == n else { throw PtychographyError.invalidInput }
+        let fft = FloatFFT2D(anyRows: rows, columns: columns)
         let divisor: Double
         switch errorNormalization {
         case .meanIntensity(let mean): divisor = mean * Double(count)

@@ -80,9 +80,9 @@ final class SingleState: @unchecked Sendable {
     private var free: [SingleScratch] = []
 
     init(rows: Int, columns: Int, kernel: [Double]) throws {
-        guard let fft = FloatFFT2D(rows: rows, columns: columns) else {
-            throw CuboBraggError.invalidOption("precision .single needs a detector size vDSP's DFT supports on both axes (f·2ⁿ, f in 1, 3, 5, 15, ...); \(rows) × \(columns) is not one (use .double)")
-        }
+        guard rows > 0, columns > 0 else { throw CuboBraggError.shapeMismatch("the kernel is empty") }
+        // vDSP's DFT where it takes the length (the same calls and bits as `FloatFFT2D(rows:columns:)`), Bluestein otherwise.
+        let fft = FloatFFT2D(anyRows: rows, columns: columns)
         self.rows = rows; self.columns = columns; self.fft = fft
         let n = rows * columns
         let scratch = SingleScratch(count: n)

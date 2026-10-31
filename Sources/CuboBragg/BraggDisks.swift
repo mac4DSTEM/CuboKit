@@ -38,11 +38,11 @@ public struct BraggDetector: Sendable {
         singleBox = SingleBox(rows: detectorRows, columns: detectorColumns, kernel: kernel.values)
     }
 
-    /// Whether `BraggPrecision.single` can run on a detector of this size: vDSP's complex DFT must support both lengths
-    /// (f·2ⁿ with f in 1, 3, 5, 15, ...: 64, 128, 192, 240, 256, 320, 384, 480, 512, ...). Other sizes are refused by the
-    /// `.single` entry points with `CuboBraggError.invalidOption`; `.double` runs on any size.
+    /// Whether `BraggPrecision.single` can run on a detector of this size: every positive size. Lengths vDSP's complex DFT
+    /// takes (f·2ⁿ with f in 1, 3, 5, 15, ...: 64, 128, 192, 240, 256, 320, 384, 480, 512, ...) run on it directly; any
+    /// other runs through Bluestein's chirp-z on a longer vDSP DFT, at the same float32 tolerances and a higher cost.
     public static func supportsSinglePrecision(detectorRows: Int, detectorColumns: Int) -> Bool {
-        FloatFFT2D.supports(rows: detectorRows, columns: detectorColumns)
+        detectorRows > 0 && detectorColumns > 0
     }
 
     /// The correlation of one pattern: the real map `CC` and the Fourier-domain product `cc` (see the file header).
@@ -116,7 +116,7 @@ public struct BraggDetector: Sendable {
         return result
     }
 
-    /// The Float32 path's state for the whole-cube pass (refuses an unsupported size here, before any tile is read).
+    /// The Float32 path's state for the whole-cube pass (built here, before any tile is read).
     func singleState() throws -> SingleState { try singleBox.state() }
 
     func correlate(values input: [Double], options o: BraggDiskOptions) throws -> (Correlation, Int) {
@@ -266,7 +266,7 @@ public enum BraggDisks {
             throw CuboBraggError.shapeMismatch("the cube's detector is \(shape.detectorRows) × \(shape.detectorColumns), the kernel \(kernel.detectorRows) × \(kernel.detectorColumns)")
         }
         let detector = try BraggDetector(kernel: kernel)
-        let single = options.precision == .single ? try detector.singleState() : nil   // refuses an unsupported size before any read
+        let single = options.precision == .single ? try detector.singleState() : nil   // the Float plan, built once before any read
         let n = shape.detectorCount
         let total = shape.scanCount
         var all: [[BraggPeak]] = []

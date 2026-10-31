@@ -103,11 +103,16 @@ import CuboPtycho
             try SingleslicePtychography.reconstruct(amplitudes: s.amplitudes, positions: s.positions, object: s.object, probe: s.probe,
                                                     iterations: 1, positionCorrection: PtychographyPositionCorrection(), precision: .single)
         }
-        // a 14-pixel detector is a length vDSP's DFT does not take
+        // a 14-pixel detector is a length vDSP's DFT does not take: since CuboKit#9 it runs (Bluestein), it is not refused
         let small = try PtychographyArray(rows: 14, columns: 14, real: [Double](repeating: 0.1, count: 196), imaginary: [Double](repeating: 0, count: 196))
+        let ran = try SingleslicePtychography.reconstruct(amplitudes: [Double](repeating: 1, count: 196), positions: [PtychographyPosition(row: 4, column: 4)],
+                                                          object: s.object, probe: small, iterations: 1, precision: .single)
+        #expect(ran.errors.count == 1 && ran.errors[0].isFinite)
+        // a probe larger than the object is still refused
+        let wide = try PtychographyArray(rows: 16, columns: 96, real: [Double](repeating: 0.1, count: 16 * 96), imaginary: [Double](repeating: 0, count: 16 * 96))
         #expect(throws: PtychographyError.invalidInput) {
-            try SingleslicePtychography.reconstruct(amplitudes: [Double](repeating: 1, count: 196), positions: [PtychographyPosition(row: 4, column: 4)],
-                                                    object: s.object, probe: small, iterations: 1, precision: .single)
+            try SingleslicePtychography.reconstruct(amplitudes: [Double](repeating: 1, count: 16 * 96), positions: [PtychographyPosition(row: 4, column: 4)],
+                                                    object: s.object, probe: wide, iterations: 1, precision: .single)
         }
     }
 }
@@ -141,7 +146,19 @@ import CuboPtycho
     }
 
     @Test func nonSquareFractionalPositions() throws {
-        let rows = 32, columns = 48, size = 96, n = rows * columns
+        try Self.agreesWithDouble(rows: 32, columns: 48, size: 96)
+    }
+
+    /// CuboKit#9: detector lengths the vDSP DFT does not take (an odd prime, 2 x 11, 3 x 7, the padded parallax and
+    /// ptychography size 165 = 3 x 5 x 11) run Bluestein in Float32 and agree with the Double engine at the same tolerances.
+    @Test(arguments: [(22, 21), (14, 14), (13, 26), (165, 40), (32, 21)])
+    func bluesteinDetectorAgreesWithDouble(rows: Int, columns: Int) throws {
+        try Self.agreesWithDouble(rows: rows, columns: columns, size: 2 * max(rows, columns) + 40)
+    }
+
+    /// The single path against the Double path on a `rows x columns` detector over a `size x size` object.
+    static func agreesWithDouble(rows: Int, columns: Int, size: Int) throws {
+        let n = rows * columns
         var probeRe = [Double](repeating: 0, count: n), probeIm = probeRe
         for r in 0..<rows { for c in 0..<columns {
             let rr = Double(min(r, rows - r)), cc = Double(min(c, columns - c)), g = exp(-(rr * rr / 20 + cc * cc / 60))
