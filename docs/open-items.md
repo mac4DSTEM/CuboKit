@@ -20,8 +20,8 @@ Missing, in the order the study needs them (`docs/parity.md`, "study" rows):
 
 - The Double FFT on lengths vDSP does not take (Bluestein, the padded parallax sizes and ptychography detectors such as
   165) is bound by vDSP's Double FFT: a vectorised, allocation-free Bluestein on vDSP's DFT measured 1.1x and was not
-  kept. Float32 callers use `ParallaxFourierShifter.shiftedSingle`, which takes every size (2.6x at 165 x 165). The
-  hot-pixel mean stays Float32 on purpose (`HotPixelFilter` documents why).
+  kept. Float32 callers use `ParallaxFourierShifter.shiftedSingle` and single-slice ptychography `.single`, which take
+  every size (2.6x and 2.5x at 165 x 165). The hot-pixel mean stays Float32 on purpose (`HotPixelFilter` documents why).
 - A single `reconstruct` for parallax; ptychography probe constraints, mixed-state and multislice engines.
 
 Decisions to keep an eye on:
