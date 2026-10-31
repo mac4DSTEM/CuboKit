@@ -55,12 +55,22 @@ stack, shifts and probe angles as separate calls. Defaults are py4DSTEM's; the p
 
 - ``ParallaxPreprocessing``
 - ``ParallaxPreprocessingResult``
+- ``ParallaxStreamedPreprocessingResult``
+- ``ParallaxStackRetention``
 
 ### Aberrations
 
 - ``ParallaxAberrationFitter``
 - ``ParallaxAberrationTerm``
+- ``ParallaxAberrationFitMethod``
+- ``ParallaxLowOrderAberrationOptions``
+- ``ParallaxAberrationFitResult``
+- ``ParallaxHigherOrderAberrationOptions``
+- ``ParallaxHigherOrderAberrationFitResult``
+- ``ParallaxPhysicalShift``
+- ``ParallaxBasisConvention``
 - ``ParallaxAberrationCorrection``
+- ``ParallaxHighpassBehavior``
 - ``ParallaxCorrectionResult``
 
 ### Depth sectioning and subpixel upsampling
