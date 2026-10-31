@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import CuboKitTestSupport
 import CuboCore
-import CuboVirtual
+@testable import CuboVirtual
 
 // 0.9.0: the CPU mean pattern (and the selected-area mean over a mask or weights) adds with a branch-free SIMD TwoSum and no
 // per-element finite check. This transcribes the scalar Neumaier loop it replaced (finite check, magnitude branch, skipped zero
@@ -73,6 +73,32 @@ import CuboVirtual
         for k in 0..<35 { for i in 0..<9600 { old[i].add(Double(v[k * 9600 + i])) } }
         let got = try await VirtualDiffraction.mean(of: c, tiling: .rows(2)).values
         #expect(sameBits(got, old.map { $0.value / 35 }))
+    }
+
+    /// CuboKit#7: `addRows` (four rows per pass, the sum in registers) gives the bits of one `add` per row, for every row count
+    /// around the pass width, pixel counts with SIMD tails, and NaN, +-Inf, -0 and huge values in the rows.
+    @Test func addRowsEqualsOneAddPerRow() throws {
+        for (rows, count) in [(1, 7), (3, 4), (4, 9), (5, 143), (8, 16), (9, 3), (13, 130)] {
+            let stride = count + 5   // rows not packed: the stride is honoured
+            let shape = try CubeShape(scanRows: 1, scanColumns: rows, detectorRows: 1, detectorColumns: stride)
+            var v = values(shape)
+            if rows >= 7, count > 7 {
+                specials(&v, dc: stride, scanCount: rows)
+                // and in the scalar tail (the last pixels): +Inf then -Inf, NaN, +Inf kept
+                v[1 * stride + count - 1] = .infinity; v[5 * stride + count - 1] = -.infinity
+                v[2 * stride + count - 2] = .nan
+                v[6 * stride + count - 3] = .infinity
+            }
+            var s1 = [Double](repeating: -0.0, count: count), c1 = s1, s2 = s1, c2 = s1
+            v.withUnsafeBufferPointer { p in
+                for k in 0..<rows { CompensatedSum.add(p.baseAddress! + k * stride, weight: nil, sum: &s1, correction: &c1, count: count) }
+                CompensatedSum.addRows(p.baseAddress!, stride: stride, rows: rows, sum: &s2, correction: &c2, count: count)
+            }
+            let a = zip(s1, c1).map { CompensatedSum.value(sum: $0, correction: $1) }
+            let b = zip(s2, c2).map { CompensatedSum.value(sum: $0, correction: $1) }
+            #expect(sameBits(a, b), "rows \(rows) count \(count)")
+            #expect(sameBits(s1, s2), "sums rows \(rows) count \(count)")
+        }
     }
 
     @Test func maskAndWeightedMeansEqualTheScalarNeumaier() async throws {

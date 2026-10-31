@@ -34,6 +34,48 @@ enum CompensatedSum {
         }
     }
 
+    /// `rows` calls of `add(_:weight: nil, …)`, row k at `values + k * stride`, bit for bit: each pixel still takes the rows in
+    /// order with the same TwoSum. The rows go in passes of four with a pixel's sum and correction held in registers, so the
+    /// running sum is not stored and reloaded between rows (that store-to-load chain was most of the time, CuboKit#7).
+    @inline(__always)
+    static func addRows(_ values: UnsafePointer<Float>, stride: Int, rows: Int, sum: UnsafeMutablePointer<Double>,
+                        correction: UnsafeMutablePointer<Double>, count: Int) {
+        var k = 0
+        while k + 4 <= rows {
+            fourRows(values + k * stride, stride: stride, sum, correction, count)
+            k += 4
+        }
+        while k < rows {
+            add(values + k * stride, weight: nil, sum: sum, correction: correction, count: count)
+            k += 1
+        }
+    }
+
+    @inline(__always)
+    private static func fourRows(_ values: UnsafePointer<Float>, stride: Int, _ s: UnsafeMutablePointer<Double>,
+                                 _ c: UnsafeMutablePointer<Double>, _ count: Int) {
+        let raw = UnsafeRawPointer(values), rawS = UnsafeMutableRawPointer(s), rawC = UnsafeMutableRawPointer(c)
+        var i = 0
+        while i + 4 <= count {
+            var a = rawS.loadUnaligned(fromByteOffset: i * 8, as: SIMD4<Double>.self)
+            var e = rawC.loadUnaligned(fromByteOffset: i * 8, as: SIMD4<Double>.self)
+            for r in 0..<4 {
+                let x = SIMD4<Double>(raw.loadUnaligned(fromByteOffset: (r * stride + i) * 4, as: SIMD4<Float>.self))
+                let t = a + x
+                let bb = t - a
+                e = e + ((a - (t - bb)) + (x - bb))
+                a = t
+            }
+            rawS.storeBytes(of: a, toByteOffset: i * 8, as: SIMD4<Double>.self)
+            rawC.storeBytes(of: e, toByteOffset: i * 8, as: SIMD4<Double>.self)
+            i += 4
+        }
+        while i < count {
+            for r in 0..<4 { scalar(Double(values[r * stride + i]), s + i, c + i) }
+            i += 1
+        }
+    }
+
     @inline(__always)
     private static func step(_ x: SIMD4<Double>, _ s: UnsafeMutablePointer<Double>, _ c: UnsafeMutablePointer<Double>) {
         let raw = UnsafeMutableRawPointer(s), rawC = UnsafeMutableRawPointer(c)
