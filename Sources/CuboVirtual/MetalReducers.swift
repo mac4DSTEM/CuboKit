@@ -401,9 +401,10 @@ enum MetalReducers {
         let wjBuffer = try metal.buffer(split((0..<n).map { w[$0] * Double($0 % qx) }), label: "CuboKit CoM column weights")
         var s = [Double](repeating: 0, count: shape.scanCount)
         var r = s, c = s
+        let feed = try TileFeed(metal, source, tiling: tiling)
         for range in try tiling.ranges(for: shape) {
             try checkInterrupted()
-            let (data, offset, positions) = try await tileBuffer(metal, source, range)
+            let (data, offset, positions) = try await feed.buffer(source, range)
             let out = try metal.buffer(floats: 6 * positions, label: "CuboKit CoM sums")
             try await metal.run(metal.centerOfMass, threads: positions, buffers: [data, wBuffer, wiBuffer, wjBuffer, out],
                                 offsets: [offset],
@@ -441,9 +442,10 @@ enum MetalReducers {
         let shape = source.shape
         let maskBuffer = try metal.buffer(mask, label: "CuboKit detector mask")
         var out = [Double](repeating: 0, count: shape.scanCount)
+        let feed = try TileFeed(metal, source, tiling: tiling)
         for range in try tiling.ranges(for: shape) {
             try checkInterrupted()
-            let (data, offset, positions) = try await tileBuffer(metal, source, range)
+            let (data, offset, positions) = try await feed.buffer(source, range)
             let image = try metal.buffer(floats: 2 * positions, label: "CuboKit virtual image tile (sum, correction)")
             try await metal.run(metal.virtualImage, threads: positions, buffers: [data, maskBuffer, image], offsets: [offset],
                                 dims: .init(positions: UInt32(positions), detectorRows: UInt32(shape.detectorRows),
@@ -465,9 +467,10 @@ enum MetalReducers {
         var maximum = [Float](repeating: -.infinity, count: n)
         let sums = try metal.buffer(floats: 2 * n, label: "CuboKit tile sums (sum, correction)")
         let maxima = try metal.buffer(floats: n, label: "CuboKit tile maxima")
+        let feed = try TileFeed(metal, source, tiling: tiling)
         for range in try tiling.ranges(for: shape) {
             try checkInterrupted()
-            let (data, offset, positions) = try await tileBuffer(metal, source, range)
+            let (data, offset, positions) = try await feed.buffer(source, range)
             try await metal.run(metal.sumAndMax, threads: n, buffers: [data, sums, maxima], offsets: [offset],
                                 dims: .init(positions: UInt32(positions),
                                             detectorRows: UInt32(shape.detectorRows),
@@ -486,19 +489,90 @@ enum MetalReducers {
                               values: maximum.map(Double.init), path: .metal))
     }
 
-    /// The Float32 values of the scan rows `range` as a Metal buffer: the cube's own buffer at an offset when it is a
-    /// ``ResidentCube`` (no copy), else a buffer filled from the source's tile.
-    static func tileBuffer(_ metal: MetalContext, _ source: some CubeSource, _ range: Range<Int>) async throws
-        -> (buffer: MTLBuffer, offset: Int, positions: Int) {
-        let shape = source.shape
+}
+
+/// How one `.metal` call hands the cube's tiles to the GPU (CuboKit#8). The kernels are the same for every source; only
+/// where their input buffer comes from differs:
+/// - a ``ResidentCube``: its own buffer at the tile's offset;
+/// - a ``MemoryCube`` of at least ``noCopyMinimumBytes``: one buffer over the cube's own values, made with
+///   `makeBuffer(bytesNoCopy:)` on the pages that hold them, at the tile's offset;
+/// - any other source (or a no-copy buffer refused): one shared staging buffer of the call's largest tile, made once and
+///   filled from each tile in turn.
+/// Before this, every tile got a new buffer filled by `makeBuffer(bytes:)`: on a 100 x 100 x 64 x 64 cube that new 64 MiB
+/// allocation and its first GPU use took about 20 of the 26 ms of a mean-and-max pass, the kernel 3. The tiles are
+/// processed one at a time (each dispatch is awaited), so a staging buffer is never overwritten while the GPU reads it.
+final class TileFeed {
+    /// Below this a ``MemoryCube`` is copied as any other source: a small array may share its first and last pages with other
+    /// allocations, and the copy is cheap there.
+    static let noCopyMinimumBytes = 1 << 20
+
+    enum Kind: Equatable { case resident, noCopy, staging }
+
+    let metal: MetalContext
+    let shape: CubeShape
+    private let rowsPerTile: Int
+    private var whole: (buffer: MTLBuffer, offset: Int)?
+    /// Holds the ``MemoryCube``'s array storage for as long as the no-copy buffer over it lives.
+    private var pinned: [Float]?
+    private var staging: MTLBuffer?
+    private(set) var kind: Kind = .staging
+
+    init(_ metal: MetalContext, _ source: some CubeSource, tiling: ScanTiling) throws {
+        self.metal = metal
+        self.shape = source.shape
+        self.rowsPerTile = try tiling.rowsPerTile(for: source.shape)
         if let resident = source as? ResidentCube {
-            return (resident.storage.buffer, range.lowerBound * shape.elementsPerScanRow * MemoryLayout<Float>.stride,
-                    range.count * shape.scanColumns)
+            whole = (resident.storage.buffer, 0)
+            kind = .resident
+        } else if let memory = source as? MemoryCube,
+                  memory.values.count * MemoryLayout<Float>.stride >= Self.noCopyMinimumBytes,
+                  let wrapped = Self.noCopyBuffer(metal, memory.values) {
+            pinned = memory.values
+            whole = wrapped
+            kind = .noCopy
+        }
+    }
+
+    /// A buffer over the pages holding `values`, without a copy, and the byte offset of `values[0]` in it; nil when Metal
+    /// refuses it. The array is a `let` of a ``MemoryCube`` and never mutated, so its storage does not move; the caller
+    /// keeps it alive (``pinned``) while the buffer exists.
+    static func noCopyBuffer(_ metal: MetalContext, _ values: [Float]) -> (buffer: MTLBuffer, offset: Int)? {
+        values.withUnsafeBufferPointer { v -> (MTLBuffer, Int)? in
+            guard let base = v.baseAddress else { return nil }
+            let page = UInt(getpagesize())
+            let start = UInt(bitPattern: base)
+            let first = start & ~(page - 1)
+            let end = (start + UInt(v.count * MemoryLayout<Float>.stride) + page - 1) & ~(page - 1)
+            guard let pointer = UnsafeMutableRawPointer(bitPattern: first),
+                  let b = metal.device.makeBuffer(bytesNoCopy: pointer, length: Int(end - first),
+                                                  options: .storageModeShared, deallocator: nil) else { return nil }
+            b.label = "CuboKit memory cube (no copy)"
+            return (b, Int(start - first))
+        }
+    }
+
+    func buffer(_ source: some CubeSource, _ range: Range<Int>) async throws -> (buffer: MTLBuffer, offset: Int, positions: Int) {
+        let positions = range.count * shape.scanColumns
+        if let whole {
+            try shape.requireRows(range)
+            return (whole.buffer, whole.offset + range.lowerBound * shape.elementsPerScanRow * MemoryLayout<Float>.stride,
+                    positions)
         }
         let tile = try await source.readScanTile(rows: range)
-        return (try metal.buffer(tile.values, label: "CuboKit tile rows \(range.lowerBound)..<\(range.upperBound)"), 0,
-                tile.positionCount)
+        let target: MTLBuffer
+        if let staging, staging.length >= tile.values.count * MemoryLayout<Float>.stride {
+            target = staging
+        } else {
+            target = try metal.buffer(floats: Swift.max(tile.values.count, rowsPerTile * shape.elementsPerScanRow),
+                                      label: "CuboKit tile staging")
+            staging = target
+        }
+        tile.values.withUnsafeBytes { target.contents().copyMemory(from: $0.baseAddress!, byteCount: $0.count) }
+        return (target, 0, tile.positionCount)
     }
+}
+
+extension MetalReducers {
 
     /// Mean or maximum of the patterns at the positions in `take` (`weights` multiplies each pattern when given): one
     /// thread per detector pixel, compensated Float32 sums per tile combined in Double.
@@ -512,6 +586,7 @@ enum MetalReducers {
         var maximum = [Float](repeating: -.infinity, count: n)
         let sums = try metal.buffer(floats: 2 * n, label: "CuboKit selected-area sums (sum, correction)")
         let maxima = try metal.buffer(floats: n, label: "CuboKit selected-area maxima")
+        let feed = try TileFeed(metal, source, tiling: tiling)
         for range in try tiling.ranges(for: shape) {
             try checkInterrupted()
             let first = range.lowerBound * shape.scanColumns
@@ -524,7 +599,7 @@ enum MetalReducers {
                 take[first + k] ? (weights.map { Float($0[first + k]) } ?? 1) : 0
             }
             let weightBuffer = try metal.buffer(w, label: "CuboKit selection weights")
-            let (data, offset, _) = try await tileBuffer(metal, source, range)
+            let (data, offset, _) = try await feed.buffer(source, range)
             try await metal.run(metal.weightedPattern, threads: n, buffers: [data, weightBuffer, sums, maxima],
                                 offsets: [offset],
                                 constants: WeightedDims(positions: UInt32(positions), detectorRows: UInt32(shape.detectorRows),

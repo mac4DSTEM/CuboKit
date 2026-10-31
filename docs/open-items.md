@@ -3,11 +3,13 @@
 Slower than py4DSTEM at the typical size (100 x 100 x 64 x 64, Float32); the numbers are in `docs/benchmarks.md`.
 
 1. **Mean pattern on the CPU, 1.8x NumPy** (`VirtualDiffraction.mean`: 4.9 ms against 2.7 ms on a loaded Mac, best 4.3 against 2.6; the max pattern is 5.9 ms against 2.8). Since 0.9.0 the sum is a SIMD TwoSum across cores and the pass is bandwidth-bound (about 40 GB/s); NumPy's float32 reduction reads the cube once without widening. A resident cube on Metal is ahead (3.4 ms). Reading Float32 pairs without widening to Double is not an option (D16), so only a resident cube or the same sum on Float32 pairs (`df_add`) goes lower.
-2. **Metal mean, max and selected-area patterns pay a host copy per tile** (28 ms against 3.4 ms resident). Use
-   `ResidentCube` when a cube is reduced more than once; an automatic policy (hold the cube when the first call reads it
-   twice) is the app's. The CPU path is now faster than the host-copy Metal path for the mean (4.9 against 27 ms), the mask (3.9 against 29) and the weights (5.1 against 28): the CPU is the default.
-3. Centre of mass on Metal is slower than the CPU at both sizes measured (27 ms against 11 ms): the kernel reads each
-   pattern with one thread; only a resident cube would change that. CPU stays the default.
+2. **Metal mean, max and selected-area patterns lose to the CPU on a cube that is not resident.** Since CuboKit#8 a
+   `MemoryCube` reaches the GPU without a copy and other sources go through one reused staging buffer (before, a new
+   buffer per tile cost about 20 of the 26 ms). At the typical size the Metal mean and max is now 6.4 ms (staged 13.4,
+   resident 3.8) against 2.4 ms on the CPU, and the mask mean 9.7 against 1.6: these passes are bandwidth-bound and the
+   CPU reads the cube in place, so the CPU stays the default. The virtual image (5.0 against 9.6 ms) and the centre of
+   mass (8.6 against 11.6) are now faster on Metal for a `MemoryCube`; the centre of mass at 128 x 128 detectors is not
+   (29.8 against 17.5: the kernel reads each pattern with one thread). An automatic choice of path is the app's.
 
 Missing, in the order the study needs them (`docs/parity.md`, "study" rows):
 
