@@ -116,29 +116,39 @@ extension VirtualDiffraction {
         var take = [Bool](repeating: false, count: shape.scanCount)
         for k in selected { take[k] = true }
         // Mean: a compensated sum per pixel (SIMD TwoSum, ``CompensatedSum``), the detector pixels in blocks on every core, each
-        // pixel added in scan order; the sums start at +0 as the scalar Neumaier did.
+        // pixel adding the picked positions in scan order, four per pass with the sum in registers (``CompensatedSum/addPicked``,
+        // bit for bit one `add` per position); the sums start at +0 as the scalar Neumaier did. 128-pixel blocks so every core
+        // takes part on a 4096-pixel detector, as the full mean (CuboKit#7, #54).
         var sum = [Double](repeating: 0, count: statistic == .mean ? n : 0)
         var correction = [Double](repeating: 0, count: statistic == .mean ? n : 0)
         var maximum = [Double](repeating: -.infinity, count: statistic == .mean ? 0 : n)
         var total = Neumaier()
-        let blockSize = 512
+        let blockSize = 128
         let blocks = (n + blockSize - 1) / blockSize
         for range in try tiling.ranges(for: shape) {
             try checkInterrupted()
             let first = range.lowerBound * shape.scanColumns
             let picked = (0..<(range.count * shape.scanColumns)).filter { take[first + $0] }
+            let pickedWeights = weights.map { w in picked.map { w[first + $0] } }
             for k in picked { total.add(weights?[first + k] ?? 1.0) }
             try await withTileValues(of: source, rows: range) { values in
                 if statistic == .mean {
                     sum.withUnsafeMutableBufferPointer { s in
                         correction.withUnsafeMutableBufferPointer { c in
-                            let sp = SharedBuffer(base: s.baseAddress!), cp = SharedBuffer(base: c.baseAddress!)
-                            let vp = SharedBuffer(base: UnsafeMutablePointer(mutating: values))
-                            DispatchQueue.concurrentPerform(iterations: blocks) { b in
-                                let lo = b * blockSize, hi = Swift.min(n, lo + blockSize)
-                                for k in picked {
-                                    CompensatedSum.add(vp.base + k * n + lo, weight: weights.map { $0[first + k] },
-                                                       sum: sp.base + lo, correction: cp.base + lo, count: hi - lo)
+                            picked.withUnsafeBufferPointer { pk in
+                                (pickedWeights ?? []).withUnsafeBufferPointer { pw in
+                                    let sp = SharedBuffer(base: s.baseAddress!), cp = SharedBuffer(base: c.baseAddress!)
+                                    let vp = SharedBuffer(base: UnsafeMutablePointer(mutating: values))
+                                    let rows = pk.baseAddress.map { SharedBuffer(base: UnsafeMutablePointer(mutating: $0)) }
+                                    let w = pickedWeights == nil ? nil
+                                        : pw.baseAddress.map { SharedBuffer(base: UnsafeMutablePointer(mutating: $0)) }
+                                    guard let rows else { return }   // no position of this tile is picked
+                                    DispatchQueue.concurrentPerform(iterations: blocks) { b in
+                                        let lo = b * blockSize, hi = Swift.min(n, lo + blockSize)
+                                        CompensatedSum.addPicked(vp.base + lo, stride: n, rows: rows.base,
+                                                                 rowCount: picked.count, weights: w?.base,
+                                                                 sum: sp.base + lo, correction: cp.base + lo, count: hi - lo)
+                                    }
                                 }
                             }
                         }

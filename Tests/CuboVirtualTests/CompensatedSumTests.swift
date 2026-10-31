@@ -101,6 +101,85 @@ import CuboCore
         }
     }
 
+    /// CuboKit#54: `addPicked` (picked rows, optionally weighted, four per pass in registers) gives the bits of one `add` per
+    /// picked row in order, for picked counts around the pass width, unsorted and repeated picks, SIMD tails, and NaN, +-Inf,
+    /// -0 and huge values in both the SIMD body and the scalar tail; weights include 0 (0 * Inf = NaN), negative and tiny ones.
+    @Test func addPickedEqualsOneAddPerPickedRow() throws {
+        let rowsInCube = 14
+        for (picked, count) in [(1, 7), (3, 4), (4, 9), (5, 143), (8, 16), (9, 3), (13, 130), (14, 37)] {
+            let stride = count + 3
+            let shape = try CubeShape(scanRows: 1, scanColumns: rowsInCube, detectorRows: 1, detectorColumns: stride)
+            var v = values(shape)
+            if count > 7 {
+                specials(&v, dc: stride, scanCount: rowsInCube)
+                v[1 * stride + count - 1] = .infinity; v[5 * stride + count - 1] = -.infinity
+                v[2 * stride + count - 2] = .nan
+                v[6 * stride + count - 3] = .infinity
+                v[9 * stride + count - 4] = -0.0
+            }
+            // scattered, out of order, one repeat: the order given is the order added
+            var rows = (0..<picked).map { ($0 * 5 + 2) % rowsInCube }
+            if picked > 1 { rows[picked - 1] = rows[0] }
+            let weights = (0..<picked).map { j -> Double in [0.37, 0, -1.25, 1e-300, 3.0, 1e300, 0.5][j % 7] }
+            for weighted in [false, true] {
+                var s1 = [Double](repeating: 0, count: count), c1 = s1, s2 = s1, c2 = s1
+                v.withUnsafeBufferPointer { p in
+                    for j in 0..<picked {
+                        CompensatedSum.add(p.baseAddress! + rows[j] * stride, weight: weighted ? weights[j] : nil,
+                                           sum: &s1, correction: &c1, count: count)
+                    }
+                    rows.withUnsafeBufferPointer { r in
+                        weights.withUnsafeBufferPointer { w in
+                            CompensatedSum.addPicked(p.baseAddress!, stride: stride, rows: r.baseAddress!, rowCount: picked,
+                                                     weights: weighted ? w.baseAddress! : nil, sum: &s2, correction: &c2,
+                                                     count: count)
+                        }
+                    }
+                }
+                let a = zip(s1, c1).map { CompensatedSum.value(sum: $0, correction: $1) }
+                let b = zip(s2, c2).map { CompensatedSum.value(sum: $0, correction: $1) }
+                #expect(sameBits(a, b), "picked \(picked) count \(count) weighted \(weighted)")
+                #expect(sameBits(s1, s2), "sums picked \(picked) count \(count) weighted \(weighted)")
+                #expect(sameBits(c1, c2), "corrections picked \(picked) count \(count) weighted \(weighted)")
+            }
+        }
+    }
+
+    /// CuboKit#54 at the API: the mask and weighted means over a detector of several 128-pixel blocks (with a tail) are the
+    /// bits of one `CompensatedSum.add` per selected position in scan order, the per-position path they used before.
+    @Test func maskAndWeightedMeansEqualThePerPositionPath() async throws {
+        let shape = try CubeShape(scanRows: 5, scanColumns: 7, detectorRows: 19, detectorColumns: 23)   // 437 pixels
+        let n = shape.detectorCount, positions = shape.scanCount
+        var v = values(shape)
+        specials(&v, dc: n, scanCount: positions)
+        v[9 * n + n - 1] = .nan; v[10 * n + n - 2] = .infinity; v[12 * n + n - 2] = -.infinity
+        let c = try MemoryCube(shape: shape, values: v)
+        // scan row 2 (positions 14..<21) holds no picked position: with `.rows(1)` one tile adds nothing
+        let mask = (0..<positions).map { ($0 * 7) % 5 != 2 && $0 / shape.scanColumns != 2 }
+        // weights with exact zeros (0 * Inf = NaN), negatives and fractions
+        let weights = (0..<positions).map { $0 % 6 == 1 ? 0 : [0.37, 0, -1.25, 2.5, 3.0, 0.125][$0 % 6] + Double($0) * 1e-3 }
+        func perPosition(_ weighted: Bool) -> [Double] {
+            var s = [Double](repeating: 0, count: n), e = s
+            v.withUnsafeBufferPointer { p in
+                for k in 0..<positions where weighted || mask[k] {
+                    CompensatedSum.add(p.baseAddress! + k * n, weight: weighted ? weights[k] : nil, sum: &s, correction: &e,
+                                       count: n)
+                }
+            }
+            return zip(s, e).map { CompensatedSum.value(sum: $0, correction: $1) }
+        }
+        var total = Neumaier()
+        for w in weights { total.add(w) }
+        let plain = perPosition(false).map { $0 / Double(mask.filter { $0 }.count) }
+        let weighted = perPosition(true).map { $0 / total.value }
+        for tiling in [ScanTiling.rows(1), .rows(2), .automatic] {
+            let m = try await VirtualDiffraction.pattern(of: c, statistic: .mean, scan: .mask(mask), tiling: tiling).values
+            #expect(sameBits(m, plain), "mask \(tiling)")
+            let w = try await VirtualDiffraction.pattern(of: c, statistic: .mean, scan: .weights(weights), tiling: tiling).values
+            #expect(sameBits(w, weighted), "weights \(tiling)")
+        }
+    }
+
     @Test func maskAndWeightedMeansEqualTheScalarNeumaier() async throws {
         let shape = try CubeShape(scanRows: 4, scanColumns: 5, detectorRows: 13, detectorColumns: 11)
         var v = values(shape)
