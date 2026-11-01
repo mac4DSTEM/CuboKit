@@ -4,6 +4,7 @@
 //  Provenance and reference pin: NOTICE and docs/parallax-alignment.md.
 //
 
+import Accelerate
 import Foundation
 import CuboCore
 
@@ -131,6 +132,8 @@ package enum MatrixDFTCorrelation {
 
     /// real(rowKern · conj(correlation) · colKern). The center is expressed
     /// in upsampled-grid coordinates, matching py4DSTEM's `dftUpsample`.
+    /// Computed as real matrix products on Accelerate, as py4DSTEM uses NumPy's
+    /// complex matmul; the sums run in the library's order, not term by term.
     static func dftUpsampleOfConjugate(
         correlationRe: [Double],
         correlationIm: [Double],
@@ -141,90 +144,85 @@ package enum MatrixDFTCorrelation {
         upsampleFactor: Int,
         patchSize: Int
     ) -> [Double] {
-        // The loops below read through unchecked buffer pointers.
+        // vDSP reads the arrays through raw pointers.
         precondition(correlationRe.count == width * height && correlationIm.count == width * height)
-        // The column kernel, one cosine and sine per (frequency column, patch column), computed once: the same angles as
-        // the sums below used to compute inside their loops.
-        let columnScale = -2 * Double.pi
-            / (Double(width) * Double(upsampleFactor))
-        var columnCos = [Double](repeating: 0, count: width * patchSize)
-        var columnSin = [Double](repeating: 0, count: width * patchSize)
+        precondition(width > 0 && height > 0 && patchSize > 0)
+        let p = patchSize
+
+        // Stage 1, conj(C) · kernc, as two real products into one height x 2p block [Re | Im]:
+        //   Re = Cre · cos + Cim · sin,   Im = Cre · sin - Cim · cos,
+        // with B1 = [cos | sin] and B2 = [sin | -cos], each width x 2p.
+        // Frequencies match numpy's ifftshift(arange(N)) - floor(N/2), as py4DSTEM's multicorr.py:186,195. On an odd axis
+        // the middle bin is +(N-1)/2, not -(N+1)/2. The angles are formed as the scalar loop formed them; vForce takes the
+        // sine and cosine.
+        let columnScale = -2 * Double.pi / (Double(width) * Double(upsampleFactor))
+        var columnAngle = [Double](repeating: 0, count: width * p)
         for frequencyColumn in 0..<width {
-            // Matches numpy's ifftshift(arange(N)) - floor(N/2), as py4DSTEM's
-            // multicorr.py:186,195. On an odd axis the middle bin is +(N-1)/2, not
-            // -(N+1)/2.
-            let wrappedFrequency = Double(
-                frequencyColumn < (width + 1) / 2
-                    ? frequencyColumn : frequencyColumn - width
-            )
-            for patchColumn in 0..<patchSize {
-                let angle = columnScale * wrappedFrequency
+            let wrappedFrequency = Double(frequencyColumn < (width + 1) / 2 ? frequencyColumn : frequencyColumn - width)
+            for patchColumn in 0..<p {
+                columnAngle[frequencyColumn * p + patchColumn] = columnScale * wrappedFrequency
                     * (Double(patchColumn) - centerColumn)
-                columnCos[frequencyColumn * patchSize + patchColumn] = cos(angle)
-                columnSin[frequencyColumn * patchSize + patchColumn] = sin(angle)
+            }
+        }
+        let (columnSin, columnCos) = sinCos(columnAngle)
+        var kernelRe = [Double](repeating: 0, count: width * 2 * p)
+        var kernelIm = [Double](repeating: 0, count: width * 2 * p)
+        for frequencyColumn in 0..<width {
+            let source = frequencyColumn * p, row = frequencyColumn * 2 * p
+            for patchColumn in 0..<p {
+                let cosine = columnCos[source + patchColumn], sine = columnSin[source + patchColumn]
+                kernelRe[row + patchColumn] = cosine
+                kernelRe[row + p + patchColumn] = sine
+                kernelIm[row + patchColumn] = sine
+                kernelIm[row + p + patchColumn] = -cosine
+            }
+        }
+        var fromRe = [Double](repeating: 0, count: height * 2 * p)
+        var fromIm = [Double](repeating: 0, count: height * 2 * p)
+        vDSP_mmulD(correlationRe, 1, kernelRe, 1, &fromRe, 1,
+                   vDSP_Length(height), vDSP_Length(2 * p), vDSP_Length(width))
+        vDSP_mmulD(correlationIm, 1, kernelIm, 1, &fromIm, 1,
+                   vDSP_Length(height), vDSP_Length(2 * p), vDSP_Length(width))
+        // The intermediate, restacked as [Re; Im] (2 height x p) for stage 2.
+        var intermediate = [Double](repeating: 0, count: 2 * height * p)
+        for sourceRow in 0..<height {
+            let row = sourceRow * 2 * p
+            for patchColumn in 0..<p {
+                intermediate[sourceRow * p + patchColumn] = fromRe[row + patchColumn] + fromIm[row + patchColumn]
+                intermediate[(height + sourceRow) * p + patchColumn] = fromRe[row + p + patchColumn]
+                    + fromIm[row + p + patchColumn]
             }
         }
 
-        // conj(correlation) × column kernel. Each destination still sums its terms in frequency-column order, so the
-        // result equals the former column-outer loop to a few ulps (vectorisation differs); the loops are ordered for
-        // contiguous reads.
-        var intermediateRe = [Double](repeating: 0,
-                                     count: height * patchSize)
-        var intermediateIm = [Double](repeating: 0,
-                                     count: height * patchSize)
-        intermediateRe.withUnsafeMutableBufferPointer { outRe in
-            intermediateIm.withUnsafeMutableBufferPointer { outIm in
-                correlationRe.withUnsafeBufferPointer { inRe in
-                    correlationIm.withUnsafeBufferPointer { inIm in
-                        columnCos.withUnsafeBufferPointer { kc in
-                            columnSin.withUnsafeBufferPointer { ks in
-                                for sourceRow in 0..<height {
-                                    let row = sourceRow * patchSize
-                                    for frequencyColumn in 0..<width {
-                                        let re = inRe[sourceRow * width + frequencyColumn]
-                                        let im = inIm[sourceRow * width + frequencyColumn]
-                                        let kernel = frequencyColumn * patchSize
-                                        for patchColumn in 0..<patchSize {
-                                            let cosine = kc[kernel + patchColumn], sine = ks[kernel + patchColumn]
-                                            outRe[row + patchColumn] += re * cosine + im * sine
-                                            outIm[row + patchColumn] += -im * cosine + re * sine
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+        // Stage 2, real(kernr · intermediate) = [cos | -sin] · [Re; Im], kernr being p x height.
+        let rowScale = -2 * Double.pi / (Double(height) * Double(upsampleFactor))
+        var rowAngle = [Double](repeating: 0, count: p * height)
+        for patchRow in 0..<p {
+            for frequencyRow in 0..<height {
+                let wrappedFrequency = Double(frequencyRow < (height + 1) / 2 ? frequencyRow : frequencyRow - height)
+                rowAngle[patchRow * height + frequencyRow] = rowScale * (Double(patchRow) - centerRow) * wrappedFrequency
             }
         }
-
-        var patch = [Double](repeating: 0, count: patchSize * patchSize)
-        let rowScale = -2 * Double.pi
-            / (Double(height) * Double(upsampleFactor))
-        patch.withUnsafeMutableBufferPointer { out in
-            intermediateRe.withUnsafeBufferPointer { inRe in
-                intermediateIm.withUnsafeBufferPointer { inIm in
-                    for patchRow in 0..<patchSize {
-                        for frequencyRow in 0..<height {
-                            let wrappedFrequency = Double(
-                                frequencyRow < (height + 1) / 2
-                                    ? frequencyRow : frequencyRow - height
-                            )
-                            let angle = rowScale * (Double(patchRow) - centerRow)
-                                * wrappedFrequency
-                            let cosine = cos(angle), sine = sin(angle)
-                            for patchColumn in 0..<patchSize {
-                                let source = frequencyRow * patchSize + patchColumn
-                                out[patchRow * patchSize + patchColumn]
-                                    += cosine * inRe[source]
-                                        - sine * inIm[source]
-                            }
-                        }
-                    }
-                }
+        let (rowSin, rowCos) = sinCos(rowAngle)
+        var rowKernel = [Double](repeating: 0, count: p * 2 * height)
+        for patchRow in 0..<p {
+            for frequencyRow in 0..<height {
+                rowKernel[patchRow * 2 * height + frequencyRow] = rowCos[patchRow * height + frequencyRow]
+                rowKernel[patchRow * 2 * height + height + frequencyRow] = -rowSin[patchRow * height + frequencyRow]
             }
         }
+        var patch = [Double](repeating: 0, count: p * p)
+        vDSP_mmulD(rowKernel, 1, intermediate, 1, &patch, 1, vDSP_Length(p), vDSP_Length(p), vDSP_Length(2 * height))
         return patch
+    }
+
+    /// Sine and cosine of every angle, with vForce.
+    private static func sinCos(_ angle: [Double]) -> (sine: [Double], cosine: [Double]) {
+        var sine = [Double](repeating: 0, count: angle.count)
+        var cosine = [Double](repeating: 0, count: angle.count)
+        var count = Int32(angle.count)
+        vvsincos(&sine, &cosine, angle, &count)
+        return (sine, cosine)
     }
 
     private static func parabolicOffset(

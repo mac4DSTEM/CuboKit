@@ -7,17 +7,20 @@ import CuboCore
 // defaults, their results are those of CuboParallax 0.5.0 (deb33d9). Fixture legacy050.json holds the 0.5.0 outputs on the
 // deterministic inputs of LegacyInputs (written once by a throwaway generator run on that commit).
 // Tolerance: 1e-12 of max(1, max|expected|) -- the code paths are unchanged, so on one machine the gap is zero; the
-// allowance covers a different vDSP build only.
+// allowance covers a different vDSP build only. The end-to-end process is the exception: its matrix-DFT peak refinement became
+// matrix products on Accelerate after 0.5.0, which sum in another order (patch gaps of 3e-15 relative), and the iterations
+// carry that to 3.3e-12 on a scale of 1.7; it is held at 1e-10, the kit's tolerance for the matrix-DFT refinement (docs/parity.md).
 @Suite struct DefaultUnchangedTests {
     static func golden() throws -> [String: [Double]] {
         let url = try #require(parallaxFixture("legacy050"))
         return try JSONDecoder().decode([String: [Double]].self, from: Data(contentsOf: url))
     }
-    static func same(_ actual: [Double], _ expected: [Double], _ name: String, sourceLocation: SourceLocation = #_sourceLocation) {
+    static func same(_ actual: [Double], _ expected: [Double], _ name: String, tolerance: Double = 1e-12,
+                     sourceLocation: SourceLocation = #_sourceLocation) {
         #expect(actual.count == expected.count, "\(name) length", sourceLocation: sourceLocation)
         let scale = max(1, expected.map(abs).max() ?? 0)
         let gap = zip(actual, expected).map { abs($0 - $1) }.max() ?? 0
-        #expect(gap <= 1e-12 * scale, "\(name) gap \(gap)", sourceLocation: sourceLocation)
+        #expect(gap <= tolerance * scale, "\(name) gap \(gap)", sourceLocation: sourceLocation)
     }
     static let rows = 8, columns = 9
 
@@ -71,7 +74,7 @@ import CuboCore
             scanSampling: .init(row: k.scanSampling, column: k.scanSampling), energyEV: 200000, options: options)
         let values = r.reconstruction.shifts.flatMap { [$0.row, $0.column] } + r.reconstruction.image + r.reconstruction.errors
             + r.subpixel!.image + r.positionCorrection!.scores + r.positionCorrection!.offsets.rows
-        Self.same(values, g["process"]!, "process")
+        Self.same(values, g["process"]!, "process", tolerance: 1e-10)
     }
     /// The end-to-end case with checkerboard position correction from the reconstruct fixture.
     static func endToEndSetup() throws -> (ParallaxProcessingOptions, ParallaxReconstructTests.EndToEnd, ParallaxReconstructTests.E2E) {
