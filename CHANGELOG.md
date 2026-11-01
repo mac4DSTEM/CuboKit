@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.10.0](https://github.com/mac4DSTEM/CuboKit/compare/0.9.0...0.10.0) (2026-11-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* CuboPtycho, CuboStrain and CuboEmbedding (the enums) and their deprecated scope are removed; nothing replaces them. Module-qualified names such as CuboStrain.LatticeStrain now resolve. mac4DSTEM uses none of the three enums or scope, so it needs no call-site change.
+
+### Features
+
+* Bragg disk detection .single runs on every detector size ([#61](https://github.com/mac4DSTEM/CuboKit/issues/61)) ([f60ef41](https://github.com/mac4DSTEM/CuboKit/commit/f60ef412fd66104bef9e004fad70c9a058250cc9))
+* brightest-disk seed for the iterated-window origin at low dose ([#65](https://github.com/mac4DSTEM/CuboKit/issues/65)) ([d4231bc](https://github.com/mac4DSTEM/CuboKit/commit/d4231bc9a06573e050bd4a58547f12398f8c2dad))
+* deprecate the placeholder scope constants and drop dead code ([#41](https://github.com/mac4DSTEM/CuboKit/issues/41)) ([f33b33e](https://github.com/mac4DSTEM/CuboKit/commit/f33b33ea71f8b8bdf66aba2843b860e36df812e2))
+* deprecate the placeholder scope constants; drop dead code ([f33b33e](https://github.com/mac4DSTEM/CuboKit/commit/f33b33ea71f8b8bdf66aba2843b860e36df812e2))
+* remove the enums named like their modules ([2e4c0f6](https://github.com/mac4DSTEM/CuboKit/commit/2e4c0f6fdf097241336bb50ea210e31ede5b18ee))
+* single-slice ptychography .single takes every detector size ([#59](https://github.com/mac4DSTEM/CuboKit/issues/59)) ([5d40072](https://github.com/mac4DSTEM/CuboKit/commit/5d40072220183433603cc82be769f4a32ae959f5))
+* SyntheticProbe centre, public FloatFFT2D.supports, consensus diagnostics for a supplied basis ([#46](https://github.com/mac4DSTEM/CuboKit/issues/46)) ([98f5330](https://github.com/mac4DSTEM/CuboKit/commit/98f53303bc3b2a59bc4fb008195fa0ce3192a656))
+
+
+### Bug Fixes
+
+* Metal sums give +-Inf, not NaN, for infinite pixels ([#51](https://github.com/mac4DSTEM/CuboKit/issues/51)) ([5642ee1](https://github.com/mac4DSTEM/CuboKit/commit/5642ee10fbe2b5473335712586f5afd1780c6375)), closes [#12](https://github.com/mac4DSTEM/CuboKit/issues/12)
+
+
+### Performance Improvements
+
+* CPU mean and max pattern 2x faster, TwoSum state in registers ([#53](https://github.com/mac4DSTEM/CuboKit/issues/53)) ([a8b268e](https://github.com/mac4DSTEM/CuboKit/commit/a8b268ec51d9fb9b0e92afba863fb1ba6f454311))
+* CPU mean pattern 2x faster, sum held in registers over four positions ([a8b268e](https://github.com/mac4DSTEM/CuboKit/commit/a8b268ec51d9fb9b0e92afba863fb1ba6f454311))
+* Float32 parallax shifter for every size, Bluestein on the vDSP Float DFT ([#52](https://github.com/mac4DSTEM/CuboKit/issues/52)) ([60ddbea](https://github.com/mac4DSTEM/CuboKit/commit/60ddbeab4d11f470bdb0e16a521b7d294b575b6f))
+* masked and weighted CPU mean about 1.85x faster, sum in registers ([#55](https://github.com/mac4DSTEM/CuboKit/issues/55)) ([1e4a716](https://github.com/mac4DSTEM/CuboKit/commit/1e4a716a2f4d5c127f1f4082ffda467ac59ee376))
+* Metal reducers 2x to 5x faster on a cube that is not resident ([#57](https://github.com/mac4DSTEM/CuboKit/issues/57)) ([117a1f9](https://github.com/mac4DSTEM/CuboKit/commit/117a1f94df3113b13bfe17d6d2c60e0e31144e52))
+* multicorr Bragg refinement 2x faster, loops ordered for contiguous reads ([#63](https://github.com/mac4DSTEM/CuboKit/issues/63)) ([b8e85f9](https://github.com/mac4DSTEM/CuboKit/commit/b8e85f9d90ef7392942a1d4f85f0fbc3610b7dc5))
+* multicorr refinement 2x faster, loops ordered for contiguous reads ([b8e85f9](https://github.com/mac4DSTEM/CuboKit/commit/b8e85f9d90ef7392942a1d4f85f0fbc3610b7dc5))
+* multicorr refinement as matrix products on Accelerate, 3.3x faster per cube ([#66](https://github.com/mac4DSTEM/CuboKit/issues/66)) ([1130f2f](https://github.com/mac4DSTEM/CuboKit/commit/1130f2f9b598645f4e01053c3db536942ab35339))
+
 ## 0.9.0 (2026-10-22)
 
 The 4D-STEM study release: the polar cube and radial background, the ellipse fits and Fourier resampling, speed and
