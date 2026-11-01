@@ -486,3 +486,42 @@ Pins: `tools/embedding/pins.py`, `Tests/CuboEmbeddingTests/Fixtures/embedding.js
 Peak lists are `row`/`column`/`intensity`, brightest first. The app's Float32 arithmetic, kernel construction from a measured
 probe, funnel diagnostics, validation and provenance are not ported (`docs/bragg.md`). Tolerances: py4DSTEM 1e-9 px and 1e-10
 relative; app 1e-3 px and 1e-5 relative (measured 1.5e-12 / 1.3e-13 and 1.8e-4 / 1.2e-6). Reproduction: `tools/bragg/pins.py`.
+
+## Known limits and decisions
+
+Open work is in the [issues](https://github.com/mac4DSTEM/CuboKit/issues), including the ones closed as *not planned* and
+parked for later. Speed against py4DSTEM is in `docs/benchmarks.md`.
+
+- **Metal against the CPU without a resident cube.** The mean, max and selected-area patterns are bandwidth-bound, and the
+  CPU reads the cube in place, so the CPU stays their default (typical size, 100 x 100 x 64 x 64 Float32: Metal mean and max
+  6.4 ms staged against 2.4 ms on the CPU, mask mean 9.7 against 1.6). The virtual image and the centre of mass are faster on
+  Metal for a `MemoryCube`, the centre of mass at 128 x 128 detectors is not (one thread per pattern). Choosing the path is
+  the app's.
+- **Double FFT on lengths vDSP does not take** (Bluestein: padded parallax sizes, ptychography detectors such as 165) is bound
+  by vDSP's Double FFT; a vectorised Bluestein on vDSP's DFT measured 1.1x and was not kept. Float32 callers use
+  `ParallaxFourierShifter.shiftedSingle` and single-slice ptychography `.single`, which take every size. The hot-pixel mean
+  stays Float32 on purpose (`HotPixelFilter`).
+- **`Calibration` follows py4DSTEM:** binning, thinning, padding and resampling change the pixel sizes but not the origin (in
+  detector pixels), so an origin measured before `bin_Q(2)` is wrong afterwards. A caller that stores the origin rescales it.
+- **`ResidentCube`** is capped at half of the physical memory and needs the cube in one Metal buffer
+  (`ResidentCube.availability(of:)` says which limit and how far over). No chunked variant (decided 2026-10-22): the app falls
+  back to the tiled path.
+- **Metal sums are Float32 within a tile:** a per-tile sum or product past about 3.4e38, or a selection weight below the
+  Float32 range, gives ±∞ or NaN where the CPU Double path stays finite. Not reachable with detector counts.
+- **Polar cube radius scale:** the polar cube's radius is on the minor-axis scale (`rr = (b / a) * hypot`), the radial
+  background's lookup radius on the major-axis scale. Both are py4DSTEM's, ported as they are; for `a != b` the background
+  profile is stretched by `a / b` against the polar bins (`testRadialBackgroundOfACircle`: a circle agrees with the planted
+  exponential to 0.2 %).
+- **Amorphous-ring fit:** chaotic at rounding level in its poorly determined parameters (py4DSTEM's own result moves by up to
+  7e-4 in the axes when the start changes by one ulp on the `tilted` case); tests compare ellipses at 1e-6 and the residual sum
+  of squares at 1e-6 relative, not parameter by parameter. `fit_ellipse_1D` with default `fitradii` raises `TypeError`
+  upstream; the kit's default is `(0, min(shape)/2)`.
+- **`PolarCube`** keeps the whole cube in Double when asked for (`PolarCubeData`); a lazy `CubeSource` adapter or a Float32
+  variant is for the consumer that needs it. The polar cube and radial background are CPU only (a Metal path would be bound
+  by the host copy).
+- **Shared numerics:** NMF, the Gaussian filter, the median and the SVD are shared (CuboBragg's `lstsq` runs on
+  CuboEmbedding's LAPACK SVD), except `Featurization`'s feature median and the sorted-window medians of `HotPixelFilter` and
+  `medianFilterMaskedPixels`.
+- **Not ported:** `Featurization.from_braggvectors`, ICA, `RobustScaler`, `spatial_separation` and `consensus`. The GMM k-means
+  start is scikit-learn 1.4.2's Lloyd loop with the data centred as 1.9.1 does (every pin agrees on labels). Upstream
+  `NMF(init=None)` with `random_state=None` is not bit repeatable (an unseeded randomised SVD).
