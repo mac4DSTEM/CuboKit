@@ -143,7 +143,7 @@ Double reference chain. Numbers are held to the Python reference within its own 
 - Friedel origins with upsampling factors of 1e4 and above, or on detectors of 1024 pixels and more: not refuted.
 - `ResidentCube` holds the cube in one Metal buffer and refuses a cube above half of the physical memory or larger than the device's maximum buffer length (`ResidentCube.availability(of:)` says which).
 - `Calibration` follows py4DSTEM: the edits change pixel sizes, not the origin in detector pixels.
-- The polar cube, the radial background and the ellipse fits run on the CPU only; `docs/open-items.md` lists what is open.
+- The polar cube, the radial background and the ellipse fits run on the CPU only; known limits are in `docs/parity.md`, open work in the GitHub issues.
 - Nothing here is validated on a microscope.
 
 ## Platform
@@ -177,7 +177,7 @@ so `tools/test.sh` runs everywhere; with the data present it runs more.
 Semantic versions in the 0.x series, tagged; the current release is **0.9.0**. Add it to a package with
 
 ```
-.package(url: "https://github.com/mac4DSTEM/CuboKit.git", exact: "0.9.0")
+.package(url: "https://github.com/mac4DSTEM/CuboKit.git", from: "0.9.0")
 ```
 <!-- x-release-please-end -->
 
