@@ -22,7 +22,24 @@ public enum OriginEstimator: Sendable, Hashable {
     /// `max(radius · radiusScale, radius + minimumMargin)` of it (boundary included), intensities clamped at 0; a pass with
     /// no mass keeps the last centre and stops, a pass that moves the centre by under 1e-4 pixel stops after taking it.
     /// Non-finite pixels read as the median of their finite 8 neighbours (0 when none).
-    case iteratedWindow(passes: Int = 4, minimumMargin: Double = 1.5, binnedCoarse: Bool = true)
+    /// `seed` picks the coarse step (``IteratedWindowSeed``); the default is the block argmax described above.
+    case iteratedWindow(passes: Int = 4, minimumMargin: Double = 1.5, binnedCoarse: Bool = true,
+                        seed: IteratedWindowSeed = .brightestBlock)
+}
+
+/// Where the iterated window starts.
+public enum IteratedWindowSeed: Sendable, Hashable {
+    /// The brightest `bin × bin` block (`binnedCoarse`), the estimator's original seed. CPU and Metal.
+    case brightestBlock
+    /// The pixel whose disk of radius `radius` (offsets with `dr² + dc² ≤ radius²`, clipped at the detector edge) holds
+    /// the most counts, summed in Double after the same non-finite fill and clamping at 0 as the passes; ties go to the
+    /// first pixel in raster order. It is the matched filter of a flat disk, so it collects the whole disk's counts
+    /// where a block on a fixed grid collects a fraction of them, and a uniform background adds the same to every interior
+    /// candidate (one within `radius` of an edge collects less). Use it at low dose (a few counts per pixel), where a block
+    /// of background noise can outshine the block parts of the disk. It costs about `rows · columns · (2 radius + 1)`
+    /// additions per pattern, which outweighs the passes. `binnedCoarse` is ignored (it still takes part in equality).
+    /// CPU only: `path: .metal` throws `unsupportedOnMetal`.
+    case brightestDisk
 }
 
 /// The Float32 arithmetic of the iterated-window estimator, shared by the CPU path and the host side of the Metal path.
@@ -50,13 +67,54 @@ enum IteratedWindow {
         return k % 2 == 1 ? nb[k / 2] : 0.5 * (nb[k / 2 - 1] + nb[k / 2])
     }
 
+    /// `IteratedWindowSeed.brightestDisk`: the pixel whose disk of radius `r` (dr² + dc² ≤ r², clipped at the edges) holds
+    /// the most counts, the pattern filled and clamped at 0 as the passes read it, summed in Double through row prefix sums;
+    /// the first such pixel in raster order.
+    static func brightestDisk(_ pat: UnsafeBufferPointer<Float>, rows qy: Int, columns qx: Int, radius r: Float)
+        -> (row: Float, column: Float) {
+        // prefix[y * (qx + 1) + x] = sum of row y over columns 0..<x
+        var prefix = [Double](repeating: 0, count: qy * (qx + 1))
+        for y in 0..<qy {
+            var s = 0.0
+            for x in 0..<qx {
+                s += Double(max(filled(pat, y, x, qy, qx), 0))
+                prefix[y * (qx + 1) + x + 1] = s
+            }
+        }
+        let rr = Double(r) * Double(r)
+        let reach = min(Int(Double(r).rounded(.down)), max(qy, qx))   // a disk wider than the detector reaches no further
+        // half-width of the disk's row at offset dy: the largest dx with dx² + dy² ≤ r²
+        let half = (0...reach).map { dy -> Int in
+            Int((rr - Double(dy * dy)).squareRoot().rounded(.down))
+        }
+        var best = -Double.greatestFiniteMagnitude
+        var bestR = 0, bestC = 0
+        for y in 0..<qy {
+            for x in 0..<qx {
+                var s = 0.0
+                for dy in max(-reach, -y)...min(reach, qy - 1 - y) {
+                    let yy = y + dy
+                    let h = half[abs(dy)]
+                    let x0 = max(0, x - h), x1 = min(qx - 1, x + h)
+                    s += prefix[yy * (qx + 1) + x1 + 1] - prefix[yy * (qx + 1) + x0]
+                }
+                if s > best { best = s; bestR = y; bestC = x }
+            }
+        }
+        return (Float(bestR), Float(bestC))
+    }
+
     /// One pattern: the centre (row, column) in detector pixels.
     static func origin(_ pat: UnsafeBufferPointer<Float>, rows qy: Int, columns qx: Int, radius r: Float, radiusScale: Float,
-                       passes: Int, margin: Float, binned: Bool) -> (row: Float, column: Float) {
+                       passes: Int, margin: Float, binned: Bool, diskSeed: Bool = false) -> (row: Float, column: Float) {
         let bin = binned ? max(1, Int(r.rounded())) : 1   // rounded(): half away from zero, as Metal's round
         var bestSum = -Float.greatestFiniteMagnitude
         var coarseR = 0.5 * Float(qy - 1), coarseC = 0.5 * Float(qx - 1)
-        var by = 0
+        if diskSeed {
+            let seed = brightestDisk(pat, rows: qy, columns: qx, radius: r)
+            coarseR = seed.row; coarseC = seed.column
+        }
+        var by = diskSeed ? qy : 0
         while by < qy {
             let yEnd = min(by + bin, qy)
             var bx = 0
@@ -139,8 +197,12 @@ extension OriginMeasurement {
             let (map, _) = try await measure(of: source, radius: radius, radiusScale: radiusScale, tiling: tiling)
             progress?(1)
             return map
-        case .iteratedWindow(let passes, let minimumMargin, let binnedCoarse):
+        case .iteratedWindow(let passes, let minimumMargin, let binnedCoarse, let seed):
             guard passes >= 0, passes <= 1000 else { throw CuboVirtualError.invalidInput("the pass count must be from 0 to 1000 (got \(passes))") }
+            let diskSeed = seed == .brightestDisk
+            if diskSeed, path == .metal {
+                throw CuboVirtualError.unsupportedOnMetal("The brightest-disk seed of the iterated-window origin")
+            }
             guard minimumMargin >= 0, minimumMargin.isFinite else {
                 throw CuboVirtualError.invalidInput("the minimum margin must be finite and not negative (got \(minimumMargin))")
             }
@@ -164,7 +226,7 @@ extension OriginMeasurement {
                         values.withUnsafeBufferPointer { all in
                             let o = IteratedWindow.origin(UnsafeBufferPointer(rebasing: all[k * n..<(k + 1) * n]), rows: qy,
                                                           columns: qx, radius: r, radiusScale: scale, passes: passes,
-                                                          margin: margin, binned: binnedCoarse)
+                                                          margin: margin, binned: binnedCoarse, diskSeed: diskSeed)
                             return (o.row, o.column)
                         }
                     }

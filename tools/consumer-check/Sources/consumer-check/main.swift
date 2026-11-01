@@ -703,7 +703,7 @@ do {
     let originMap = try await OriginMeasurement.measure(of: originSource, radius: 5, estimator: .iteratedWindow(), path: .cpu)
     let sensitivity = try await OriginMeasurement.windowSensitivity(of: originSource, radius: 5)
     let originNear = abs(originMap.meanRow - 9.5) < 0.2 && abs(originMap.meanColumn - 9.5) < 0.2
-    let estimatorsDiffer = OriginEstimator.py4DSTEM != OriginEstimator.iteratedWindow()
+    let estimatorsDiffer = OriginEstimator.py4DSTEM != OriginEstimator.iteratedWindow() && OriginEstimator.iteratedWindow(seed: .brightestDisk) != OriginEstimator.iteratedWindow()
     check("OriginMeasurement.measure(estimator: .iteratedWindow) and windowSensitivity", originNear && estimatorsDiffer && sensitivity != nil)
     let indices: [(Int, Int)] = [(-2, -2), (-2, 1), (-1, 2), (0, 1), (1, -1), (1, 2), (2, 0), (2, 2), (-1, -1)]
     var lattice: [LatticePeak] = []
