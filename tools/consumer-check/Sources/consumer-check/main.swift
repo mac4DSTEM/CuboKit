@@ -122,7 +122,9 @@ do {
           && abs(singlePeaks[0].row - doublePeaks[0].row) < 1e-3 && abs(singlePeaks[1].column - doublePeaks[1].column) < 1e-3)
     check("BraggDetector.supportsSinglePrecision", BraggDetector.supportsSinglePrecision(detectorRows: 48, detectorColumns: 48)
           && BraggDetector.supportsSinglePrecision(detectorRows: 56, detectorColumns: 40)
-          && !BraggDetector.supportsSinglePrecision(detectorRows: 0, detectorColumns: 40))
+          && BraggDetector.supportsSinglePrecision(detectorRows: 22, detectorColumns: 21)
+          && !BraggDetector.supportsSinglePrecision(detectorRows: 0, detectorColumns: 40)
+          && !BraggDetector.supportsSinglePrecision(detectorRows: 22, detectorColumns: -1))
     let plainPeaks = try detector.detect(image, options: braggOptions)
     check("BraggDetector.detectWithFunnel(DetectorImage)", doublePeaks == plainPeaks
           && doubleFunnel.acceptedCount == 2 && doubleFunnel.localMaximumCount >= 2 && singleFunnel.acceptedCount == 2)
@@ -152,13 +154,26 @@ do {
     check("BraggMaxima.findWithFunnel", found.peaks.count == 2 && found.funnel.localMaximumCount == 2 && found.funnel.correlationMaximum == 3
           && found.peaks == plain)
     do {
-        var tooBig = singleOptions
-        tooBig.subpixel = .parabolic
-        _ = try BraggDetector(kernel: DetectorImage(detectorRows: 40, detectorColumns: 56, values: [Double](repeating: 1, count: 40 * 56), path: .cpu))
-            .detect(DetectorImage(detectorRows: 40, detectorColumns: 56, values: [Double](repeating: 1, count: 40 * 56), path: .cpu), options: tooBig)
-        check("BraggPrecision.single refuses an unsupported size", false)
-    } catch let error as CuboBraggError {
-        check("BraggPrecision.single refuses an unsupported size", { if case .invalidOption = error { return true } else { return false } }())
+        // .single runs on every detector size (CuboBragg: FloatFFT2D(anyRows:columns:)), here 22 x 21, which vDSP DFT cannot take.
+        let oddProbe = try SyntheticProbe.make(radius: 2, width: 1, detectorRows: 22, detectorColumns: 21)
+        let oddKernel = try ProbeKernel.sigmoid(oddProbe, innerRadius: 2, outerRadius: 4, origin: (11, 10))
+        var odd = [Double](repeating: 0, count: 22 * 21)
+        for i in 0..<22 { for j in 0..<21 { odd[i * 21 + j] = 100 / (1 + exp(4 * (hypot(Double(i) - 11.3, Double(j) - 9.6) - 2))) } }
+        let oddImage = DetectorImage(detectorRows: 22, detectorColumns: 21, values: odd, path: .cpu)
+        let oddDetector = try BraggDetector(kernel: oddKernel)
+        var oddDouble = BraggDiskOptions()
+        oddDouble.minimumPeakSpacing = 4
+        oddDouble.edgeBoundary = 2
+        var oddSingle = oddDouble
+        oddSingle.precision = .single
+        let oddSinglePeaks = try oddDetector.detect(oddImage, options: oddSingle)
+        let oddDoublePeaks = try oddDetector.detect(oddImage, options: oddDouble)
+        check("BraggPrecision.single accepts a non-vDSP size (22 x 21)", BraggDetector.supportsSinglePrecision(detectorRows: 22, detectorColumns: 21)
+              && !FloatFFT2D.supports(rows: 22, columns: 21) && oddDoublePeaks.count == 1 && oddSinglePeaks.count == 1
+              && abs(oddDoublePeaks[0].row - 11.3) < 1 && abs(oddDoublePeaks[0].column - 9.6) < 1
+              && abs(oddSinglePeaks[0].row - oddDoublePeaks[0].row) < 1e-3 && abs(oddSinglePeaks[0].column - oddDoublePeaks[0].column) < 1e-3)
+    } catch {
+        check("BraggPrecision.single accepts a non-vDSP size (22 x 21)", false)
     }
 } catch {
     check("Bragg single path, funnel", false)
