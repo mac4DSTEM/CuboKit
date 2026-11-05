@@ -121,7 +121,11 @@ private func model(_ label: String) -> (OriginFitModel, Bool) {
 
     @Test func originFitMaskLeavesPositionsOut() throws {
         // A plane with one wild value: masked out, the fit is the plane exactly.
-        var values = (0..<12).map { k in 2.0 + 0.5 * Double(k / 4) - 0.25 * Double(k % 4) }
+        var values = [Double]()
+        for k in 0..<12 {
+            let row = Double(k / 4), column = Double(k % 4)
+            values.append(2 + 0.5 * row - 0.25 * column)
+        }
         let clean = values
         values[5] = 100
         var mask = [Bool](repeating: true, count: 12)

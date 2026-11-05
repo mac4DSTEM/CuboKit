@@ -231,7 +231,7 @@ public enum BraggOrigin {
     /// py4DSTEM's `BraggVectors.histogram(mode="raw", sampling=1)`: every peak's intensity shared bilinearly between the four
     /// cells around it (floor and ceil of each coordinate); a peak with a neighbour outside the grid is dropped. The four
     /// `np.bincount` sums are added cell by cell, as upstream.
-    static func rawHistogram(_ vectors: BraggVectors, rows: Int, columns: Int) -> [Double] {
+    public static func rawHistogram(_ vectors: BraggVectors, rows: Int, columns: Int) -> [Double] {
         let size = rows * columns
         var b00 = [Double](repeating: 0, count: size), b01 = b00, b10 = b00, b11 = b00
         for list in vectors.peaks {
