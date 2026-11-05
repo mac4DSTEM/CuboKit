@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/mac4DSTEM/CuboKit/compare/0.10.0...0.11.0) (2026-11-05)
+
+
+### Features
+
+* origin from the Bragg peaks (measure_origin, fit_origin) with a symmetry centre guess ([#75](https://github.com/mac4DSTEM/CuboKit/issues/75)) ([4542585](https://github.com/mac4DSTEM/CuboKit/commit/45425859ff506a5b63835e590237b2d8830e5b86))
+
 ## [0.10.0](https://github.com/mac4DSTEM/CuboKit/compare/0.9.0...0.10.0) (2026-11-01)
 
 
