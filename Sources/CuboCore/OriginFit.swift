@@ -24,7 +24,11 @@ public enum OriginFit {
     /// The fitted surface at every position of a `rows × columns` map (row-major), over its finite values.
     /// `rankTolerance`: a design column whose remaining norm is at most this fraction of the largest column norm is left
     /// out (the rank-deficient projection, as NumPy's lstsq); 1e-12 by default.
-    public static func fit(_ values: [Double], rows: Int, columns: Int, model: OriginFitModel, robust: Bool = false,
+    /// `mask`: fit_origin's `mask` (fit_2D's `data_mask`): a position where it is false is left out of the first fit; the
+    /// robust loop still scores every position, masked ones included, as upstream does. nil fits every finite value. Like
+    /// upstream, the `.constant` model ignores it and averages every value.
+    public static func fit(_ values: [Double], rows: Int, columns: Int, model: OriginFitModel, mask dataMask: [Bool]? = nil,
+                           robust: Bool = false,
                            robustSteps: Int = 3, robustThreshold: Double = 2,
                            rankTolerance: Double = 1e-12) throws -> [Double] {
         guard rankTolerance >= 0, rankTolerance.isFinite else {
@@ -33,10 +37,13 @@ public enum OriginFit {
         guard rows > 0, columns > 0, values.count == rows * columns else {
             throw OriginFitError.invalidMap("\(values.count) values for \(rows) × \(columns)")
         }
+        if let dataMask, dataMask.count != values.count {
+            throw OriginFitError.invalidMap("the mask has \(dataMask.count) entries for \(values.count) values")
+        }
         if model == .constant { return Array(repeating: NumPySum.mean(values), count: values.count) }
         let design = Self.design(rows: rows, columns: columns, model: model)
         let p = design.count / values.count
-        var mask = values.map(\.isFinite)
+        var mask = values.indices.map { values[$0].isFinite && (dataMask?[$0] ?? true) }
         var coefficients = try solve(design, values, mask, p, model, rankTolerance)
         if robust {
             for _ in 0..<max(0, robustSteps) {

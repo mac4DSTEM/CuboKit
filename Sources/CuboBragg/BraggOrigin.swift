@@ -142,7 +142,7 @@ public enum BraggOrigin {
     /// DEVIATION from py4DSTEM f050d207: upstream fits every position its mask lets through, so an empty position enters
     /// with the guess it was given unless that guess's row is 0 (as upstream's always-(0, 0) guess is, so its default path
     /// and this one fit the same positions). Its `"constant"` model ignores the mask and averages every position; here it
-    /// averages the `used` ones.
+    /// averages the `used` ones. The robust loop scores every position, unused ones included, as upstream's `fit_2D`.
     public static func fit(_ measurement: BraggOriginMeasurement, model: OriginFitModel = .plane, robust: Bool = false,
                            robustSteps: Int = 3, robustThreshold: Double = 2) throws -> BraggOriginFit {
         let m = measurement
@@ -155,17 +155,76 @@ public enum BraggOrigin {
             fittedRow = Array(repeating: r, count: used.count)
             fittedColumn = Array(repeating: c, count: used.count)
         } else {
-            let rowValues = m.row.indices.map { used[$0] ? m.row[$0] : .nan }
-            let columnValues = m.column.indices.map { used[$0] ? m.column[$0] : .nan }
-            fittedRow = try OriginFit.fit(rowValues, rows: m.scanRows, columns: m.scanColumns, model: model, robust: robust,
-                                          robustSteps: robustSteps, robustThreshold: robustThreshold)
-            fittedColumn = try OriginFit.fit(columnValues, rows: m.scanRows, columns: m.scanColumns, model: model,
+            fittedRow = try OriginFit.fit(m.row, rows: m.scanRows, columns: m.scanColumns, model: model, mask: used,
+                                          robust: robust, robustSteps: robustSteps, robustThreshold: robustThreshold)
+            fittedColumn = try OriginFit.fit(m.column, rows: m.scanRows, columns: m.scanColumns, model: model, mask: used,
                                              robust: robust, robustSteps: robustSteps, robustThreshold: robustThreshold)
         }
         return BraggOriginFit(fittedRow: fittedRow, fittedColumn: fittedColumn,
                               residualRow: m.row.indices.map { m.row[$0] - fittedRow[$0] },
                               residualColumn: m.column.indices.map { m.column[$0] - fittedColumn[$0] },
                               used: used)
+    }
+
+    /// mac4DSTEM variant (not in py4DSTEM): a centre guess for `measure(centerGuess:score: .distance)` that finds the direct
+    /// beam where a diffracted beam is brighter than it, the case where py4DSTEM's guess (the brightest point of the map) and
+    /// its `.intensity` score both pick a reflection. A diffraction pattern is centrosymmetric about the direct beam
+    /// (Friedel's law), and the extent of the detected disks is too, so the guess is the candidate about which the map of
+    /// peak counts best matches its own point reflection.
+    ///
+    /// The map: every peak counted once (intensity 1), deposited as `rawHistogram`, smoothed by scipy's
+    /// `gaussian_filter(σ = 1, mode="reflect")`. The candidates: its local maxima (equal to the maximum of the 5 × 5 window,
+    /// scipy's `maximum_filter(size=5)`) above 5% of the largest value, the `candidates` highest (12 by default; ties in
+    /// raster order). The score of a candidate pixel c: Σ min(M(p), M(2c − p)) over the pixels p whose mirror is on the
+    /// detector. The best score wins, the first of equal scores. Peak counts, not intensities, so one strong reflection cannot
+    /// outweigh the symmetry of all the others. On py4DSTEM's Si/SiGe tutorial cube (128 × 128 detector) it returns the
+    /// direct beam at (64, 64) where the brightest point of the map is a first-order reflection at (49, 69).
+    ///
+    /// nil when no position has a peak.
+    public static func symmetryCenterGuess(_ vectors: BraggVectors, detectorRows: Int, detectorColumns: Int,
+                                           candidates: Int = 12) throws -> BraggDetectorCenter? {
+        guard detectorRows > 0, detectorColumns > 0 else {
+            throw CuboBraggError.shapeMismatch("the detector must be at least 1 × 1 (\(detectorRows) × \(detectorColumns))")
+        }
+        guard candidates > 0 else { throw CuboBraggError.invalidOption("at least one candidate (\(candidates))") }
+        let counted = BraggVectors(scanRows: vectors.scanRows, scanColumns: vectors.scanColumns,
+                                   peaks: vectors.peaks.map { $0.map { BraggPeak(row: $0.row, column: $0.column, intensity: 1) } })
+        let rows = detectorRows, columns = detectorColumns
+        let map = try GaussianFilter(sigma: 1).apply(rawHistogram(counted, rows: rows, columns: columns), rows: rows,
+                                                     columns: columns, edge: .reflect)
+        guard let top = map.max(), top > 0 else { return nil }
+        var maxima: [(index: Int, value: Double)] = []
+        for r in 0..<rows {
+            for c in 0..<columns {
+                let v = map[r * columns + c]
+                guard v > 0.05 * top else { continue }
+                var isMaximum = true
+                for rr in max(0, r - 2)...min(rows - 1, r + 2) where isMaximum {
+                    for cc in max(0, c - 2)...min(columns - 1, c + 2) where map[rr * columns + cc] > v {
+                        isMaximum = false
+                        break
+                    }
+                }
+                if isMaximum { maxima.append((r * columns + c, v)) }
+            }
+        }
+        // Stable: equal values keep raster order, as np.argsort(-values, kind="stable").
+        let chosen = maxima.enumerated().sorted { $0.element.value != $1.element.value ? $0.element.value > $1.element.value
+                                                                                       : $0.offset < $1.offset }
+            .prefix(candidates).map(\.element.index)
+        var best: (score: Double, index: Int)?
+        for index in chosen {
+            let r0 = index / columns, c0 = index % columns
+            var score = 0.0
+            for r in max(0, 2 * r0 - (rows - 1))...min(rows - 1, 2 * r0) {
+                for c in max(0, 2 * c0 - (columns - 1))...min(columns - 1, 2 * c0) {
+                    score += min(map[r * columns + c], map[(2 * r0 - r) * columns + (2 * c0 - c)])
+                }
+            }
+            if best == nil || score > best!.score { best = (score, index) }
+        }
+        guard let best else { return nil }
+        return BraggDetectorCenter(row: Double(best.index / columns), column: Double(best.index % columns))
     }
 
     /// py4DSTEM's `BraggVectors.histogram(mode="raw", sampling=1)`: every peak's intensity shared bilinearly between the four

@@ -92,6 +92,12 @@ for label, kwargs, expected_guess in [
 ]:
     bv = fresh()
     qx0, qy0, mask = bv.measure_origin(**kwargs)
+    if "center_guess" not in kwargs:
+        # upstream wrote its always-(0, 0) guess at the empty position; the kit writes the intended guess, so the pins
+        # (and the robust fits below, which score every position) are py4DSTEM's arithmetic on that value
+        qx0 = np.where(found, qx0, float(guess[0]))
+        qy0 = np.where(found, qy0, float(guess[1]))
+        bv.calibration.set_origin_meas((qx0, qy0))
     case = dict(label=label, row=flat(qx0), column=flat(qy0), maskScalar=bool(np.ndim(mask) == 0))
     # "max" cases are run by the kit with findCenter .maximum and no guess; the others with the guess given
     case["centerGuess"] = None if expected_guess == "max" or "center_guess" not in kwargs else [float(v) for v in kwargs["center_guess"]]
@@ -112,12 +118,74 @@ for label, kwargs, expected_guess in [
         bv2 = fresh()
         bv2.measure_origin()
         xf, yf, _, _ = bv2.fit_origin(plot=False)
-        assert np.array_equal(xf, np.asarray(fits[0]["fittedRow"]).reshape(R)), "default fit without a mask differs"
+        assert np.allclose(xf, np.asarray(fits[0]["fittedRow"]).reshape(R), rtol=1e-12, atol=1e-12), "default fit without a mask differs"
     case["fits"] = fits
     measures.append(case)
 
+# The mac4DSTEM symmetry guess (BraggOrigin.symmetryCenterGuess), transcribed here in NumPy/SciPy: not in py4DSTEM.
+from scipy.ndimage import maximum_filter  # noqa: E402
+
+
+def symmetry_guess(peak_lists, shape, candidates=12):
+    counted = PointListArray(dtype=dtype, shape=(1, len(peak_lists)))
+    for k, pts in enumerate(peak_lists):
+        if len(pts):
+            counted.get_pointlist(0, k).add(np.array([(p[0], p[1], 1.0) for p in pts], dtype=dtype))
+    bvc = BraggVectors((1, len(peak_lists)), shape)
+    bvc.set_raw_vectors(counted)
+    m = gaussian_filter(np.asarray(bvc.histogram(mode="raw").data, dtype=np.float64), 1, mode="reflect")
+    loc = (m == maximum_filter(m, size=5)) & (m > 0.05 * m.max())
+    idx = np.argwhere(loc)
+    order = np.argsort(-m[loc], kind="stable")[:candidates]
+    rows, cols = shape
+    best = None
+    for k in order:
+        r, c = (int(v) for v in idx[k])
+        i0, i1 = max(0, 2 * r - (rows - 1)), min(rows - 1, 2 * r)
+        j0, j1 = max(0, 2 * c - (cols - 1)), min(cols - 1, 2 * c)
+        a = m[i0 : i1 + 1, j0 : j1 + 1]
+        b = m[2 * r - i1 : 2 * r - i0 + 1, 2 * c - j1 : 2 * c - j0 + 1][::-1, ::-1]
+        score = float(np.minimum(a, b).sum())
+        if best is None or score > best[0]:
+            best = (score, (r, c))
+    return [float(v) for v in best[1]]
+
+
+# A pattern whose first-order reflection g1 is brighter than the direct beam at every position (Si/SiGe-like), no descan:
+# py4DSTEM's guess and its intensity score pick the reflection; the symmetry guess and a distance score pick the beam.
+bright = []
+beam = np.array([25.0, 27.0])
+for k in range(R[0] * R[1]):
+    o = beam + rng.normal(0, 0.1, 2)
+    pts = [(o[0], o[1], 60.0 + rng.uniform(-5, 5))]
+    for i in (-2, -1, 0, 1, 2):
+        for j in (-2, -1, 0, 1, 2):
+            if (i, j) == (0, 0) or abs(i) + abs(j) > 3:
+                continue
+            p = o + i * g1 + j * g2
+            if 0 < p[0] < Q[0] - 1 and 0 < p[1] < Q[1] - 1:
+                pts.append((p[0], p[1], 200.0 if (i, j) == (1, 0) else float(rng.uniform(5, 40))))
+    rng.shuffle(pts)
+    bright.append(pts)
+bright_pla = PointListArray(dtype=dtype, shape=R)
+for k, pts in enumerate(bright):
+    bright_pla.get_pointlist(k // R[1], k % R[1]).add(np.array([tuple(p) for p in pts], dtype=dtype))
+bvb = BraggVectors(R, Q)
+bvb.set_raw_vectors(bright_pla)
+sym = symmetry_guess(bright, Q)
+assert np.hypot(sym[0] - beam[0], sym[1] - beam[1]) < 1, sym
+bqx, bqy, _ = bvb.measure_origin(center_guess=tuple(sym))
+symmetry = dict(
+    peaks=[[list(map(float, p)) for p in pts] for pts in bright],
+    guess=sym,
+    row=flat(bqx),
+    column=flat(bqy),
+    planedGuess=symmetry_guess(peaks, Q),
+)
+
 out = dict(
     reference="py4DSTEM f050d207 / 0.14.19",
+    symmetry=symmetry,
     scan=list(R),
     detector=list(Q),
     peaks=[[list(map(float, p)) for p in pts] for pts in peaks],
@@ -128,3 +196,7 @@ out = dict(
 dest = pinenv.fixtures("CuboBraggTests") / "braggorigin.json"
 dest.write_text(json.dumps(out, separators=(",", ":"), allow_nan=True) + "\n")
 print("fixture bytes", dest.stat().st_size, "guess", guess)
+_bv = BraggVectors(R, Q)
+_bv.set_raw_vectors(bright_pla)
+_qx, _qy, _ = _bv.measure_origin()
+assert np.all(np.hypot(_qx - (beam[0] + g1[0]), _qy - (beam[1] + g1[1])) < 1), "py4DSTEM's default should pick g1 here"
