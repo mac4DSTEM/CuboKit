@@ -126,7 +126,7 @@ for label, kwargs, expected_guess in [
 from scipy.ndimage import maximum_filter  # noqa: E402
 
 
-def symmetry_guess(peak_lists, shape, candidates=12):
+def symmetry_guess(peak_lists, shape, candidates=None):
     counted = PointListArray(dtype=dtype, shape=(1, len(peak_lists)))
     for k, pts in enumerate(peak_lists):
         if len(pts):
@@ -136,7 +136,7 @@ def symmetry_guess(peak_lists, shape, candidates=12):
     m = gaussian_filter(np.asarray(bvc.histogram(mode="raw").data, dtype=np.float64), 1, mode="reflect")
     loc = (m == maximum_filter(m, size=5)) & (m > 0.05 * m.max())
     idx = np.argwhere(loc)
-    order = np.argsort(-m[loc], kind="stable")[:candidates]
+    order = np.argsort(-m[loc], kind="stable")[:candidates]  # None: every maximum
     rows, cols = shape
     best = None
     for k in order:

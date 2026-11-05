@@ -174,19 +174,20 @@ public enum BraggOrigin {
     ///
     /// The map: every peak counted once (intensity 1), deposited as `rawHistogram`, smoothed by scipy's
     /// `gaussian_filter(σ = 1, mode="reflect")`. The candidates: its local maxima (equal to the maximum of the 5 × 5 window,
-    /// scipy's `maximum_filter(size=5)`) above 5% of the largest value, the `candidates` highest (12 by default; ties in
-    /// raster order). The score of a candidate pixel c: Σ min(M(p), M(2c − p)) over the pixels p whose mirror is on the
+    /// scipy's `maximum_filter(size=5)`) above 5% of the largest value; with `candidates` only that many of the highest
+    /// (ties in raster order), every one by default, so a lattice whose disks are all detected equally often still has its
+    /// centre among them. The score of a candidate pixel c: Σ min(M(p), M(2c − p)) over the pixels p whose mirror is on the
     /// detector. The best score wins, the first of equal scores. Peak counts, not intensities, so one strong reflection cannot
     /// outweigh the symmetry of all the others. On py4DSTEM's Si/SiGe tutorial cube (128 × 128 detector) it returns the
     /// direct beam at (64, 64) where the brightest point of the map is a first-order reflection at (49, 69).
     ///
     /// nil when no position has a peak.
     public static func symmetryCenterGuess(_ vectors: BraggVectors, detectorRows: Int, detectorColumns: Int,
-                                           candidates: Int = 12) throws -> BraggDetectorCenter? {
+                                           candidates: Int? = nil) throws -> BraggDetectorCenter? {
         guard detectorRows > 0, detectorColumns > 0 else {
             throw CuboBraggError.shapeMismatch("the detector must be at least 1 × 1 (\(detectorRows) × \(detectorColumns))")
         }
-        guard candidates > 0 else { throw CuboBraggError.invalidOption("at least one candidate (\(candidates))") }
+        if let candidates, candidates < 1 { throw CuboBraggError.invalidOption("at least one candidate (\(candidates))") }
         let counted = BraggVectors(scanRows: vectors.scanRows, scanColumns: vectors.scanColumns,
                                    peaks: vectors.peaks.map { $0.map { BraggPeak(row: $0.row, column: $0.column, intensity: 1) } })
         let rows = detectorRows, columns = detectorColumns
@@ -211,7 +212,7 @@ public enum BraggOrigin {
         // Stable: equal values keep raster order, as np.argsort(-values, kind="stable").
         let chosen = maxima.enumerated().sorted { $0.element.value != $1.element.value ? $0.element.value > $1.element.value
                                                                                        : $0.offset < $1.offset }
-            .prefix(candidates).map(\.element.index)
+            .prefix(candidates ?? maxima.count).map(\.element.index)
         var best: (score: Double, index: Int)?
         for index in chosen {
             let r0 = index / columns, c0 = index % columns
