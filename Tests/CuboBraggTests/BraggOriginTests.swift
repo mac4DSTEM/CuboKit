@@ -5,8 +5,9 @@ import CuboBragg
 
 // Pins from py4DSTEM 0.14.19 `BraggVectors.measure_origin` and `fit_origin` (tools/bragg-origin/pins.py) on planted peaks: a
 // descan plane, reflections brighter than the direct beam at some positions, an empty position and a chosen peak at row 0.
-// The chosen peaks are copied coordinates, so the measurement is exact; the raw map and the fitted surfaces are compared with
-// assert_allclose's Float64 default (rtol 1e-7) and atol 1e-12 for values near zero (residuals).
+// The chosen peaks are copied coordinates, so the measurement is exact; the raw map is compared with assert_allclose's Float64
+// default (rtol 1e-7, atol 1e-12), the fitted surfaces with np.allclose defaults like OriginFit's fit_origin rows (py4DSTEM fits
+// by curve_fit, which stops near the least-squares surface; measured gap about 1e-6 px).
 
 private struct FitPin: Decodable {
     let label: String, fittedRow: [Double], fittedColumn: [Double], residualRow: [Double], residualColumn: [Double]
@@ -74,8 +75,18 @@ private func model(_ label: String) -> (OriginFitModel, Bool) {
             for f in c.fits {
                 let (fitModel, robust) = model(f.label)
                 let fit = try BraggOrigin.fit(m, model: fitModel, robust: robust)
-                let gaps = [worst(fit.fittedRow, f.fittedRow), worst(fit.fittedColumn, f.fittedColumn),
-                            worst(fit.residualRow, f.residualRow), worst(fit.residualColumn, f.residualColumn)]
+                // The fitted surfaces at np.allclose defaults, as OriginFit's fit_origin rows (upstream's curve_fit stops
+                // within about 1e-6 px of the least-squares surface here); a residual's gap is its surface's, so it is
+                // held to the same bound on the measured value.
+                let measuredRow = zip(f.fittedRow, f.residualRow).map { $0 + $1 }
+                let measuredColumn = zip(f.fittedColumn, f.residualColumn).map { $0 + $1 }
+                let gaps = [worst(fit.fittedRow, f.fittedRow, rtol: 1e-5, atol: 1e-8),
+                            worst(fit.fittedColumn, f.fittedColumn, rtol: 1e-5, atol: 1e-8),
+                            worst(zip(fit.residualRow, f.residualRow).map { $0.0 - $0.1 }, [Double](repeating: 0, count: f.residualRow.count),
+                                  rtol: 0, atol: 1e-8 + 1e-5 * (measuredRow.map(abs).max() ?? 0)),
+                            worst(zip(fit.residualColumn, f.residualColumn).map { $0.0 - $0.1 },
+                                  [Double](repeating: 0, count: f.residualColumn.count),
+                                  rtol: 0, atol: 1e-8 + 1e-5 * (measuredColumn.map(abs).max() ?? 0))]
                 print("Bragg origin \(c.label) / \(f.label): worst gap / bound = \(gaps.max()!)")
                 #expect(gaps.max()! <= 1, "\(c.label) / \(f.label)")
             }
