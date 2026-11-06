@@ -7,7 +7,6 @@
 //  canonical +0 (never -0, never 2 pi).
 //
 
-import CuboCore
 import Foundation
 
 /// Magnitude and direction images of a ``ScanVectorField``, in Double.

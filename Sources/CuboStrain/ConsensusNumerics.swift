@@ -36,21 +36,6 @@ enum ConsensusNumerics {
         let y: Int
     }
 
-    /// Compatibility entry point for callers that only need the vectors. The
-    /// full solver consumes `estimateLatticeBasis` so it can retain confidence
-    /// and residual diagnostics.
-    static func chooseLatticeVectors(bragg: ConsensusPeakGrid,
-                                                 x0: Float, y0: Float,
-                                                 minRadius: Float = 2,
-                                                 cancellation: ConsensusCancellation? = nil)
-        -> (g1: (x: Float, y: Float), g2: (x: Float, y: Float))? {
-        guard let estimate = estimateLatticeBasis(
-            bragg: bragg, x0: x0, y0: y0,
-            minRadius: minRadius, cancellation: cancellation
-        ) else { return nil }
-        return (estimate.g1, estimate.g2)
-    }
-
     static func vectorObservations(
         bragg: ConsensusPeakGrid, x0: Float, y0: Float, minRadius: Float,
         cancellation: ConsensusCancellation?

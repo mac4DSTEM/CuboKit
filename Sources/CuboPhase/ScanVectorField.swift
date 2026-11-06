@@ -4,7 +4,6 @@
 //  by the detector axis they lie along: `row` is py4DSTEM's x (the first detector axis), `column` its y.
 //
 
-import CuboCore
 import Foundation
 
 public struct ScanVectorField: Sendable, Equatable {
@@ -25,8 +24,6 @@ public struct ScanVectorField: Sendable, Equatable {
         self.row = row
         self.column = column
     }
-
-    var count: Int { scanRows * scanColumns }
 }
 
 public enum CuboPhaseError: Error, Equatable, Sendable, LocalizedError {

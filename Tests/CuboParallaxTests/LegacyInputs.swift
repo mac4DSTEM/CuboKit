@@ -1,5 +1,4 @@
 import Foundation
-import CuboCore
 @testable import CuboParallax
 
 /// Deterministic inputs shared by the 0.5.0 golden generator and the default-unchanged tests.

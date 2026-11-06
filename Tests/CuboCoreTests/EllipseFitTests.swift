@@ -39,8 +39,6 @@ private let pin: Pin = {
 }()
 
 private func agrees(_ a: Double, _ b: Double) -> Bool { abs(a - b) <= 1e-12 + 1e-7 * abs(b) }
-/// The optimiser's own tolerance on a fitted number (xtol = 1.49012e-8, relative to the value, floor 1).
-private func withinFitTolerance(_ a: Double, _ b: Double) -> Bool { abs(a - b) <= 1.49012e-8 * max(abs(b), 1) }
 /// The difference of two ellipse angles, which are the same ellipse modulo pi.
 private func angleDifference(_ a: Double, _ b: Double) -> Double {
     var d = (a - b).truncatingRemainder(dividingBy: .pi)
