@@ -26,8 +26,8 @@ Equal intensities are ordered by raster position (py4DSTEM's order there is NumP
 
 ## What differs in mac4DSTEM, as named options
 
-The primary behaviour is py4DSTEM's. The app (source `c809679c`, `Core/Analysis/DiskDetection.swift`) differs in the places below;
-each is an option of `BraggDiskOptions`, off by default, and is pinned to the app source, not to the new Swift.
+The primary behaviour is py4DSTEM's. mac4DSTEM's original detector differed in the places below; each is an option of
+`BraggDiskOptions`, off by default, pinned to a frozen copy of that original source.
 
 | Option | py4DSTEM (default) | mac4DSTEM |
 |---|---|---|
@@ -96,11 +96,8 @@ edge 10, spacing 12, sigma 2). Wall ms per pattern.
 |---|---|---|---|---|
 | `.double` | 5.31 | 0.87 | 40.2 | 9.7 |
 | `.single` | **0.47** | **0.140** | 35.3 | 9.3 |
-| mac4DSTEM's Float path (open-items, 2026-10-20, its own scene) | 2.05 | 0.24 to 0.27 | | about 21 |
 
-The app was not re-run here (its working tree is read-only from this repository), so its row is the figure the app measured
-(4096 positions, 18 workers), not a same-run comparison; `.single` is ahead of it on `.parabolic` by a wide margin on this
-machine class. With `.multicorr` the time is the matrix-DFT refinement in Double (`CuboParallax`, about 4 ms per peak; a Float matrix DFT there is the next speed-up), not the
+With `.multicorr` the time is the matrix-DFT refinement in Double (`CuboParallax`, about 4 ms per peak; a Float matrix DFT there is the next speed-up), not the
 correlation, which is why the two precisions are close there.
 
 ## Funnel
@@ -123,9 +120,8 @@ fill elsewhere (the origin calibration's Friedel path). A finite image is untouc
 
 ## Probe ring hint
 
-`ProbeRingHint.outerEdge(of:)` is the app's suggestion for the radius of a trench kernel when the probe is a bullseye: the outer
-edge of the ring structure of the mean pattern. It has no py4DSTEM counterpart and is pinned to the app source
-(`ProbeRingHint.swift` at `c809679c`), with the probe size from py4DSTEM's `get_probe_size` (the kit's `ProbeSize.estimate` is
+`ProbeRingHint.outerEdge(of:)` suggests the radius of a trench kernel when the probe is a bullseye: the outer edge of the
+ring structure of the mean pattern. It has no py4DSTEM counterpart and is pinned to mac4DSTEM's original source, with the probe size from py4DSTEM's `get_probe_size` (the kit's `ProbeSize.estimate` is
 bit for bit the same) feeding the app's code. The 20 % edge, the 0.25 dip and the guard `outer <= min(q)/8` are the app's, measured
 on its datasets: a hint to offer, not a default.
 
@@ -139,17 +135,13 @@ variant scene):
   power 1, 0.5 and 0, `sigma_dp`, `sigma_cc` 0, absolute, relative and ranked-relative cuts, spacing, edge 0, 1, 5 and 30, the peak
   cap, a non-square non-power-of-two detector, and a pattern with NaN and infinity (no peaks). The generator asserts there are no
   tied intensities.
-- the app source, compiled unchanged apart from access qualifiers and shims (`ProbeKernel`'s fields, a probe-size stub fed from
+- the frozen copy of mac4DSTEM's original detector, compiled unchanged apart from access qualifiers and shims (`ProbeKernel`'s fields, a probe-size stub fed from
   py4DSTEM), linked with ImagoKit 0.1.1's Float32 `FFT2D`: ten cases including the three options above, which the generator asserts
   change the answer.
 
 Measured gaps (peak counts and order equal in every case): py4DSTEM, position 1.5e-12 px and relative intensity 1.3e-13, tolerance
-1e-9 px and 1e-10; app, position 1.8e-4 px and relative intensity 1.2e-6 (Float32), tolerance 1e-3 px and 1e-5. The Gaussian filter
+1e-9 px and 1e-10; original source, position 1.8e-4 px and relative intensity 1.2e-6 (Float32), tolerance 1e-3 px and 1e-5. The Gaussian filter
 gained an `Edge` mode (`reflect` is scipy's default and what `find_Bragg_disks` uses; `nearest` stays the default of the origin
 measurement), pinned to scipy in `GaussianEdgeTests`.
 
-Regenerate from the package root, with the reference environment one level up (see the README):
-
-```sh
-../References/python/py4dstem/bin/python -I -B tools/bragg/pins.py
-```
+Regenerate with `tools/bragg/pins.py` (`CONTRIBUTING.md`).

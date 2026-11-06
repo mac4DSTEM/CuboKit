@@ -1,30 +1,24 @@
 # Parallax cross-correlation alignment
 
-`CuboParallax` is a separate product depending only on `CuboCore`'s package-scoped Double FFT.
-The README assigns `CuboPhase` to DPC; a separate product keeps the parallax API independently importable.
-This slice ports the correlation, matrix-DFT refinement, periodic Fourier shifts and fixed/running-reference
-stack alignment numerics; the detector grouping, coarse-to-fine schedule, shift-basis regularisation and masks of
-`Parallax.reconstruct` are ported in `ParallaxReconstruction` (last section).
-
-The extraction reads mac4DSTEM `c809679c8ee23a355da6af4f63665aaf64f90d0d`,
-`Core/Compute/MatrixDFTCorrelation.swift` and `Core/Analysis/ParallaxAlignment.swift`, via Git.
-Its Float operations become Double, reusing CuboCore's Accelerate/Bluestein FFT for arbitrary dimensions.
-There are no app, UI or Metal types. The numerical oracle is py4DSTEM
-`f050d207851f8accd3aa550365baaf1f38230428` (0.14.19): `align_images_fourier`,
-`upsampled_correlation`, `dftUpsample`, `get_shifted_ar` and the running-reference formula in `Parallax.reconstruct`.
+`CuboParallax` is a separate product depending only on `CuboCore`'s Double FFT, so the parallax API is importable on
+its own (`CuboPhase` holds DPC). It ports the correlation, matrix-DFT refinement, periodic Fourier shifts and
+fixed/running-reference stack alignment numerics; the detector grouping, coarse-to-fine schedule, shift-basis
+regularisation and masks of `Parallax.reconstruct` are `ParallaxReconstruction` (last section). Everything is Double
+on CuboCore's Accelerate/Bluestein FFT for arbitrary dimensions; there are no app, UI or Metal types. The numerical
+oracle is py4DSTEM `f050d207` (0.14.19): `align_images_fourier`, `upsampled_correlation`, `dftUpsample`,
+`get_shifted_ar` and the running-reference formula in `Parallax.reconstruct`.
 
 The spectrum is `FFT(reference) * conj(FFT(moving))`, without phase-only magnitude normalisation.
 An integer maximum is polished parabolically, rounded to a half pixel with ties to even, then refined
 on a `ceil(1.5 * factor)` matrix-DFT patch with a final parabolic polish. Frequencies match NumPy's
 `fftfreq`, including the positive middle frequency on odd axes. The returned translation is applied to
 the moving image and wrapped into `[-size/2, size/2)`. Both polish offsets are zero if the patch maximum
-lies on an edge, matching Python's single try/except. Nonfinite offsets on flat peaks use zero as in the
-source extraction; constant images are refused because they cannot identify a translation.
+lies on an edge, matching Python's single try/except. Nonfinite offsets on flat peaks use zero; constant images are refused because they cannot identify a translation.
 
 The default upsampling factor is 8; supported factors are 3...64 to bound the quadratic patch allocation.
 Images must be finite, at least three pixels on each axis, with checked dimensions and lengths.
 Nonfinite intermediate/output values throw. Inputs large enough to exhaust available RAM are not covered
-by a streaming or memory-budget API in this slice.
+by a streaming or memory-budget API.
 
 The running-reference option deliberately uses complex shifted spectra: its first update replaces the
 supplied reference, and later updates average shifted spectra. It does not Fourier-transform the returned
@@ -36,11 +30,7 @@ of even-sized real images can therefore lose their Nyquist component.
 
 `tools/parallax/pins.py` checks the reference checkout commit and byte-compares the installed oracle source
 files to it. Versions are enforced and recorded in `Tests/CuboParallaxTests/Fixtures/alignment.json`:
-Python 3.12.4, NumPy 2.5.0, SciPy 1.18.0, py4DSTEM 0.14.19. Regenerate from the package root:
-
-```sh
-../References/python/py4dstem/bin/python -I -B tools/parallax/pins.py
-```
+Python 3.12.4, NumPy 2.5.0, SciPy 1.18.0, py4DSTEM 0.14.19 (`CONTRIBUTING.md` says how to run a generator).
 
 Four small three-frame stacks cover integer/wrapped shifts (8 × 10), fractional shifts on odd axes
 (9 × 11), noisy fractional shifts with a running reference (10 × 12), and a public DM4 diffraction crop
@@ -94,7 +84,7 @@ Schedule and update per bin, as in the source:
 - Results: `alignedStack`, `stackMask`, `shifts` (row, column; py4DSTEM `_xy_shifts`, the shifts `subpixel_alignment`
   applies to the retained `unshiftedStack`), `image`, `mask`, `errors` (one per bin) and `binValues`.
 
-Named option (cheap, from the source application): `emptySchedule = .singlePassAtMinimumBin`. When the bright-field
+Named option (from mac4DSTEM's original driver): `emptySchedule = .singlePassAtMinimumBin`. When the bright-field
 disk is one pixel wide, no binning is possible; py4DSTEM raises `IndexError` from `bin_vals[-1]` (here
 `ParallaxError.invalidInput`, the default) when `numIterAtMinBin > 1`, and otherwise runs no pass; the application
 runs one pass at the minimum bin. Its coarse-to-fine bin rules are otherwise py4DSTEM's; the application's level
@@ -136,11 +126,10 @@ lose their Nyquist component in the first fractional shift (the effect noted abo
 `endToEndEqualsChainedSteps` checks that `process` equals the chained single steps exactly (stack, shifts, image,
 errors, limits, upsampled image and probe offsets, with and without position correction and without the subpixel stage).
 
-### The application's asks (for 0.6.0)
+### Additions of 0.6.0
 
-mac4DSTEM's switch to CuboParallax 0.4.0 left six asks; each is an addition whose defaults keep 0.5.0 behaviour.
-`DefaultUnchangedTests` holds the 0.5.0 outputs (fixture `legacy050.json`, written by a throwaway generator run on
-`deb33d9`) for `shifted`, `align`, `correct`, `section`, `correctPositions` and `process` on deterministic inputs and
+Six additions, each with defaults that keep the 0.5.0 behaviour. `DefaultUnchangedTests` holds the 0.5.0 outputs
+(fixture `legacy050.json`) for `shifted`, `align`, `correct`, `section`, `correctPositions` and `process` on deterministic inputs and
 compares the new code within 1e-12 of `max(1, max|expected|)`; the measured gap is zero.
 
 - **`ParallaxFourierShifter`** (`Sendable`, immutable): the FFT plan is built once. `shifted(_:by:)`, a batch

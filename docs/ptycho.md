@@ -1,9 +1,8 @@
 # CPU single-slice ptychography
 
-Probe construction precedes the CPU engine in the API and in the regression tests.
 Public Sendable numerical values only; no app types, settings, progress, provenance, UI or Metal.
 
-`PtychographyProbe.build` supports the app's defocus, two-fold astigmatism and C30
+`PtychographyProbe.build` supports defocus, two-fold astigmatism and C30
 probe terms (and, from 0.6.0, the higher-order terms below), with py4DSTEM's sign/azimuth/aperture convention. `SingleslicePtychography`
 uses full-batch complex-object gradient descent, fixed positions, periodic object
 patches and the reference object amplitude constraint (switchable, below). Coherence envelopes and the Fourier-amplitude and aberration-fitting
@@ -11,17 +10,10 @@ constraints are absent; position correction is described in its section below (0
 aperture and support constraints are described in the sections below (0.5.0).
 See the module's DocC Scope for the precise supported subset.
 
-Regenerate from this worktree:
-
-```sh
-MPLCONFIGDIR="$PWD/.build/matplotlib" ../../References/python/py4dstem/bin/python -I -B tools/ptycho/pins.py
-```
-
-The script verifies py4DSTEM f050d207 / 0.14.19, NumPy 2.5.0, and the installed
+Fixtures: `tools/ptycho/pins.py` (`CONTRIBUTING.md` says how to run a generator). The script verifies py4DSTEM f050d207 / 0.14.19, NumPy 2.5.0, and the installed
 oracle files against the pinned checkout. Actual `ComplexProbe.build` and public
 `SingleslicePtychography.reconstruct` produce the pins. Only the already-numerical
-preprocessing state is injected; CoM, rotation and calibrations are outside this
-slice. Seed 20261016 creates the object; shuffle seed 1729. 8×8 scan, 16×16 detector,
+preprocessing state is injected; CoM, rotation and calibrations are the preprocessing's (below). Seed 20261016 creates the object; shuffle seed 1729. 8×8 scan, 16×16 detector,
 32×32 object, three iterations, fractional/ties-to-even positions and anisotropic
 sampling. Complete uncompressed fixture is about 535 KB. A 7×10 hard-aperture probe
 also exercises the arbitrary-length FFT and row/column convention.
@@ -43,9 +35,6 @@ A uniform starting object puts exact Fourier zeros outside a hard aperture; the
 projected phase there is undefined and FFT roundoff differs between precisions.
 The fixture therefore starts with a fixed weak random phase (documented in the
 generator). No numerical correction to py4DSTEM's operator is implemented.
-
-The red baseline returned a zero probe/unchanged object; both regression tests failed.
-An independent review requested the extra constraint and rectangular pins, now added.
 
 ## Probe constraints (centre of mass, amplitude)
 
@@ -75,10 +64,9 @@ to |CoM| = 6.6e-15 px (bound 1e-9) with intensity kept; invalid radius or width 
 On non-compact probes (such as the pinned 16x16 one) the periodic centre of mass is
 not a fixed point of one shift, in py4DSTEM as here (0.017 px remains from 1.2 px).
 
-Object amplitude cap: see "App options" below (the cap stays on by default, as py4DSTEM). mac4DSTEM's versions of the two probe constraints
-compute the same formulas in Float32 (CoM shift rounded to Float32, mask in Double); the
-kit does everything in Double, which is the py4DSTEM-conformant choice, so no app variant
-is offered. The other py4DSTEM probe constraints (Fourier amplitude, aberration fitting) remain absent.
+Object amplitude cap: see "Options from mac4DSTEM" below (the cap stays on by default, as py4DSTEM). mac4DSTEM's original
+versions of the two probe constraints computed the same formulas in Float32; the kit does everything in Double, the
+py4DSTEM-conformant choice, so no variant is offered. The other py4DSTEM probe constraints (Fourier amplitude, aberration fitting) remain absent.
 
 ## Preprocessing (`PtychographyPreparation`, 0.5.0)
 
@@ -205,12 +193,10 @@ and here alike.
 propagators and `PtychographyProbe.build`, all through py4DSTEM's preprocessing. Measured 5e-8 (probe, amplitudes), 3.9e-7 (objects), 7.4e-7 (errors) at
 2e-6. No defect was found in the port: the frequency grid, corner-centred patch offsets and Fourier shifts already follow `fftfreq` for odd lengths.
 
-## App options: object amplitude toggle and higher-order probe terms (0.6.0 candidate)
+## Options from mac4DSTEM: object amplitude toggle and higher-order probe terms (0.6.0)
 
-What the mac4DSTEM app passes to its single-slice engine and probe builder (read from `SingleslicePtychographyOptions`,
-`PtychographyProbeAberrations` and `PtychographySettings`) and the kit lacked: two things. Every other app option (iterations, step,
-normalisation, fix probe, pure phase, centre of mass, amplitude top-hat and its radius and width, the memory budget, the rolloff) was already
-in the kit. `tools/ptycho/options_pins.py` writes `Fixtures/options.json` from `ptycho.json`'s data (tolerance `2e-6` max absolute over
+Two options mac4DSTEM's original engine had and the kit lacked (every other one, iterations, step, normalisation, fix probe,
+pure phase, centre of mass, amplitude top-hat and its radius and width, was already here). `tools/ptycho/options_pins.py` writes `Fixtures/options.json` from `ptycho.json`'s data (tolerance `2e-6` max absolute over
 max(1, max|oracle|), as the other ptycho pins).
 
 - **`constrainObjectAmplitude`** (`SingleslicePtychography.reconstruct`, default `true` = py4DSTEM and the old behaviour). `false` skips the
@@ -220,7 +206,7 @@ max(1, max|oracle|), as the other ptycho pins).
   start from an object of amplitude 1.1 so the cap would matter (the pinned run keeps |object| up to 1.1, asserted; the capped kit result
   differs by more than 1e-3). Cases: toggle off, off with a fixed probe, off with pure phase. Measured 1.8e-7, 1.8e-7, 1.1e-7. Tests also:
   omitting the argument equals `true` exactly; pure phase gives the same result with either toggle.
-  Single-slice only (the app has no other engine); the mixed-state and multislice engines still always cap.
+  Single-slice only; the mixed-state and multislice engines always cap.
 - **Higher-order probe aberrations** (`PtychographyAberrationTerm`; `higherOrder:` of `PtychographyProbe.build` and
   `PtychographyPreparation.initialProbe`, `higherOrderAberrations:` of `PtychographyPreparationOptions`; empty by default, bit-identical to
   before). A term is `coefficient * alpha^(n+1)/(n+1) * cos(m phi)` or `sin(m phi)` in chi, `phi = atan2(column, row frequency)`, not negated
