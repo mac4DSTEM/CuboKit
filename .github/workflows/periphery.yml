@@ -1,12 +1,20 @@
-# Weekly unused-code scan (Periphery). A copy of the suite's template; edit it there.
-# Builds the package and its tests, scans with --retain-public (a kit's public API is used by the apps), and keeps one
-# open issue, "Periphery weekly scan", up to date with the findings. Findings are for triage; nothing is deleted here.
+# Unused-code scan (Periphery). A copy of the suite's template; edit it there.
+# Weekly: builds the package and its tests, scans with --retain-public (a kit's public API is used by the apps), and keeps
+# one open issue, "Periphery weekly scan", up to date with the findings. Findings are for triage; nothing is deleted here.
+# On a pull request that touches Swift: the same scan without the findings .periphery-baseline.json records (triaged and
+# kept) and without Codable properties (test fixtures). A finding that is left is new: it is annotated on the PR as a
+# warning and the job stays green. Delete the code or, for a false positive, write the baseline again in the same PR:
+#   swift build --build-system native --build-tests
+#   periphery scan --retain-public --retain-codable-properties --skip-build \
+#     --index-store-path .build/debug/index/store --write-baseline .periphery-baseline.json
 name: Periphery
 
 on:
   schedule:
     - cron: "17 3 * * 0"
   workflow_dispatch:
+  pull_request:
+    paths: ["**.swift", ".periphery-baseline.json", ".github/workflows/periphery.yml"]
 
 permissions:
   contents: read
@@ -14,6 +22,7 @@ permissions:
 
 jobs:
   scan:
+    if: github.event_name != 'pull_request'
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -43,3 +52,23 @@ jobs:
           cat periphery.csv
           n=$(gh issue list --state open --search "in:title \"$title\"" --json number,title -q ".[] | select(.title == \"$title\") | .number" | head -1)
           if [ -n "$n" ]; then gh issue edit "$n" --body-file body.md; else gh issue create --title "$title" --body-file body.md; fi
+
+  new-findings:
+    name: New unused code (warning only)
+    if: github.event_name == 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Periphery
+        run: brew install periphery && periphery version
+      - name: Build with the index store
+        run: swift build --build-system native --build-tests
+      - name: Scan against the baseline
+        run: |
+          periphery scan --retain-public --retain-codable-properties --skip-build --index-store-path .build/debug/index/store \
+            --baseline .periphery-baseline.json --format github-actions --relative-results | tee periphery.txt
+          count=$(grep -c '^::warning' periphery.txt || true)
+          echo "Periphery: ${count} new finding(s) against .periphery-baseline.json" >> "$GITHUB_STEP_SUMMARY"
