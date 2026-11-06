@@ -83,7 +83,7 @@ max(1, largest value). The difference is `vvlog1pf` against `log1pf` and the ord
 iteration (and before each k-means++ seed), and throw `CancellationError` when it answers true. The default never cancels
 and leaves the result unchanged (tested equal).
 
-## Options pinned to mac4DSTEM (c809679c, `Core/Analysis/DiffractionEmbedding.swift`)
+## Options pinned to mac4DSTEM's original path
 
 | Behaviour | scikit-learn path | mac4DSTEM option |
 |---|---|---|
@@ -102,19 +102,14 @@ library's range sampling, so its pin holds for that sampling algorithm.
 
 ## Pins
 
-`tools/embedding/pins.py` (run as below) calls the real scikit-learn functions, and compiles the **original** app
-numerics (sliced from the git object at the commit above, access qualifiers removed, with minimal shims for the
-cancellation token and error type) with `swiftc`, then runs them. It never imports or executes CuboEmbedding.
-
-```sh
-../../References/CuboKit/py4dstem-venv/bin/python -I -B tools/embedding/pins.py
-```
-
-It checks Python 3.12.4, NumPy 2.5.0 and scikit-learn 1.4.2 and records versions, SHA256 of the scikit-learn sources and of
-the app file in `Fixtures/embedding.json`. Data: planted-spectrum Gaussian matrices (60 × 8, and 6 × 10 with fewer rows than
+`tools/embedding/pins.py` calls the real scikit-learn functions and compiles the original mac4DSTEM numerics (a frozen
+copy at the commit the fixtures name, access qualifiers removed, minimal shims) with `swiftc`, then runs them. It never
+imports or executes CuboEmbedding. It needs the older environment of `tools/embedding/requirements.txt`
+(`CONTRIBUTING.md`), checks Python 3.12.4, NumPy 2.5.0 and scikit-learn 1.4.2, and records the versions and the SHA256
+of the scikit-learn sources and of the frozen copy in `Fixtures/embedding.json`. Data: planted-spectrum Gaussian matrices (60 × 8, and 6 × 10 with fewer rows than
 columns), three Gaussian blobs (90 × 3), a pattern set with a negative count, an all-zero pattern, and a detector smaller
 than the binned size. Cases cover an empty cluster in iteration 1, the iteration cap, and the centre-shift stop. Binary
-little-endian f64, 41 KB in all. The oracle peaked at 371 MB under an 8 GB memory cap.
+little-endian f64, 41 KB in all.
 
 Measured gaps against tolerances (tests print them):
 

@@ -1,9 +1,7 @@
 # Hot-pixel filtering
 
-`HotPixelFilter` follows actual py4DSTEM 0.14.19 (f050d207)
-`DataCube.filter_hot_pixels` on Float32 input cubes. Numerical seeding source:
-mac4DSTEM c809679c, Core/Data/HotPixelFilter.swift. No app export, tiling,
-progress, settings or provenance is ported.
+`HotPixelFilter` ports py4DSTEM 0.14.19 (f050d207) `DataCube.filter_hot_pixels` on Float32 input cubes.
+No export, tiling, progress, settings or provenance is ported.
 
 The classification window contains 21 pixels: 3×3 and the four three-pixel arms
 at distance two, excluding 5×5 corners. It wraps at detector edges and includes
@@ -22,13 +20,7 @@ is not adopted: a caller choosing such a mean can pass it explicitly to `mask`.
 input/intermediate mean, nonfinite/unrepresentable threshold or rank outside
 0...20 throws `HotPixelFilterError`. Source cube values are unchanged.
 
-Regenerate from this worktree:
-
-```sh
-MPLCONFIGDIR="$PWD/.build/matplotlib" ../../References/python/py4dstem/bin/python -I -B tools/hot-pixels/pins.py
-```
-
-The generator verifies the pinned commit, installed oracle source bytes, Python
+Fixtures: `tools/hot-pixels/pins.py` (`CONTRIBUTING.md` says how to run a generator). The generator verifies the pinned commit, installed oracle source bytes, Python
 3.12.4 and NumPy 2.5.0. Eight small synthetic Float32 cubes (seed 501) exercise edge
 and adjacent hot pixels, sequential replacement, even clipped medians, wraparound,
 comparison indices 0/1/8/20, a one-row detector and noninteger Float32 mean sums. A 256-position 1×1 detector cancellation case pins
@@ -36,18 +28,12 @@ NumPy's pairwise mean 0 where sequential summation gives 0.00390625.
 Mean samples, masks and every filtered pixel are asserted exact today (tolerance zero;
 a tolerance against py4DSTEM would be allowed for the samples). There is no comparison against a transcribed replacement implementation.
 
-Measured gap: 0 for means, masks and filtered pixels, tested via Float32 bit patterns.
-Fixture size: 30,403 bytes. Three new Swift Testing tests failed against identity/
-zero placeholders (38 issues), then passed. The intermediate sequential-only mean
-implementation failed specifically on the 1×1 detector mean. The final pairwise
-path makes that fixture pass without changing its expected value or tolerance.
-An independent review identified that case as well.
+Measured gap: 0 for means, masks and filtered pixels, tested via Float32 bit patterns (fixture size 30,403 bytes).
+A sequential-only mean fails on the 1×1 detector mean; the pairwise path is what makes that fixture pass.
 
-Two further actual-oracle fixtures pin negative-zero input medians on 1×1 and
-2×2 frames with a negative threshold so all pixels are selected. NumPy takes a
-mean of the middle one/two samples using a +0 reduction accumulator. The
-pre-fix median retained -0 and these fixtures failed at four bit-pattern checks;
-the matching +0 accumulation fixes both odd/even windows. Tolerance remains zero.
+Two further fixtures pin negative-zero input medians on 1×1 and 2×2 frames with a negative threshold so all pixels
+are selected: NumPy takes the mean of the middle one or two samples with a +0 reduction accumulator, so the median
+must accumulate from +0 as well, or -0 survives. Tolerance zero.
 
 ## Reusable replacement (`HotPixelFilter.Replacer`)
 
@@ -63,7 +49,7 @@ loop on random masks, including -0 samples and a frame at an offset in a larger 
 
 Measured 2026-10-21, release build, one thread, 256×256 Float32, 40 random masked pixels,
 2000 patterns (`CUBO_BENCH=1 swift test -c release --filter CuboCoreTests.HotPixelTests`,
-test `replacementTiming`; the mac4DSTEM app now calls this kit, so there is no separate app loop):
+test `replacementTiming`):
 
 | path | ms per pattern |
 | --- | --- |

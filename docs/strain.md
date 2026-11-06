@@ -43,7 +43,7 @@ The three compatibility options are independent:
   observation support. Pair ties prefer lower residual, then shorter vectors.
   Minimum noncentral radius defaults to 2. Empty/no-consensus inputs return nil.
 
-Result-returning variants (0.6.0, from the app's strain switch; the plain calls are unchanged and now delegate to them):
+Result-returning variants (0.6.0; the plain calls are unchanged and delegate to them):
 
 - `chooseBasisConsensusResult(_:origin:minimumRadius:isCancelled:)` returns `LatticeStrain.ConsensusBasis`: the `basis`
   (identical to `chooseBasisConsensus`), `observationCount` and `supportCount` (exact integers), and `residual` (RMS
@@ -57,26 +57,15 @@ Result-returning variants (0.6.0, from the app's strain switch; the plain calls 
 - `StrainMapResult.referenceInlierCount`: positions the reference is the median of (equals `referencePositionCount`
   for the median method, the MAD-retained count for `.madRejection`, 0 for a supplied reference).
 
-Their source is the read-only app commit `c809679c8ee23a355da6af4f63665aaf64f90d0d`,
-`Core/Analysis/StrainMapping.swift`. Only numeric helpers are retained; debug
-printing is removed. The generator independently compiles the **original** helper
-text from that commit, removing only access/isolation qualifiers and supplying
-minimal value shims. It never imports or executes CuboStrain to generate pins.
-
-Regenerate from the package root, with the reference environment one level up (see the README):
-
-```sh
-../References/python/py4dstem/bin/python -I -B tools/strain/pins.py
-```
-
-The generator checks Python 3.12.4, NumPy 2.5.0, py4DSTEM 0.14.19, the reference
-commit and installed source identity. Inputs include exact planted lattices,
+The compatibility options are mac4DSTEM's original helpers, kept as numeric functions only. Their pins come from a
+frozen copy of that original text (`tools/strain/pins.py` compiles it with `swiftc`, removing only access and
+isolation qualifiers; it never imports or executes CuboStrain). The generator checks Python 3.12.4, NumPy 2.5.0,
+py4DSTEM 0.14.19 and the reference commit. Inputs include exact planted lattices,
 unequal-intensity noise that distinguishes weighting, a reference population
 that distinguishes MAD rejection, repeated vector clusters, and peaks measured
 on public `small_datacube.dm4` crop [0,0,200:312,200:312]. Its input SHA256 and
 source SHA256 are in `Fixtures/strain.json`. Numeric arrays are little-endian
-binary f64, under 5 KB total. Oracle execution under an 8 GB memory cap peaked at
-689 MB. The Swift source oracle is also a descendant of that capped process.
+binary f64, under 5 KB total.
 
 Absolute tolerance 1e-10 for primary fits/strains (no bit-exact claim across SVD
 implementations); measured maximum fit gap 5.33e-15, strain gap 8.88e-16 on the
@@ -130,7 +119,7 @@ would index out of range or return NaN, the kit refuses with the reason.
 `tools/strain/mapping_pins.py` (a sibling of `pins.py`, which is unchanged, as are its fixtures) runs py4DSTEM's real
 `BraggVectors.histogram`, `StrainMap.choose_basis_vectors`, `fit_basis_vectors` and `get_strain` (Agg backend, the
 plots discarded) and `get_maxima_2D`, and writes `Tests/CuboStrainTests/Fixtures/map_*.f64` and `strain_mapping.json`
-(61 little-endian f64 arrays, 277 KB; the oracle peaked at 199 MB under an 8 GB memory cap). Datasets:
+(61 little-endian f64 arrays, 277 KB). Datasets:
 
 - d1: noise-free planted lattice (7 x 8 scan, 48 x 48 detector, fractional origin, non-orthogonal reference lattice,
   planted exx, eyy, exy, theta ramps, columns 0 to 2 exactly unstrained).
