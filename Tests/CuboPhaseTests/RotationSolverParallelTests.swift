@@ -8,7 +8,6 @@ import Foundation
 import Synchronization
 import Testing
 import CuboKitTestSupport
-import CuboCore
 import CuboPhase
 
 private func bits(_ v: [Double]) -> [UInt64] { v.map { (d: Double) -> UInt64 in d.bitPattern } }

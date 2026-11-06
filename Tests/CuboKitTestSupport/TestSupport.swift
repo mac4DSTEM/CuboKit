@@ -59,10 +59,6 @@ package struct Pins: Decodable, Sendable {
             return try JSONDecoder().decode(Pins.self, from: data)
         } catch { fatalError("virtual-pins.json: \(error)") }
     }()
-
-    package func cube(_ name: String) throws -> CubePin {
-        try #require(cubes.first { $0.name == name }, "the pins hold no cube \(name)")
-    }
 }
 
 package struct CubePin: Decodable, Sendable {

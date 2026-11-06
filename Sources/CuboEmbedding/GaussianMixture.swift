@@ -107,7 +107,7 @@ public enum GaussianMixture {
         for i in 0..<n { resp[i * k + labels0[i]] = 1 }
         var parameters = try estimate(x, n, d, k, resp, regCovar, covarianceType)
         parameters.weights = parameters.weights.map { $0 / Double(n) }
-        var model = try makeModel(parameters, n, d, k, covarianceType, regCovar: regCovar, lowerBound: -.infinity,
+        var model = try makeModel(parameters, n, d, k, covarianceType, lowerBound: -.infinity,
                                   iterations: 0, converged: false)
         var lowerBound = -Double.infinity
         var converged = false
@@ -122,7 +122,7 @@ public enum GaussianMixture {
             let total = p.weights.reduce(0, +)
             p.weights = p.weights.map { $0 / total }
             lowerBound = e.logProbNorm.reduce(0, +) / Double(n)
-            model = try makeModel(p, n, d, k, covarianceType, regCovar: regCovar, lowerBound: lowerBound,
+            model = try makeModel(p, n, d, k, covarianceType, lowerBound: lowerBound,
                                   iterations: iteration, converged: false)
             if abs(lowerBound - previous) < tolerance { converged = true; break }
         }
@@ -207,7 +207,7 @@ public enum GaussianMixture {
         return Parameters(weights: nk, means: means, covariances: cov)
     }
 
-    private static func makeModel(_ p: Parameters, _ n: Int, _ d: Int, _ k: Int, _ type: CovarianceType, regCovar: Double,
+    private static func makeModel(_ p: Parameters, _ n: Int, _ d: Int, _ k: Int, _ type: CovarianceType,
                                   lowerBound: Double, iterations: Int, converged: Bool) throws -> Model {
         var chol: [Double]
         switch type {

@@ -126,9 +126,6 @@ public enum BraggMaxima {
         return (o.multicorrOrder == .refinedIntensity ? brightestFirst(found, o.tieOrder) : found, funnel)
     }
 
-    /// py4DSTEM's `filter_2D_maxima` on maxima already ordered brightest first (with mac4DSTEM's optional reference radius).
-    static func filter(_ input: [BraggPeak], _ o: BraggDiskOptions) -> [BraggPeak] { cascade(input, o).peaks }
-
     /// The filter cascade with the count after each stage and the relative reference it used.
     static func cascade(_ input: [BraggPeak], _ o: BraggDiskOptions)
         -> (peaks: [BraggPeak], local: Int, afterAbsolute: Int, afterRelative: Int, afterSpacing: Int,

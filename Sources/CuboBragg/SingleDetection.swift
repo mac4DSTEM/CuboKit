@@ -25,7 +25,6 @@ struct SingleTaps {
 
 /// The buffers one worker needs for one pattern at a time. Reused from pattern to pattern; never shared.
 final class SingleScratch: @unchecked Sendable {
-    let count: Int
     let a0: UnsafeMutablePointer<Float>, a1: UnsafeMutablePointer<Float>
     let b0: UnsafeMutablePointer<Float>, b1: UnsafeMutablePointer<Float>
     /// The complex correlation, kept for `.multicorr` (transposed layout, see CuboCore's FloatFFT2D).
@@ -37,7 +36,6 @@ final class SingleScratch: @unchecked Sendable {
     var fourierRe: [Double] = [], fourierIm: [Double] = []
 
     init(count: Int) {
-        self.count = count
         func buffer() -> UnsafeMutablePointer<Float> {
             let p = UnsafeMutablePointer<Float>.allocate(capacity: count)
             p.initialize(repeating: 0, count: count)

@@ -6,7 +6,6 @@
 //  `NMF.coordinateDescent` and `gaussian_filter` is CuboCore's `SciPyKernels.gaussianFilter2D`.
 //
 
-import CuboCore
 internal import CuboEmbedding
 import Foundation
 

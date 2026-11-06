@@ -5,8 +5,6 @@
 
 import Foundation
 import Testing
-import CuboCore
-import CuboVirtual
 import CuboPhase
 
 package enum ComDPCPins {

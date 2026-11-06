@@ -323,7 +323,7 @@ public struct BraggVectorClassification: Sendable, Equatable {
                 hRows.append((0..<positionCount).map { region[$0] ? h[i * positionCount + $0] : 0 })
             }
         }
-        candidate = Self.assemble(wColumns, hRows, featureCount, positionCount)
+        candidate = Self.assemble(wColumns, hRows, featureCount)
     }
 
     /// `split_by_class_index(i, ...)`: class `i` is split as in `split` and the regions come first, followed by the other
@@ -343,7 +343,7 @@ public struct BraggVectorClassification: Sendable, Equatable {
             wColumns.append((0..<featureCount).map { w[$0 * classCount + c] })
             hRows.append(Array(h[(c * positionCount)..<((c + 1) * positionCount)]))
         }
-        candidate = Self.assemble(wColumns, hRows, featureCount, positionCount)
+        candidate = Self.assemble(wColumns, hRows, featureCount)
     }
 
     /// `remove_class(i)`: the candidate is the classes without class `i`.
@@ -355,7 +355,7 @@ public struct BraggVectorClassification: Sendable, Equatable {
             wColumns.append((0..<featureCount).map { w[$0 * classCount + c] })
             hRows.append(Array(h[(c * positionCount)..<((c + 1) * positionCount)]))
         }
-        candidate = Self.assemble(wColumns, hRows, featureCount, positionCount)
+        candidate = Self.assemble(wColumns, hRows, featureCount)
     }
 
     /// `merge_by_class_index(i, j)`: classes `i` and `j` become one: the `H` rows add, the `W` columns average weighted by the
@@ -379,7 +379,7 @@ public struct BraggVectorClassification: Sendable, Equatable {
         guard i < wColumns.count else { throw CuboBraggError.invalidOption("class \(i) is beyond the classes left after removing \(j)") }
         wColumns[i] = wNew
         hRows[i] = hNew
-        candidate = Self.assemble(wColumns, hRows, featureCount, positionCount)
+        candidate = Self.assemble(wColumns, hRows, featureCount)
     }
 
     /// `merge_iterative(threshBPs, threshScanPosition)` (what the docstring of the empty `merge()` describes): classes whose Bragg
@@ -438,7 +438,7 @@ public struct BraggVectorClassification: Sendable, Equatable {
             }
             wColumns += mergedW
             hRows += mergedH
-            let next = Self.assemble(wColumns, hRows, featureCount, positionCount)
+            let next = Self.assemble(wColumns, hRows, featureCount)
             wCurrent = next.w
             hCurrent = next.h
             classes = next.classCount
@@ -447,7 +447,7 @@ public struct BraggVectorClassification: Sendable, Equatable {
         candidate = Candidate(classCount: classes, w: wCurrent, h: hCurrent)
     }
 
-    private static func assemble(_ wColumns: [[Double]], _ hRows: [[Double]], _ features: Int, _ positions: Int) -> Candidate {
+    private static func assemble(_ wColumns: [[Double]], _ hRows: [[Double]], _ features: Int) -> Candidate {
         let k = wColumns.count
         var w = [Double](repeating: 0, count: features * k)
         for c in 0..<k { for f in 0..<features { w[f * k + c] = wColumns[c][f] } }
