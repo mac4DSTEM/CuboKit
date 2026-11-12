@@ -118,14 +118,13 @@ public struct BraggDiskOptions: Sendable, Equatable {
 
     public init() {}
 
-    /// The mac4DSTEM variants all on: neighbour-median fill, the multicorr order of the integer maxima, and the app's
-    /// `minimumRelativeIntensity` default 0.0015 (the reference radius stays 0: the app default). Everything else is
-    /// py4DSTEM's, as in the app.
+    /// The mac4DSTEM variants on: neighbour-median fill and the multicorr order of the integer maxima. Everything else is
+    /// py4DSTEM's, the thresholds included (`minimumRelativeIntensity` 0.005; until 0.11.0 this preset set 0.0015, a value
+    /// chosen on one dataset). A dataset with weak reflections sets its own.
     public static var mac4DSTEM: BraggDiskOptions {
         var o = BraggDiskOptions()
         o.nonFinitePixels = .neighbourMedian
         o.multicorrOrder = .correlationIntensity
-        o.minimumRelativeIntensity = 0.0015
         return o
     }
 
