@@ -35,7 +35,7 @@ The primary behaviour is py4DSTEM's. mac4DSTEM's original detector differed in t
 | `nonFinitePixels` | `.propagate`: NaN or infinity spreads through the FFT and the pattern yields no peak | `.neighbourMedian`: each such pixel takes the median of its finite 8-neighbours (0 if none), before smoothing |
 | `multicorrOrder` | `.refinedIntensity`: sorted again by the refined intensity | `.correlationIntensity`: left in the order of the integer maxima |
 | `BraggDiskOptions.detectorAdapted` | (not in py4DSTEM; its literal spacing 60 and edge 20 suit ~512 px) | spacing = rounded probe radius clamped to [4, max(4, round(min(q)/8))], edge = max(2, trunc(min(q)/24)) |
-| `BraggDiskOptions.mac4DSTEM` | | the three switches above plus the app's default `minimumRelativeIntensity` 0.0015 (py4DSTEM 0.005) |
+| `BraggDiskOptions.mac4DSTEM` | | the switches above the app turns on (neighbour-median fill, the multicorr order); every threshold is py4DSTEM's, `minimumRelativeIntensity` 0.005 included |
 
 Not replicated, because they are not numerics of the detector or are below its resolution: the Gaussian taps of radius
 `max(1, round(4σ))` against scipy's `int(4σ + 0.5)` (they differ only below σ = 0.125), the kernel construction from a measured
