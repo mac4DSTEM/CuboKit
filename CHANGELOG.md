@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/mac4DSTEM/CuboKit/compare/0.11.0...0.11.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* the app preset of BraggDiskOptions keeps py4DSTEM's minimum relative intensity ([#84](https://github.com/mac4DSTEM/CuboKit/issues/84)) ([9379a78](https://github.com/mac4DSTEM/CuboKit/commit/9379a78f2125bfe76861092bd145f599fdb98284)), closes [#83](https://github.com/mac4DSTEM/CuboKit/issues/83)
+
 ## [0.11.0](https://github.com/mac4DSTEM/CuboKit/compare/0.10.0...0.11.0) (2026-11-05)
 
 
