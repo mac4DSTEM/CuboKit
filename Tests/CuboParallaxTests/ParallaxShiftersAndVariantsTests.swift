@@ -314,7 +314,9 @@ func maxGap(_ a: [Double], _ b: [Double], floor: Double = 1) -> Double {
         let ref = try Self.run(c, images: images, p: p, shifts: shifts, window: p.window, variant: .py4DSTEM)
         #expect(maxGap(app.offsets.rows + app.offsets.columns, ref.offsets.rows + ref.offsets.columns, floor: 1) > 1e-4)
     }
-    // A zero gradient (flat scores) gives a zero move in the application's loop; py4DSTEM's 0/0 is not finite and is refused.
+    // A zero gradient (flat scores) gives a zero move in the application's loop. In py4DSTEM's the 0/0 move scores NaN and
+    // `NaN < score` keeps the site where it is (CuboKit#92: checked on f050d207's `bilinearly_interpolate_array`, a NaN
+    // coordinate gives a NaN score at that site only); it used to be refused for the whole run. Mutation: the guard back -> red.
     @Test func zeroGradientIsGuarded() throws {
         let p = try AppPins.load().position
         let images = [[Double]](repeating: [Double](repeating: 1, count: 36), count: 3)
@@ -324,10 +326,10 @@ func maxGap(_ a: [Double], _ b: [Double], floor: Double = 1) -> Double {
                              shifts: shifts, window: [Double](repeating: 1, count: 36), variant: .application)
         #expect((r.offsets.rows + r.offsets.columns).allSatisfy { $0 == 0 })
         #expect(maxGap(r.scores, c.scores, floor: 1e-30) == 0 && maxGap(r.offsets.rows, c.dr) == 0)
-        #expect(throws: ParallaxError.nonfiniteValues) {
-            try Self.run(c, images: images, p: .init(rows: 6, columns: 6, count: 3, images: [], shifts: [], window: [], cases: [], flat: c),
-                         shifts: shifts, window: [Double](repeating: 1, count: 36), variant: .py4DSTEM)
-        }
+        let ref = try Self.run(c, images: images, p: .init(rows: 6, columns: 6, count: 3, images: [], shifts: [], window: [], cases: [], flat: c),
+                               shifts: shifts, window: [Double](repeating: 1, count: 36), variant: .py4DSTEM)
+        #expect((ref.offsets.rows + ref.offsets.columns).allSatisfy { $0 == 0 })
+        #expect(ref.scores.allSatisfy(\.isFinite) && maxGap(ref.scores, c.scores, floor: 1e-30) == 0)
     }
     @Test func applicationVariantRefusesRegularisation() throws {
         let p = try AppPins.load().position

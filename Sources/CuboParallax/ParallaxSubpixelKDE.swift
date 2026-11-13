@@ -33,7 +33,8 @@ public struct ParallaxProbeOffsets: Sendable, Equatable {
 /// Which implementation of the position-correction loop runs.
 public enum ParallaxPositionCorrectionVariant: Sendable {
     /// py4DSTEM `subpixel_alignment`: Double arithmetic, optional Gaussian and Butterworth regularisation of the
-    /// offsets, the step floor applied to every site, and a zero gradient left to produce what the division gives.
+    /// offsets, the step floor applied to every site, and a site whose gradient is zero (0/0) left where it is, as
+    /// py4DSTEM's NaN score comparison leaves it.
     case py4DSTEM
     /// The source application's loop: Float arithmetic for the offsets, steps and scores (the deposition itself is
     /// Double, rounded to Float for scoring), no regularisation (`gaussianSigma`, `lowpass` and `highpass` must be
@@ -244,12 +245,14 @@ public enum ParallaxSubpixel: Sendable {
                     let d = hypot(gr, gc) / step[i]
                     ddr[i] = gr * window[i] / d; ddc[i] = gc * window[i] / d
                 }
-                // A zero gradient divides 0 by 0; the trial coordinates below would trap on NaN, so refuse (the
-                // application variant guards this case instead).
-                guard ddr.allSatisfy(\.isFinite), ddc.allSatisfy(\.isFinite) else { throw ParallaxError.nonfiniteValues }
+                // A zero gradient divides 0 by 0. In py4DSTEM the NaN move gives that site a NaN score, `NaN < score` is false,
+                // so the site keeps its offset and its step shrinks while every other site moves on (CuboKit#92). Here the
+                // NaN never reaches the trial coordinates (they would trap): the site is scored unmoved and not updated.
+                let finite = (0..<n).map { ddr[$0].isFinite && ddc[$0].isFinite }
                 let fixed = Self.scores(image, images: images, rows: rows, columns: columns, shifts: shifts,
-                    dr: (0..<n).map { dr[$0] + ddr[$0] }, dc: (0..<n).map { dc[$0] + ddc[$0] }, window: window)
-                for i in 0..<n where fixed[i] < scores[i] { update[i] = true; dr[i] += ddr[i]; dc[i] += ddc[i] }
+                    dr: (0..<n).map { dr[$0] + (finite[$0] ? ddr[$0] : 0) }, dc: (0..<n).map { dc[$0] + (finite[$0] ? ddc[$0] : 0) },
+                    window: window)
+                for i in 0..<n where finite[i] && fixed[i] < scores[i] { update[i] = true; dr[i] += ddr[i]; dc[i] += ddc[i] }
             }
             for i in 0..<n { if !update[i] { step[i] *= options.stepFactor }; step[i] = max(step[i], options.minimumStep) }
             if let g = options.gaussianSigma {
