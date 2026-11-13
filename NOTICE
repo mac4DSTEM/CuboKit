@@ -25,7 +25,7 @@ ResidentCube.swift, Core/Analysis/VirtualDetector.swift and
 Shaders/VirtualMask.metal, DPStatistics.metal. The app's load views,
 calibration, residency policy and display types stay in the app.
 
-    mac4DSTEM - https://github.com/mac4DSTEM/mac4DSTEM
+    mac4DSTEM - https://github.com/macEMSuite/mac4DSTEM
     Copyright (C) 2026 Paul Lobpreis
     Licensed under the GNU General Public License v3.0
 
@@ -62,7 +62,7 @@ Where the parts come from
 
 - The cube model and the reducers (data source, resident cube, virtual detector,
   the VirtualMask and DPStatistics Metal kernels) were extracted from the GPL-3.0
-  macOS app mac4DSTEM (github.com/mac4DSTEM/mac4DSTEM, commit 7448401b) and
+  macOS app mac4DSTEM (github.com/macEMSuite/mac4DSTEM, commit 7448401b) and
   rewritten as a public API without the app's types. mac4DSTEM is the first app
   built on the kit.
 - The detector definitions are a port of py4DSTEM's make_detector, and the

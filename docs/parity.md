@@ -489,7 +489,7 @@ relative; app 1e-3 px and 1e-5 relative (measured 1.5e-12 / 1.3e-13 and 1.8e-4 /
 
 ## Known limits and decisions
 
-Open work is in the [issues](https://github.com/mac4DSTEM/CuboKit/issues), including the ones closed as *not planned* and
+Open work is in the [issues](https://github.com/macEMSuite/CuboKit/issues), including the ones closed as *not planned* and
 parked for later. Speed against py4DSTEM is in `docs/benchmarks.md`.
 
 - **Metal against the CPU without a resident cube.** The mean, max and selected-area patterns are bandwidth-bound, and the
