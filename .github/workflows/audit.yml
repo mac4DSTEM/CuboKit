@@ -1,0 +1,250 @@
+# Audit counts (a copy of the suite's template; edit it there). REPORT ONLY: every job stays green and only counts.
+# A count that reaches zero becomes a gate in ci.yml; until then this file measures.
+#   * warnings    the compiler's warnings in a debug build of the package and its tests, deduplicated.
+#   * thread      `swift test --sanitize=thread` on the unit targets (the *ParityTests targets skipped): data races.
+#   * address     `swift test --sanitize=address` on the same: out-of-bounds and use-after-free (stops at the first).
+#   * analyze     (in the warnings job) `xcodebuild analyze` when the package has C, C++ or Objective-C sources (Swift is not analysed by it).
+#   * lint        SwiftLint candidate rules on Sources/ only, counted per rule; the shared config takes those that pay.
+#   * benchmarks  tools/benchmarks/ci.sh <out.json>, if the repo has one: CPU timings compared with the previous
+#                 scheduled run's; a case more than 25 % slower is listed. Runner timings are noisy; GPU timings are
+#                 never taken here (the runner's GPU is virtual).
+# Weekly (Saturday) everything; nightly the benchmarks only. On a scheduled run the counts go into one open issue,
+# "Audit counts", kept up to date like the Periphery scan's; a nightly run comments there only when a case got slower.
+name: Audit
+
+on:
+  schedule:
+    - cron: "41 4 * * *"   # nightly: benchmarks
+    - cron: "17 5 * * 6"   # weekly: everything
+  workflow_dispatch:
+  pull_request:
+    paths: [".github/workflows/audit.yml", "tools/benchmarks/ci.sh"]
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+jobs:
+  warnings:
+    if: github.event_name != 'schedule' || github.event.schedule == '17 5 * * 6'
+    runs-on: macos-26
+    timeout-minutes: 45
+    outputs:
+      count: ${{ steps.count.outputs.count }}
+      analyze: ${{ steps.analyze.outputs.count }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Metal toolchain (only if the repo has .metal sources)
+        run: |
+          if git ls-files '*.metal' | grep -q .; then
+            xcrun -sdk macosx metal --version >/dev/null 2>&1 || sudo xcodebuild -downloadComponent MetalToolchain
+          fi
+      - name: Build the package and its tests (debug)
+        run: swift build --build-system native --build-tests 2>&1 | tee build.log || true
+      - id: count
+        name: Count
+        run: |
+          grep -E ': warning: ' build.log | grep -v '/.build/' | sed -E "s|^$PWD/||" | sort -u > warnings.txt || true
+          echo "count=$(wc -l < warnings.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          { echo "### Compiler warnings: $(wc -l < warnings.txt | tr -d ' ')"; echo '```'; head -200 warnings.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - id: analyze
+        name: Static analyzer (C, C++, Objective-C sources only)
+        run: |
+          if [ -z "$(git ls-files '*.c' '*.cc' '*.cpp' '*.m' '*.mm' | grep -v '^References/')" ]; then
+            echo "count=n/a" >> "$GITHUB_OUTPUT"; echo "### Static analyzer: no C, C++ or Objective-C sources" >> "$GITHUB_STEP_SUMMARY"; exit 0
+          fi
+          scheme=$(xcodebuild -list -json | python3 -c 'import json,sys; d=json.load(sys.stdin); w=d.get("workspace") or d.get("project"); s=w["schemes"]; print(next((x for x in s if x.endswith("-Package")), s[0]))')
+          xcodebuild analyze -scheme "$scheme" -destination 'platform=macOS' -quiet > analyze.log 2>&1 || true
+          grep -E '\.(c|cc|cpp|m|mm):[0-9]+:[0-9]+: warning: ' analyze.log | grep -v '/.build/' | sort -u > found.txt || true
+          echo "count=$(wc -l < found.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          { echo "### Static analyzer: $(wc -l < found.txt | tr -d ' ')"; echo '```'; head -100 found.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  thread:
+    if: github.event_name != 'schedule' || github.event.schedule == '17 5 * * 6'
+    runs-on: macos-26
+    timeout-minutes: 90
+    outputs:
+      count: ${{ steps.count.outputs.count }}
+      exit: ${{ steps.run.outputs.exit }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Metal toolchain (only if the repo has .metal sources)
+        run: |
+          if git ls-files '*.metal' | grep -q .; then
+            xcrun -sdk macosx metal --version >/dev/null 2>&1 || sudo xcodebuild -downloadComponent MetalToolchain
+          fi
+      - id: run
+        name: Unit tests under the Thread Sanitizer
+        run: |
+          set +e
+          swift test --sanitize=thread --skip ParityTests > tsan.log 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          tail -40 tsan.log
+      - id: count
+        name: Count
+        run: |
+          n=$(grep -c 'WARNING: ThreadSanitizer' tsan.log || true)
+          echo "count=$n" >> "$GITHUB_OUTPUT"
+          { echo "### Thread Sanitizer reports: $n (tests exit ${{ steps.run.outputs.exit }})"; echo '```'
+            grep -A12 'WARNING: ThreadSanitizer' tsan.log | head -300; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  address:
+    if: github.event_name != 'schedule' || github.event.schedule == '17 5 * * 6'
+    runs-on: macos-26
+    timeout-minutes: 90
+    outputs:
+      count: ${{ steps.count.outputs.count }}
+      exit: ${{ steps.run.outputs.exit }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Metal toolchain (only if the repo has .metal sources)
+        run: |
+          if git ls-files '*.metal' | grep -q .; then
+            xcrun -sdk macosx metal --version >/dev/null 2>&1 || sudo xcodebuild -downloadComponent MetalToolchain
+          fi
+      - id: run
+        name: Unit tests under the Address Sanitizer
+        run: |
+          set +e
+          swift test --sanitize=address --skip ParityTests > asan.log 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          tail -40 asan.log
+      - id: count
+        name: Count
+        run: |
+          n=$(grep -c 'ERROR: AddressSanitizer' asan.log || true)
+          echo "count=$n" >> "$GITHUB_OUTPUT"
+          { echo "### Address Sanitizer reports: $n (tests exit ${{ steps.run.outputs.exit }}; it stops at the first)"; echo '```'
+            grep -A20 'ERROR: AddressSanitizer' asan.log | head -200; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  lint:
+    if: github.event_name != 'schedule' || github.event.schedule == '17 5 * * 6'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      counts: ${{ steps.count.outputs.counts }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: count
+        name: SwiftLint candidate rules on Sources/
+        run: |
+          cat > .audit-swiftlint.yml <<'YML'
+          included: [Sources]
+          only_rules:
+            - force_cast
+            - force_try
+            - force_unwrapping
+            - fatal_error_message
+            - unowned_variable_capture
+            - unhandled_throwing_task
+            - weak_delegate
+          YML
+          [ -d Sources ] || sed -i 's/included: \[Sources\]/excluded: [.build, build, References, DerivedData, Tests]/' .audit-swiftlint.yml
+          docker run --rm -v "$PWD:/work" -w /work --entrypoint swiftlint ghcr.io/realm/swiftlint:0.65.1 \
+            lint --config .audit-swiftlint.yml --reporter json --quiet > lint.json || true
+          python3 - <<'PY'
+          import collections, json, os
+          found = json.load(open("lint.json"))
+          c = collections.Counter(v["rule_id"] for v in found)
+          counts = ", ".join(f"{k} {n}" for k, n in sorted(c.items())) or "none"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"counts={counts}\n")
+          lines = [f"{v['file'].replace('/work/', '')}:{v['line']} {v['rule_id']}" for v in found[:200]]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write(f"### SwiftLint candidates (Sources/): {counts}\n```\n" + "\n".join(lines) + "\n```\n")
+          PY
+
+  benchmarks:
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      summary: ${{ steps.compare.outputs.summary }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: run
+        name: Run tools/benchmarks/ci.sh
+        run: |
+          if [ ! -x tools/benchmarks/ci.sh ]; then echo "has=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "has=1" >> "$GITHUB_OUTPUT"
+          tools/benchmarks/ci.sh "$RUNNER_TEMP/bench.json"
+          cp "$RUNNER_TEMP/bench.json" bench.json
+      - uses: actions/upload-artifact@v7
+        if: steps.run.outputs.has == '1'
+        with:
+          name: bench
+          path: bench.json
+      - name: The previous scheduled run's timings
+        if: steps.run.outputs.has == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh run list -R "$GITHUB_REPOSITORY" -w audit.yml -b main -e schedule -s success -L 1 --json databaseId -q '.[0].databaseId')
+          mkdir -p prev
+          [ -n "$id" ] && gh run download "$id" -R "$GITHUB_REPOSITORY" -n bench -D prev || echo "no previous run"
+      - id: compare
+        name: Compare
+        run: |
+          if [ "${{ steps.run.outputs.has }}" != "1" ]; then
+            echo "summary=no tools/benchmarks/ci.sh" >> "$GITHUB_OUTPUT"; echo "### Benchmarks: none in this repo" >> "$GITHUB_STEP_SUMMARY"; exit 0
+          fi
+          python3 - <<'PY'
+          import json, os, statistics
+          med = lambda r: statistics.median(r["ms"])
+          key = lambda r: (r["name"], r["dtype"], r["size"])
+          now = {key(r): med(r) for r in json.load(open("bench.json"))}
+          prev = {key(r): med(r) for r in json.load(open("prev/bench.json"))} if os.path.exists("prev/bench.json") else {}
+          rows, slower = [], []
+          for k in sorted(now):
+              p = prev.get(k)
+              ratio = now[k] / p if p else None
+              rows.append(f"| {k[0]} | {k[1]} | {k[2]} | {now[k]:.3g} | {p and f'{p:.3g}' or '–'} | {ratio and f'{ratio:.2f}' or '–'} |")
+              if ratio and ratio > 1.25:
+                  slower.append(f"{k[0]} {k[1]} {k[2]} x{ratio:.2f}")
+          s = f"{len(now)} cases, " + (f"{len(slower)} more than 25 % slower: " + "; ".join(slower) if slower else ("none slower" if prev else "no previous run"))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f: f.write(f"summary={s}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write(f"### Benchmarks: {s}\n\n| case | dtype | size | median ms | previous | ratio |\n|---|---|---|---|---|---|\n" + "\n".join(rows) + "\n")
+          PY
+
+  report:
+    needs: [warnings, thread, address, lint, benchmarks]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Summary, and on a scheduled run the "Audit counts" issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WEEKLY: ${{ github.event_name != 'schedule' || github.event.schedule == '17 5 * * 6' }}
+        run: |
+          {
+            echo "Audit counts, commit ${GITHUB_SHA::7}, $(date -u +%Y-%m-%d) (run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). Report only; a count at zero becomes a gate."
+            echo
+            echo "| Measure | Count |"; echo "|---|---|"
+            if [ "$WEEKLY" = "true" ]; then
+              echo "| Compiler warnings | ${{ needs.warnings.outputs.count || 'failed' }} |"
+              echo "| Thread Sanitizer reports (tests exit ${{ needs.thread.outputs.exit || '?' }}) | ${{ needs.thread.outputs.count || 'failed' }} |"
+              echo "| Address Sanitizer reports (tests exit ${{ needs.address.outputs.exit || '?' }}) | ${{ needs.address.outputs.count || 'failed' }} |"
+              echo "| Static analyzer | ${{ needs.warnings.outputs.analyze || 'failed' }} |"
+              echo "| SwiftLint candidates (Sources/) | ${{ needs.lint.outputs.counts || 'failed' }} |"
+            fi
+            echo "| Benchmarks | ${{ needs.benchmarks.outputs.summary || 'failed' }} |"
+          } > body.md
+          cat body.md >> "$GITHUB_STEP_SUMMARY"
+          [ "${{ github.event_name }}" = "schedule" ] || exit 0
+          title="Audit counts"
+          n=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "in:title \"$title\"" --json number,title -q ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -z "$n" ]; then gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --body-file body.md
+          elif [ "$WEEKLY" = "true" ]; then gh issue edit "$n" -R "$GITHUB_REPOSITORY" --body-file body.md
+          elif grep -q 'more than 25 % slower' body.md; then gh issue comment "$n" -R "$GITHUB_REPOSITORY" --body-file body.md; fi
