@@ -8,7 +8,7 @@ authors:
 version: "0.11.1" # x-release-please-version
 date-released: "2026-11-12" # x-release-please-date
 license: GPL-3.0-only
-repository-code: "https://github.com/mac4DSTEM/CuboKit"
+repository-code: "https://github.com/macEMSuite/CuboKit"
 abstract: "A Swift package for 4D-STEM data on Apple platforms: the cube of diffraction patterns, virtual imaging, centre of mass, DPC, parallax alignment, strain, Bragg disk detection, embedding and ptychography, checked against py4DSTEM."
 keywords:
   - 4D-STEM
