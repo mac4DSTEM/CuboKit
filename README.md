@@ -174,10 +174,10 @@ so `tools/test.sh` runs everywhere; with the data present it runs more.
 ## Versioning
 
 <!-- x-release-please-start-version -->
-Semantic versions in the 0.x series, tagged; the current release is **0.11.1**. Add it to a package with
+Semantic versions in the 0.x series, tagged; the current release is **0.11.2**. Add it to a package with
 
 ```
-.package(url: "https://github.com/macEMSuite/CuboKit.git", from: "0.11.1")
+.package(url: "https://github.com/macEMSuite/CuboKit.git", from: "0.11.2")
 ```
 <!-- x-release-please-end -->
 
