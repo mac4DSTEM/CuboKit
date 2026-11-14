@@ -353,6 +353,9 @@ public enum EllipseFit {
         let t = xFixed / (p.a * cos(phiKnown / 2.0))
         let aConstrained = p.a * t
         let bConstrained = (yFixed * yFixed / (1 - (xFixed / aConstrained) * (xFixed / aConstrained))).squareRoot()
+        // Fewer than four spots in the annulus (a centre of mass over nothing) or spots the tilt can't reach give NaN; py4DSTEM
+        // returns it, this throws as the kit's other fits do (CuboKit#92).
+        guard aConstrained.isFinite, bConstrained.isFinite else { throw EllipseFitError.notFinite }
         return (aConstrained, bConstrained)
     }
 

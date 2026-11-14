@@ -129,6 +129,11 @@ public struct PolarCube: Sendable {
         guard sampling.maskThreshold.isFinite, sampling.minimumRadius.isFinite else {
             throw CuboVirtualError.invalidInput("the polar sampling needs finite numbers")
         }
+        // At 0 or below a cell no detector pixel reaches is "valid" with the value 0/0 (NaN, as py4DSTEM's mask_thresh=0 leaves
+        // it); the threshold must be positive (CuboKit#92).
+        guard sampling.maskThreshold > 0 else {
+            throw CuboVirtualError.invalidInput("the mask threshold must be positive, not \(sampling.maskThreshold)")
+        }
         if let m = detectorMask, m.count != detectorRows * detectorColumns {
             throw CuboVirtualError.maskLengthMismatch(expected: detectorRows * detectorColumns, received: m.count)
         }
