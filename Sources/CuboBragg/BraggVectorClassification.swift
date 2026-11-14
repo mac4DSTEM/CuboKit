@@ -369,6 +369,11 @@ public struct BraggVectorClassification: Sendable, Equatable {
         }
         var weightI = 0.0, weightJ = 0.0
         for p in 0..<positionCount { weightI += h[i * positionCount + p]; weightJ += h[j * positionCount + p] }
+        // The merged class's peak weights average the two by their total weight; two classes with none give 0/0 (NaN, as
+        // upstream). Refused (CuboKit#92).
+        guard weightI + weightJ != 0, (weightI + weightJ).isFinite else {
+            throw CuboBraggError.invalidOption("classes \(i) and \(j) have a total weight of 0, so they have no weighted average to merge")
+        }
         let wNew = (0..<featureCount).map { (w[$0 * classCount + i] * weightI + w[$0 * classCount + j] * weightJ) / (weightI + weightJ) }
         let hNew = (0..<positionCount).map { h[i * positionCount + $0] + h[j * positionCount + $0] }
         var wColumns = [[Double]](), hRows = [[Double]]()
@@ -545,6 +550,11 @@ extension BraggVectorClassification {
             if let darkReference { for i in 0..<pattern.count { pattern[i] -= darkReference[i] * weight } }
         }
         let total = NumPySum.pairwise(used)             // np.sum(class_image[class_image >= thresh])
+        // No position reaches the threshold: py4DSTEM divides by an empty sum (NaN); this returned an all-zero pattern that
+        // reads as a real one. Refused (CuboKit#92).
+        guard total != 0, total.isFinite else {
+            throw CuboBraggError.invalidOption("no scan position has a class weight of at least \(threshold), so the class has no pattern")
+        }
         return pattern.map { value in
             let v = value / total
             return v > 0 ? v : 0
@@ -570,10 +580,12 @@ extension BraggVectorClassification {
         let rows = shape.detectorRows, columns = shape.detectorColumns
         var pattern = [Double](repeating: 0, count: rows * columns)
         var maskWeights = [Double](repeating: 0, count: rows * columns)
+        var reached = false
         for position in 0..<shape.scanCount {
             if isCancelled?() == true { throw CancellationError() }
             let weight = classImage[position]
             guard weight >= threshold else { continue }
+            reached = true
             let peaks = vectors.peaks[position]
             var mask = [Double](repeating: 1, count: rows * columns)
             if peaks.count > 1 {
@@ -606,6 +618,11 @@ extension BraggVectorClassification {
             }
             if let darkReference { for i in 0..<current.count { current[i] -= darkReference[i] * weight } }
             for i in 0..<pattern.count { pattern[i] += current[i]; maskWeights[i] += mask[i] * weight }
+        }
+        // As `classPattern`: a class no position reaches has no pattern, not an all-zero one (CuboKit#92). A pixel every reached
+        // position masks stays 0, as upstream leaves it.
+        guard reached else {
+            throw CuboBraggError.invalidOption("no scan position has a class weight of at least \(threshold), so the class has no pattern")
         }
         return (0..<pattern.count).map { maskWeights[$0] != 0 ? pattern[$0] / maskWeights[$0] : 0 }
     }
